@@ -8,6 +8,24 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: [
+          'ui-sans-serif', 
+          '-apple-system', 
+          'system-ui', 
+          'Segoe UI', 
+          'Roboto', 
+          'Ubuntu', 
+          'Cantarell', 
+          'Noto Sans', 
+          'sans-serif', 
+          'Helvetica', 
+          'Apple Color Emoji', 
+          'Arial', 
+          'Segoe UI Emoji', 
+          'Segoe UI Symbol'
+        ],
+      },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
         "gradient-conic":
