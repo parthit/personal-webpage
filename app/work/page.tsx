@@ -1,26 +1,34 @@
-/* eslint-disable react/no-unescaped-entities */
+import Image from 'next/image';
+import { workContent, companyIcons } from '../../public/content/text/work';
+
 export default function Work() {
-    return (
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-4">my work</h1>
-        <p className="mb-4">
-          On a mission to build products developers love, and along the way, teach the next generation of developers. Here's a summary of my work so far.
-        </p>
-        
-        <section className="mb-8">
-          <h2 className="text-2xl font-bold mb-2">[Your Current Company]</h2>
-          <p className="text-gray-600 mb-2">[Your Position]</p>
-          <p className="mb-4">
-            [Description of your role and achievements]
-          </p>
+  return (
+    <div className="max-w-2xl mx-auto">
+      <h1 className="text-3xl font-bold mb-4">{workContent.title}</h1>
+      <p className="mb-4">{workContent.introduction}</p>
+      
+      {workContent.experiences.map((experience, index) => (
+        <section key={index} className="mb-8">
+          <div className="flex items-center mb-2">
+            {companyIcons[experience.company] && (
+              <Image
+                src={companyIcons[experience.company]}
+                alt={`${experience.company} logo`}
+                width={50}
+                height={50}
+                className="mr-2" />
+            )}
+            <h2 className="text-2xl font-bold ml-4">{experience.company}</h2>
+          </div>
+          <p className="text-600 mb-2">{experience.position}</p>
+          <p className="mb-4">{experience.description}</p>
           <ul className="list-disc pl-5">
-            <li>[Achievement 1]</li>
-            <li>[Achievement 2]</li>
-            <li>[Achievement 3]</li>
+            {experience.achievements.map((achievement, achievementIndex) => (
+              <li key={achievementIndex}>{achievement}</li>
+            ))}
           </ul>
         </section>
-        
-        {/* Add more sections for previous work experiences */}
-      </div>
-    )
-  }
+      ))}
+    </div>
+  )
+}
