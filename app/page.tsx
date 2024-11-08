@@ -22,8 +22,19 @@ export default function Home() {
         </div>
       )}
       <p className="text-justify mt-3 font-sans">{homeContent.additionalContent1}</p>
-      <p className="text-justify mt-3 font-sans">{homeContent.additionalContent2}</p>
-      <p className="text-justify mt-3 font-sans">{homeContent.additionalContent3}</p>
+      <p className="text-justify mt-3 font-sans" dangerouslySetInnerHTML={{ __html : homeContent.additionalContent2}}></p>
+      <p className="text-justify mt-3 font-sans" dangerouslySetInnerHTML={{ __html : homeContent.additionalContent3}}></p>
+      <div className="mt-8 text-center">
+        <a href="https://www.linkedin.com/in/parthit/" target="_blank" rel="noopener noreferrer" className="text-600 hover:text-blue-500 mx-4">
+          LinkedIn
+        </a>
+        <a href="mailto:parthitpatel@gmail.com" target="_blank" className="text-600 hover:text-blue-500 mx-4">
+          Email
+        </a>
+        <a href="https://x.com/parthitp" target="_blank" rel="noopener noreferrer" className="text-600 hover:text-blue-500 mx-4">
+          Twitter
+        </a>
+      </div>
     </div>
   );
 }
