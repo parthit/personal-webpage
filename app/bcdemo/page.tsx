@@ -31,7 +31,7 @@ const initialState: MiningState = {
 function miningReducer(state: MiningState, action: any): MiningState {
   switch (action.type) {
     case "START_MINING":
-      return { ...state, mining: true, foundNonce: null, startTime: Date.now() };
+      return { ...state, nonce: 0, mining: true, foundNonce: null, startTime: Date.now() };
     case "STOP_MINING":
       return { ...state, mining: false };
     case "UPDATE_NONCE":
@@ -90,7 +90,7 @@ export default function Blockchain() {
 
     // Cleanup function
     return () => clearInterval(miningInterval);
-  }, [state.mining, state.nonce, state.targetZeros, state.startTime]);
+  }, [state.mining, state.nonce, state.targetZeros]);
 
   // Start mining
   const startMining = useCallback(() => {
@@ -109,6 +109,7 @@ export default function Blockchain() {
 
   // Handle input nonce change
   const handleInputNonceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputHash("");
     setInputNonce(e.target.value);
   };
 
