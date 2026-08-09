@@ -41,11 +41,16 @@ Demo content is included:
 ## Scripts
 
 ```bash
-npm run dev     # local development
-npm run build   # production build
-npm run start   # serve production build
-npm run lint    # eslint
+npm run dev            # local development
+npm run build          # production build
+npm run start          # serve production build
+npm run lint           # eslint
+npm run test:e2e       # Playwright end-to-end tests (builds + starts app)
+npm run test:e2e:ui    # Playwright UI mode
+npm run test:e2e:report
 ```
+
+CI runs lint, build, and Playwright on every pull request and push to `main`. See [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) and [`docs/testing.md`](./docs/testing.md).
 
 ## Deploy
 

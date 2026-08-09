@@ -138,4 +138,5 @@ These should plug in without rewriting the loader boundary:
 ## Related docs
 
 - Authoring recipes: [`authoring-guide.md`](./authoring-guide.md)
+- Testing / CI: [`testing.md`](./testing.md)
 - Project overview: [`../README.md`](../README.md)
