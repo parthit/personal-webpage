@@ -14,7 +14,7 @@
     "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
-    "@calcom/embed-react": "^1.5.0",
+    "@calcom/embed-react": "^1.5.3",
     "@radix-ui/react-slider": "^1.2.1",
     "@radix-ui/react-slot": "^1.1.0",
     "@vercel/speed-insights": "^1.0.12",
