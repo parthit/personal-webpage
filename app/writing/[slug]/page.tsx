@@ -16,7 +16,8 @@ export function generateStaticParams() {
 
 export function generateMetadata({ params }: PageProps): Metadata {
   const post = getPostBySlug(params.slug);
-  if (!post) {
+  // External-only posts are listed on /writing but have no local page.
+  if (!post || post.externalUrl) {
     return { title: "Post not found" };
   }
 

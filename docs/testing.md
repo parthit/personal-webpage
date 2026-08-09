@@ -20,11 +20,17 @@ Projects:
 ## Local commands
 
 ```bash
+# Unit tests (frontmatter helpers, etc.)
+npm run test:unit
+
 # Install browsers once (CI does this automatically)
 npx playwright install chromium --with-deps
 
 # Run the suite against a production build
 npm run test:e2e
+
+# Unit + E2E
+npm run test
 
 # Interactive debugger
 npm run test:e2e:ui

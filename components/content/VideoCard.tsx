@@ -26,7 +26,12 @@ export function VideoCard({
   return (
     <article className="space-y-3">
       {embed ? (
-        <YouTube id={video.youtubeId} title={video.title} facade={facade} />
+        <YouTube
+          id={video.youtubeId}
+          title={video.title}
+          facade={facade}
+          thumbnail={video.thumbnail}
+        />
       ) : null}
       <div>
         <p className="mb-1 text-sm text-gray-500 dark:text-gray-400">

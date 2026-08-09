@@ -66,7 +66,7 @@ Edit `content/videos.ts` and append:
 
 - `youtubeId` is the value after `v=` in a YouTube URL
 - Set `featured: true` to pin it at the top of `/videos`
-- Optional `thumbnail` can point at a local image under `public/`
+- Optional `thumbnail` can point at a local image under `public/` (used for the click-to-play facade on `/videos`)
 
 ## Image checklist
 

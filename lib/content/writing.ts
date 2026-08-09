@@ -10,6 +10,22 @@ function isProduction() {
   return process.env.NODE_ENV === "production";
 }
 
+/** Coerce YAML/JSON frontmatter draft values without treating "false" as true. */
+export function parseDraftFlag(value: unknown): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "" || normalized === "false" || normalized === "0" || normalized === "no") {
+      return false;
+    }
+    if (normalized === "true" || normalized === "1" || normalized === "yes") {
+      return true;
+    }
+  }
+  return false;
+}
+
 function parseMeta(data: Record<string, unknown>, slug: string): WritingPostMeta {
   if (!data.title || !data.summary || !data.date) {
     throw new Error(
@@ -23,7 +39,7 @@ function parseMeta(data: Record<string, unknown>, slug: string): WritingPostMeta
     date: String(data.date),
     tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
     cover: data.cover ? String(data.cover) : undefined,
-    draft: Boolean(data.draft),
+    draft: parseDraftFlag(data.draft),
     externalUrl: data.externalUrl ? String(data.externalUrl) : undefined,
     series: data.series ? String(data.series) : undefined,
   };

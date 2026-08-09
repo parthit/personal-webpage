@@ -15,5 +15,6 @@ export const videos: Video[] = [
     topics: ["system-design", "demo"],
     publishedAt: "2025-01-15",
     featured: true,
+    thumbnail: "/content/images/videos/demo-system-design-intro/thumbnail.svg",
   },
 ];

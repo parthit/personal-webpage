@@ -66,6 +66,26 @@ test.describe("writing section", () => {
     await expect(page).toHaveURL(/\/writing$/);
   });
 
+  test("lists external posts but 404s their local slug with matching metadata", async ({
+    page,
+  }) => {
+    await page.goto("/writing");
+    const externalLink = page.getByRole("link", {
+      name: /Demo: External System Design Notes/,
+    });
+    await expect(externalLink).toHaveAttribute(
+      "href",
+      "https://example.com/demo-external-system-design"
+    );
+
+    const response = await page.goto("/writing/demo-external");
+    expect(response?.status()).toBe(404);
+    await expect(page).toHaveTitle(/Post not found/i);
+    await expect(
+      page.getByRole("heading", { name: "Post not found" })
+    ).toBeVisible();
+  });
+
   test("keeps document metadata useful for SEO", async ({ page }) => {
     await page.goto(DEMO_POST.path);
     await expect(page).toHaveTitle(new RegExp(DEMO_POST.title));

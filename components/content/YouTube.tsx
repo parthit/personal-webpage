@@ -7,9 +7,11 @@ type YouTubeProps = {
   title?: string;
   /** When true, show thumbnail first and load iframe on click. */
   facade?: boolean;
+  /** Optional local/remote override for the facade image. */
+  thumbnail?: string;
 };
 
-function thumbnailUrl(id: string) {
+function defaultThumbnailUrl(id: string) {
   return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
 }
 
@@ -17,8 +19,10 @@ export function YouTube({
   id,
   title = "YouTube video",
   facade = false,
+  thumbnail,
 }: YouTubeProps) {
   const [active, setActive] = useState(!facade);
+  const facadeSrc = thumbnail || defaultThumbnailUrl(id);
 
   return (
     <div className="my-6 overflow-hidden rounded-lg bg-black/5 dark:bg-white/5">
@@ -41,7 +45,7 @@ export function YouTube({
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={thumbnailUrl(id)}
+              src={facadeSrc}
               alt=""
               className="h-full w-full object-cover"
             />

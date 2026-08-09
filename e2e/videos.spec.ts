@@ -32,7 +32,7 @@ test.describe("videos section", () => {
     await expectImageLoaded(thumbnail);
     await expect(thumbnail).toHaveAttribute(
       "src",
-      new RegExp(`i\\.ytimg\\.com/vi/${DEMO_VIDEO.youtubeId}/`)
+      "/content/images/videos/demo-system-design-intro/thumbnail.svg"
     );
   });
 
