@@ -23,6 +23,8 @@ export function MDXImage({
   const parsedHeight =
     typeof height === "string" ? Number(height) || 405 : height;
 
+  const isSvg = src.split("?")[0]?.toLowerCase().endsWith(".svg") ?? false;
+
   return (
     <span className="my-8 block">
       <Image
@@ -32,6 +34,7 @@ export function MDXImage({
         height={parsedHeight}
         className="h-auto w-full rounded-lg"
         sizes="(max-width: 768px) 100vw, 672px"
+        unoptimized={isSvg}
       />
     </span>
   );

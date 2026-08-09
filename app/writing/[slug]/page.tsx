@@ -80,6 +80,7 @@ export default function WritingPostPage({ params }: PageProps) {
             height={630}
             className="h-auto w-full rounded-lg"
             priority
+            unoptimized={post.cover.toLowerCase().endsWith(".svg")}
           />
         ) : null}
       </header>

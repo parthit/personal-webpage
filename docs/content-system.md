@@ -84,6 +84,7 @@ public/content/images/
 - Reference with absolute paths in MDX: `![alt](/content/images/writing/<slug>/diagram.svg)`
 - Markdown images render through `MDXImage` → `next/image`
 - Prefer WebP/JPG for photos and SVG/PNG for diagrams
+- SVG files are rendered with `unoptimized` (Next.js image optimization rejects SVG by default)
 - Always include meaningful `alt` text
 
 ### Videos

@@ -74,6 +74,7 @@ Edit `content/videos.ts` and append:
 - [ ] Markdown uses an absolute path starting with `/content/images/...`
 - [ ] `alt` text describes the figure
 - [ ] Cover (if any) is listed in frontmatter as `cover`
+- [ ] SVG is fine for diagrams; photos should be WebP/JPG for best optimization
 
 ## Post checklist
 

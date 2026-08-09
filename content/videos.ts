@@ -7,11 +7,11 @@ import type { Video } from "./types";
  */
 export const videos: Video[] = [
   {
-    slug: "demo-url-shortener",
-    title: "Demo: System Design — URL Shortener",
+    slug: "demo-system-design-intro",
+    title: "Demo: Intro to Architecture and Systems Design Interviews",
     summary:
-      "A public walkthrough of the classic URL shortener design interview prompt. Replace this demo entry with your own explainers.",
-    youtubeId: "fGpXjDuKd4M",
+      "A public intro to system-design interview thinking. Replace this demo entry with your own YouTube explainers.",
+    youtubeId: "ZgdS0EUmn70",
     topics: ["system-design", "demo"],
     publishedAt: "2025-01-15",
     featured: true,
