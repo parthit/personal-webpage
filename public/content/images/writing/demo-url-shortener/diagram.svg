@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="420" viewBox="0 0 960 420" role="img" aria-label="URL shortener architecture diagram">
+  <rect width="960" height="420" fill="#f8fafc"/>
+  <rect x="40" y="160" width="160" height="80" rx="12" fill="#e2e8f0" stroke="#334155" stroke-width="2"/>
+  <text x="120" y="208" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" fill="#0f172a">Client</text>
+
+  <rect x="280" y="160" width="180" height="80" rx="12" fill="#ccfbf1" stroke="#0f766e" stroke-width="2"/>
+  <text x="370" y="208" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" fill="#134e4a">API Service</text>
+
+  <rect x="560" y="60" width="160" height="80" rx="12" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/>
+  <text x="640" y="108" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" fill="#1e3a8a">Cache</text>
+
+  <rect x="560" y="260" width="160" height="80" rx="12" fill="#fef3c7" stroke="#b45309" stroke-width="2"/>
+  <text x="640" y="308" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" fill="#78350f">Datastore</text>
+
+  <rect x="800" y="160" width="120" height="80" rx="12" fill="#ede9fe" stroke="#6d28d9" stroke-width="2"/>
+  <text x="860" y="208" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" fill="#4c1d95">ID Gen</text>
+
+  <line x1="200" y1="200" x2="280" y2="200" stroke="#334155" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="460" y1="180" x2="560" y2="120" stroke="#334155" stroke-width="2"/>
+  <line x1="460" y1="220" x2="560" y2="280" stroke="#334155" stroke-width="2"/>
+  <line x1="460" y1="200" x2="800" y2="200" stroke="#334155" stroke-width="2"/>
+
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#334155"/>
+    </marker>
+  </defs>
+</svg>

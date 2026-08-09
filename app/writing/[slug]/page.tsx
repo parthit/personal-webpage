@@ -1,0 +1,92 @@
+import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { MDXRemote } from "next-mdx-remote/rsc";
+import { mdxComponents } from "@/components/content/mdx/components";
+import { getAllWritingSlugs, getPostBySlug } from "@/lib/content/writing";
+
+type PageProps = {
+  params: { slug: string };
+};
+
+export function generateStaticParams() {
+  return getAllWritingSlugs().map((slug) => ({ slug }));
+}
+
+export function generateMetadata({ params }: PageProps): Metadata {
+  const post = getPostBySlug(params.slug);
+  if (!post) {
+    return { title: "Post not found" };
+  }
+
+  return {
+    title: `${post.title} — Parthit Patel`,
+    description: post.summary,
+  };
+}
+
+function formatDate(date: string) {
+  return new Date(date).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+export default function WritingPostPage({ params }: PageProps) {
+  const post = getPostBySlug(params.slug);
+  if (!post || post.externalUrl) {
+    notFound();
+  }
+
+  return (
+    <article className="mx-auto max-w-2xl">
+      <Link
+        href="/writing"
+        className="mb-6 inline-block text-sm text-gray-600 hover:underline dark:text-gray-400"
+      >
+        ← All writing
+      </Link>
+
+      <header className="mb-8">
+        <p className="mb-2 text-sm text-gray-500 dark:text-gray-400">
+          {formatDate(post.date)} · {post.readingTime}
+        </p>
+        <h1 className="mb-4 text-3xl font-semibold tracking-tight">
+          {post.title}
+        </h1>
+        <p className="mb-4 text-lg text-gray-700 dark:text-gray-300">
+          {post.summary}
+        </p>
+        {post.tags.length > 0 && (
+          <ul className="mb-6 flex flex-wrap gap-2">
+            {post.tags.map((tag) => (
+              <li
+                key={tag}
+                className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400"
+              >
+                {tag}
+              </li>
+            ))}
+          </ul>
+        )}
+        {post.cover ? (
+          <Image
+            src={post.cover}
+            alt=""
+            width={1200}
+            height={630}
+            className="h-auto w-full rounded-lg"
+            priority
+          />
+        ) : null}
+      </header>
+
+      <div className="writing-prose">
+        <MDXRemote source={post.content} components={mdxComponents} />
+      </div>
+    </article>
+  );
+}

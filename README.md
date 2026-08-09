@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Parthit's webpage
 
-## Getting Started
+Personal site built with [Next.js](https://nextjs.org/) (App Router), TypeScript, and Tailwind CSS.
 
-First, run the development server:
+## Features
+
+- Home / about page
+- Cal.com booking at `/chat`
+- **Writing** — MDX posts at `/writing`
+- **Videos** — curated YouTube system-design catalog at `/videos`
+
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Content
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+Content is git-versioned and loaded through `lib/content/*`.
 
-## Learn More
+| Add… | Where |
+|---|---|
+| A blog/system-design post | `content/writing/<slug>.mdx` |
+| Post images | `public/content/images/writing/<slug>/` |
+| A YouTube explainer | `content/videos.ts` |
 
-To learn more about Next.js, take a look at the following resources:
+Demo content is included:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Post: [/writing/demo-url-shortener](http://localhost:3000/writing/demo-url-shortener)
+- Videos: [/videos](http://localhost:3000/videos)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+### Docs
 
-## Deploy on Vercel
+- [Content system architecture](./docs/content-system.md) — structure, schemas, extension points
+- [Authoring guide](./docs/authoring-guide.md) — how to add posts, images, and videos
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Scripts
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+```bash
+npm run dev     # local development
+npm run build   # production build
+npm run start   # serve production build
+npm run lint    # eslint
+```
+
+## Deploy
+
+Deploy on [Vercel](https://vercel.com) or any host that supports Next.js.
