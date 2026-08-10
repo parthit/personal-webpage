@@ -7,15 +7,18 @@ import { mdxComponents } from "@/components/content/mdx/components";
 import { getAllWritingSlugs, getPostBySlug } from "@/lib/content/writing";
 
 type PageProps = {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 };
 
 export function generateStaticParams() {
   return getAllWritingSlugs().map((slug) => ({ slug }));
 }
 
-export function generateMetadata({ params }: PageProps): Metadata {
-  const post = getPostBySlug(params.slug);
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const post = getPostBySlug(slug);
   // External-only posts are listed on /writing but have no local page.
   if (!post || post.externalUrl) {
     return { title: "Post not found" };
@@ -36,8 +39,9 @@ function formatDate(date: string) {
   });
 }
 
-export default function WritingPostPage({ params }: PageProps) {
-  const post = getPostBySlug(params.slug);
+export default async function WritingPostPage({ params }: PageProps) {
+  const { slug } = await params;
+  const post = getPostBySlug(slug);
   if (!post || post.externalUrl) {
     notFound();
   }
