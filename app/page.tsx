@@ -1,4 +1,3 @@
-/* eslint-disable react/no-unescaped-entities */
 import Image from "next/image";
 import { HomeTeasers } from "@/components/content/HomeTeasers";
 import { getLatestVideos } from "@/lib/content/videos";
