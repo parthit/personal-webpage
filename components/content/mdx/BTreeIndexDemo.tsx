@@ -100,7 +100,8 @@ type LookupResult = {
 
 export function BTreeIndexDemo() {
   const [{ rows, index, pageCount }] = useState(buildDataset);
-  const [query, setQuery] = useState("36");
+  // Prefer a leaf key so the demo shows a multi-level index walk (36 lives in the root).
+  const [query, setQuery] = useState("33");
   const [result, setResult] = useState<LookupResult | null>(null);
 
   const layout = useMemo(() => layoutTree(index.root), [index]);
@@ -319,7 +320,7 @@ export function BTreeIndexDemo() {
           Use B-tree index
         </Button>
         <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">
-          Try 36 (exists) or 11 (missing)
+          Try 33 (exists) or 11 (missing)
         </span>
       </div>
 

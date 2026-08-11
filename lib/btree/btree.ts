@@ -42,7 +42,7 @@ export function resetBTreeIds(start = 1) {
 
 export function createBTree(t = 2): BTreeSnapshot {
   if (t < 2) throw new Error("Minimum degree t must be >= 2");
-  resetBTreeIds();
+  // Do not reset the module id counter here — multiple demos can coexist on one page.
   return { root: null, t, height: 0, size: 0 };
 }
 
@@ -316,7 +316,6 @@ export function inOrder(node: BTreeNode | null, out: number[] = []): number[] {
 }
 
 export function clear(tree: BTreeSnapshot): BTreeSnapshot {
-  resetBTreeIds();
   return { root: null, t: tree.t, height: 0, size: 0 };
 }
 
