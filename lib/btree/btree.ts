@@ -269,12 +269,15 @@ function removeFromNode(node: BTreeNode, key: number, t: number): boolean {
 
   if (node.leaf) return false;
 
-  const wentToLast = idx === node.children.length;
+  // idx is in [0, keys.length]; last child is at keys.length.
+  const descendingIntoLastChild = idx === node.children.length - 1;
   if (node.children[idx].keys.length < t) {
     fill(node, idx, t);
   }
 
-  if (wentToLast && idx > node.keys.length) {
+  // Merging the last child into its left sibling shrinks the child array;
+  // descend into the merged node at idx - 1.
+  if (descendingIntoLastChild && idx > node.keys.length) {
     return removeFromNode(node.children[idx - 1], key, t);
   }
   return removeFromNode(node.children[idx], key, t);

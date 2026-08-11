@@ -120,6 +120,10 @@ test.describe("writing section", () => {
     await page.getByRole("button", { name: "Insert" }).click();
     await expect(page.getByText(/Inserted 99/i)).toBeVisible();
 
+    await page.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
+    await page.getByRole("button", { name: "Delete" }).click();
+    await expect(page.getByText(/Deleted 99/i)).toBeVisible();
+
     await expect(
       page.getByRole("heading", { name: "Interactive index demo" })
     ).toBeVisible();

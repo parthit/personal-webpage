@@ -55,6 +55,28 @@ describe("B-tree", () => {
     assert.equal(contains(tree, 3), false);
   });
 
+  it("deletes a rightmost leaf key after a split (merge-last-child path)", () => {
+    let tree = createBTree(2);
+    for (const key of [10, 20, 5, 6, 12, 30, 7, 17, 3, 99]) {
+      tree = insert(tree, key);
+    }
+    tree = remove(tree, 99);
+    assert.equal(contains(tree, 99), false);
+    assert.deepEqual(inOrder(tree.root), [3, 5, 6, 7, 10, 12, 17, 20, 30]);
+  });
+
+  it("deletes every key until empty", () => {
+    let tree = createBTree(3);
+    const keys = [50, 10, 20, 40, 30, 60, 70, 80, 5, 15, 25, 35];
+    for (const key of keys) tree = insert(tree, key);
+    for (const key of keys) {
+      tree = remove(tree, key);
+      assert.equal(contains(tree, key), false);
+    }
+    assert.equal(tree.root, null);
+    assert.equal(tree.size, 0);
+  });
+
   it("rebuilds when degree changes", () => {
     let tree = createBTree(2);
     for (const key of [10, 20, 30, 40, 50]) {
