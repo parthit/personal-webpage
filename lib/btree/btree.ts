@@ -445,23 +445,30 @@ export function layoutTree(root: BTreeNode | null): {
 
   walk(layout);
 
-  // Normalize so leftmost node starts with padding
-  const minX = Math.min(...nodes.map((n) => n.x - n.width / 2));
+  // Normalize so nodes sit fully inside the SVG viewBox (pad on all sides).
+  // Root is laid out at y=0 (center), so without a Y shift the top half is clipped.
   const pad = 24;
-  for (const n of nodes) n.x = n.x - minX + pad;
+  const minX = Math.min(...nodes.map((n) => n.x - n.width / 2));
+  const minY = Math.min(...nodes.map((n) => n.y - NODE_H / 2));
+  for (const n of nodes) {
+    n.x = n.x - minX + pad;
+    n.y = n.y - minY + pad;
+  }
   for (const e of edges) {
     e.fromX = e.fromX - minX + pad;
     e.toX = e.toX - minX + pad;
+    e.fromY = e.fromY - minY + pad;
+    e.toY = e.toY - minY + pad;
   }
 
   const maxX = Math.max(...nodes.map((n) => n.x + n.width / 2));
-  const maxY = Math.max(...nodes.map((n) => n.y)) + NODE_H + pad;
+  const maxY = Math.max(...nodes.map((n) => n.y + NODE_H / 2));
 
   return {
     nodes,
     edges,
     width: maxX + pad,
-    height: maxY,
+    height: maxY + pad,
   };
 }
 
