@@ -1,8 +1,30 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import { HomeTeasers } from "@/components/content/HomeTeasers";
 import { getLatestVideos } from "@/lib/content/videos";
 import { getLatestPosts } from "@/lib/content/writing";
+import { SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from "@/lib/site";
 import { homeContent } from "../public/content/text/landing";
+
+export const metadata: Metadata = {
+  title: {
+    absolute: SITE_TITLE,
+  },
+  description: SITE_DESCRIPTION,
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    type: "website",
+  },
+  twitter: {
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
+};
 
 export default function Home() {
   const latestPosts = getLatestPosts(1);

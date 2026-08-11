@@ -3,8 +3,24 @@ import { PostList } from "@/components/content/PostList";
 import { getAllPosts } from "@/lib/content/writing";
 
 export const metadata: Metadata = {
-  title: "Writing — Parthit Patel",
-  description: "Notes and system-design writeups.",
+  title: "Writing",
+  description:
+    "Essays and system-design notes by Parthit Patel on scalable systems, data structures, and software engineering.",
+  alternates: {
+    canonical: "/writing",
+  },
+  openGraph: {
+    title: "Writing · Parthit Patel",
+    description:
+      "Essays and system-design notes on scalable systems, data structures, and software engineering.",
+    url: "/writing",
+    type: "website",
+  },
+  twitter: {
+    title: "Writing · Parthit Patel",
+    description:
+      "Essays and system-design notes on scalable systems, data structures, and software engineering.",
+  },
 };
 
 export default function WritingIndexPage() {

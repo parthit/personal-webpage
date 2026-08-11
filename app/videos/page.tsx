@@ -3,8 +3,24 @@ import { VideoCard } from "@/components/content/VideoCard";
 import { getAllVideos, getFeaturedVideos } from "@/lib/content/videos";
 
 export const metadata: Metadata = {
-  title: "Videos — Parthit Patel",
-  description: "System design explainers and related videos.",
+  title: "Videos",
+  description:
+    "System design explainers and architecture videos curated by Parthit Patel.",
+  alternates: {
+    canonical: "/videos",
+  },
+  openGraph: {
+    title: "Videos · Parthit Patel",
+    description:
+      "System design explainers and architecture videos curated by Parthit Patel.",
+    url: "/videos",
+    type: "website",
+  },
+  twitter: {
+    title: "Videos · Parthit Patel",
+    description:
+      "System design explainers and architecture videos curated by Parthit Patel.",
+  },
 };
 
 export default function VideosPage() {

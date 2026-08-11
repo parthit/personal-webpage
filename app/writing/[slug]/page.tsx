@@ -6,6 +6,7 @@ import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import { mdxComponents } from "@/components/content/mdx/components";
 import { getAllWritingSlugs, getPostBySlug } from "@/lib/content/writing";
+import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/site";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -25,9 +26,39 @@ export async function generateMetadata({
     return { title: "Post not found" };
   }
 
+  const path = `/writing/${post.slug}`;
+  const images = post.cover
+    ? [
+        {
+          url: post.cover,
+          alt: post.title,
+        },
+      ]
+    : undefined;
+
   return {
-    title: `${post.title} — Parthit Patel`,
+    title: post.title,
     description: post.summary,
+    alternates: {
+      canonical: path,
+    },
+    authors: [{ name: "Parthit Patel" }],
+    openGraph: {
+      title: post.title,
+      description: post.summary,
+      url: path,
+      type: "article",
+      publishedTime: post.date,
+      authors: ["Parthit Patel"],
+      tags: post.tags,
+      images,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.summary,
+      images: post.cover ? [post.cover] : undefined,
+    },
   };
 }
 
@@ -47,8 +78,33 @@ export default async function WritingPostPage({ params }: PageProps) {
     notFound();
   }
 
+  const path = `/writing/${post.slug}`;
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.summary,
+    datePublished: post.date,
+    dateModified: post.date,
+    author: {
+      "@type": "Person",
+      name: SITE_NAME,
+      url: SITE_URL,
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": absoluteUrl(path),
+    },
+    image: post.cover ? [absoluteUrl(post.cover)] : undefined,
+    keywords: post.tags.join(", "),
+  };
+
   return (
     <article className="mx-auto w-full max-w-2xl">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
       <Link
         href="/writing"
         className="mb-6 inline-block text-sm text-gray-600 hover:underline dark:text-gray-400"

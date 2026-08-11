@@ -102,6 +102,8 @@ public/content/images/
 | `/writing/[slug]` | `getPostBySlug(slug)` + MDX render |
 | `/videos` | `getFeaturedVideos()` + `getAllVideos()` |
 | `/` teasers | `getLatestPosts(1)` + `getLatestVideos(1)` |
+| `/robots.txt` | `app/robots.ts` |
+| `/sitemap.xml` | `app/sitemap.ts` from posts + static routes |
 
 Nav labels live in `app/components/Header.tsx`: `home | writing | videos | chat`.
 
@@ -121,8 +123,8 @@ These should plug in without rewriting the loader boundary:
 
 1. **Tag pages** — `/writing/tags/[tag]` using `post.tags`
 2. **Video detail pages** — `/videos/[slug]` (optionally migrate catalog to MDX)
-3. **RSS + sitemap** — generate from `getAllPosts()` / `getAllVideos()`
-4. **OG images** — `app/writing/[slug]/opengraph-image.tsx`
+3. **RSS feed** — generate from `getAllPosts()` / `getAllVideos()`
+4. **Dynamic OG images** — `app/writing/[slug]/opengraph-image.tsx`
 5. **Series** — group by `series` frontmatter
 6. **Build-time validation** — fail CI when required frontmatter is missing
 7. **CMS adapter** — keep `lib/content` signatures; swap file reads for API fetches
