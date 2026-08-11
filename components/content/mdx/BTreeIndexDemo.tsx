@@ -59,6 +59,10 @@ const CITIES = [
 
 const PAGE_SIZE = 4;
 
+/** Wider than the writing column on desktop; full width on mobile. */
+const figureShell =
+  "not-prose relative my-8 w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50 lg:left-1/2 lg:w-[min(56rem,calc(100vw-2.5rem))] lg:max-w-none lg:-translate-x-1/2";
+
 /** Deterministic insert order (avoids SSR hydration mismatch). */
 const INSERT_ORDER = [
   36, 12, 60, 3, 48, 24, 72, 9, 45, 18, 54, 30, 66, 6, 42, 21, 57, 15, 51, 27,
@@ -178,13 +182,13 @@ export function BTreeIndexDemo() {
   const svgHeight = Math.max(layout.height, 100);
 
   return (
-    <figure className="not-prose my-8 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50">
+    <figure className={figureShell}>
       <figcaption className="border-b border-gray-200 px-3 py-3 text-sm text-gray-600 sm:px-4 dark:border-gray-700 dark:text-gray-300">
         Interactive index — table scan vs B-tree lookup (simulated page I/O)
       </figcaption>
 
-      <div className="grid gap-0 lg:grid-cols-2">
-        <div className="border-b border-gray-200 p-3 sm:p-4 lg:border-b-0 lg:border-r dark:border-gray-700">
+      <div className="grid min-w-0 gap-0 lg:grid-cols-2">
+        <div className="min-w-0 border-b border-gray-200 p-3 sm:p-4 lg:border-b-0 lg:border-r dark:border-gray-700">
           <h4 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
             Heap table (users)
           </h4>
@@ -229,74 +233,80 @@ export function BTreeIndexDemo() {
           </div>
         </div>
 
-        <div className="p-3 sm:p-4">
+        <div className="min-w-0 p-3 sm:p-4">
           <h4 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
             Secondary memory index on id
           </h4>
           <p className="mb-3 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
             The B-tree stores keys (and, in a real engine, pointers to heap
             pages). Height stays small, so lookups cost a few node reads.
+            Swipe sideways to see the full tree on small screens.
           </p>
-          <div className="overflow-x-auto overscroll-x-contain rounded-lg border border-gray-200 bg-white px-1 py-3 dark:border-gray-700 dark:bg-gray-950">
-            <svg
-              width={svgWidth}
-              height={svgHeight}
-              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-              role="img"
-              aria-label="B-tree index on user id"
-              className="mx-auto block max-w-none"
+          <div className="min-w-0 w-full overflow-x-auto overscroll-x-contain touch-pan-x rounded-lg border border-gray-200 bg-white px-1 py-3 dark:border-gray-700 dark:bg-gray-950">
+            <div
+              className="mx-auto"
+              style={{ width: svgWidth, height: svgHeight, minWidth: svgWidth }}
             >
-              {layout.edges.map((edge) => (
-                <line
-                  key={`${edge.from}-${edge.to}`}
-                  x1={edge.fromX}
-                  y1={edge.fromY}
-                  x2={edge.toX}
-                  y2={edge.toY}
-                  className="stroke-gray-400 dark:stroke-gray-500"
-                  strokeWidth={1.5}
-                />
-              ))}
-              {layout.nodes.map((node) => {
-                const x = node.x - node.width / 2;
-                const y = node.y - LAYOUT.NODE_H / 2;
-                const onPath = pathSet.has(node.id);
-                return (
-                  <g key={node.id}>
-                    <rect
-                      x={x}
-                      y={y}
-                      width={node.width}
-                      height={LAYOUT.NODE_H}
-                      rx={6}
-                      className={
-                        onPath
-                          ? "fill-sky-100 stroke-sky-500 dark:fill-sky-950 dark:stroke-sky-400"
-                          : "fill-white stroke-gray-400 dark:fill-gray-900 dark:stroke-gray-500"
-                      }
-                      strokeWidth={onPath ? 2 : 1.25}
-                    />
-                    {node.keys.map((key, i) => (
-                      <text
-                        key={`${node.id}-${key}`}
-                        x={
-                          x +
-                          LAYOUT.KEY_PAD / 2 +
-                          i * LAYOUT.KEY_W +
-                          LAYOUT.KEY_W / 2
+              <svg
+                width={svgWidth}
+                height={svgHeight}
+                viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                role="img"
+                aria-label="B-tree index on user id"
+                className="block"
+              >
+                {layout.edges.map((edge) => (
+                  <line
+                    key={`${edge.from}-${edge.to}`}
+                    x1={edge.fromX}
+                    y1={edge.fromY}
+                    x2={edge.toX}
+                    y2={edge.toY}
+                    className="stroke-gray-400 dark:stroke-gray-500"
+                    strokeWidth={1.5}
+                  />
+                ))}
+                {layout.nodes.map((node) => {
+                  const x = node.x - node.width / 2;
+                  const y = node.y - LAYOUT.NODE_H / 2;
+                  const onPath = pathSet.has(node.id);
+                  return (
+                    <g key={node.id}>
+                      <rect
+                        x={x}
+                        y={y}
+                        width={node.width}
+                        height={LAYOUT.NODE_H}
+                        rx={6}
+                        className={
+                          onPath
+                            ? "fill-sky-100 stroke-sky-500 dark:fill-sky-950 dark:stroke-sky-400"
+                            : "fill-white stroke-gray-400 dark:fill-gray-900 dark:stroke-gray-500"
                         }
-                        y={node.y + 1}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        className="fill-gray-800 text-[11px] dark:fill-gray-100"
-                      >
-                        {key}
-                      </text>
-                    ))}
-                  </g>
-                );
-              })}
-            </svg>
+                        strokeWidth={onPath ? 2 : 1.25}
+                      />
+                      {node.keys.map((key, i) => (
+                        <text
+                          key={`${node.id}-${key}`}
+                          x={
+                            x +
+                            LAYOUT.KEY_PAD / 2 +
+                            i * LAYOUT.KEY_W +
+                            LAYOUT.KEY_W / 2
+                          }
+                          y={node.y + 1}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          className="fill-gray-800 text-[11px] dark:fill-gray-100"
+                        >
+                          {key}
+                        </text>
+                      ))}
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
           </div>
         </div>
       </div>

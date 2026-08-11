@@ -26,6 +26,10 @@ function parseKeys(raw: string): number[] {
     .filter((n) => Number.isFinite(n));
 }
 
+/** Wider than the writing column on desktop; full width on mobile. */
+const figureShell =
+  "not-prose relative my-8 w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50 lg:left-1/2 lg:w-[min(56rem,calc(100vw-2.5rem))] lg:max-w-none lg:-translate-x-1/2";
+
 export function BTreeVisualizer() {
   const [tree, setTree] = useState<BTreeSnapshot>(() => {
     let t = createBTree(2);
@@ -132,7 +136,7 @@ export function BTreeVisualizer() {
   const svgHeight = Math.max(layout.height, 120);
 
   return (
-    <figure className="not-prose my-8 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50">
+    <figure className={figureShell}>
       <figcaption className="border-b border-gray-200 px-3 py-3 text-sm text-gray-600 sm:px-4 dark:border-gray-700 dark:text-gray-300">
         Interactive B-tree — insert, search, delete, and change order
       </figcaption>
@@ -216,89 +220,94 @@ export function BTreeVisualizer() {
         </span>
       </div>
 
-      <div className="-mx-0 overflow-x-auto overscroll-x-contain px-2 py-4">
+      <div className="min-w-0 w-full overflow-x-auto overscroll-x-contain touch-pan-x px-2 py-4">
         {tree.root ? (
-          <svg
-            width={svgWidth}
-            height={svgHeight}
-            viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-            role="img"
-            aria-label="B-tree visualization"
-            className="mx-auto block max-w-none"
+          <div
+            className="mx-auto"
+            style={{ width: svgWidth, height: svgHeight, minWidth: svgWidth }}
           >
-            {layout.edges.map((edge) => (
-              <line
-                key={`${edge.from}-${edge.to}`}
-                x1={edge.fromX}
-                y1={edge.fromY}
-                x2={edge.toX}
-                y2={edge.toY}
-                className="stroke-gray-400 dark:stroke-gray-500"
-                strokeWidth={1.5}
-              />
-            ))}
-            {layout.nodes.map((node) => {
-              const x = node.x - node.width / 2;
-              const y = node.y - LAYOUT.NODE_H / 2;
-              const isOnPath = highlightedIds.has(node.id);
-              const foundIdx =
-                foundStep && foundStep.nodeId === node.id
-                  ? foundStep.keyIndex
-                  : null;
+            <svg
+              width={svgWidth}
+              height={svgHeight}
+              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+              role="img"
+              aria-label="B-tree visualization"
+              className="block"
+            >
+              {layout.edges.map((edge) => (
+                <line
+                  key={`${edge.from}-${edge.to}`}
+                  x1={edge.fromX}
+                  y1={edge.fromY}
+                  x2={edge.toX}
+                  y2={edge.toY}
+                  className="stroke-gray-400 dark:stroke-gray-500"
+                  strokeWidth={1.5}
+                />
+              ))}
+              {layout.nodes.map((node) => {
+                const x = node.x - node.width / 2;
+                const y = node.y - LAYOUT.NODE_H / 2;
+                const isOnPath = highlightedIds.has(node.id);
+                const foundIdx =
+                  foundStep && foundStep.nodeId === node.id
+                    ? foundStep.keyIndex
+                    : null;
 
-              return (
-                <g key={node.id}>
-                  <rect
-                    x={x}
-                    y={y}
-                    width={node.width}
-                    height={LAYOUT.NODE_H}
-                    rx={6}
-                    className={
-                      isOnPath
-                        ? "fill-amber-100 stroke-amber-500 dark:fill-amber-950 dark:stroke-amber-400"
-                        : "fill-white stroke-gray-400 dark:fill-gray-950 dark:stroke-gray-500"
-                    }
-                    strokeWidth={isOnPath ? 2 : 1.25}
-                  />
-                  {node.keys.map((key, i) => {
-                    const kx =
-                      x +
-                      LAYOUT.KEY_PAD / 2 +
-                      i * LAYOUT.KEY_W +
-                      LAYOUT.KEY_W / 2;
-                    const isFound = foundIdx === i;
-                    return (
-                      <g key={`${node.id}-${key}-${i}`}>
-                        {i > 0 && (
-                          <line
-                            x1={x + LAYOUT.KEY_PAD / 2 + i * LAYOUT.KEY_W}
-                            y1={y + 6}
-                            x2={x + LAYOUT.KEY_PAD / 2 + i * LAYOUT.KEY_W}
-                            y2={y + LAYOUT.NODE_H - 6}
-                            className="stroke-gray-300 dark:stroke-gray-600"
-                          />
-                        )}
-                        <text
-                          x={kx}
-                          y={node.y + 1}
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                          className={
-                            isFound
-                              ? "fill-amber-800 text-[12px] font-semibold dark:fill-amber-200"
-                              : "fill-gray-800 text-[12px] dark:fill-gray-100"
-                          }
-                        >
-                          {key}
-                        </text>
-                      </g>
-                    );
-                  })}
-                </g>
-              );
-            })}
-          </svg>
+                return (
+                  <g key={node.id}>
+                    <rect
+                      x={x}
+                      y={y}
+                      width={node.width}
+                      height={LAYOUT.NODE_H}
+                      rx={6}
+                      className={
+                        isOnPath
+                          ? "fill-amber-100 stroke-amber-500 dark:fill-amber-950 dark:stroke-amber-400"
+                          : "fill-white stroke-gray-400 dark:fill-gray-950 dark:stroke-gray-500"
+                      }
+                      strokeWidth={isOnPath ? 2 : 1.25}
+                    />
+                    {node.keys.map((key, i) => {
+                      const kx =
+                        x +
+                        LAYOUT.KEY_PAD / 2 +
+                        i * LAYOUT.KEY_W +
+                        LAYOUT.KEY_W / 2;
+                      const isFound = foundIdx === i;
+                      return (
+                        <g key={`${node.id}-${key}-${i}`}>
+                          {i > 0 && (
+                            <line
+                              x1={x + LAYOUT.KEY_PAD / 2 + i * LAYOUT.KEY_W}
+                              y1={y + 6}
+                              x2={x + LAYOUT.KEY_PAD / 2 + i * LAYOUT.KEY_W}
+                              y2={y + LAYOUT.NODE_H - 6}
+                              className="stroke-gray-300 dark:stroke-gray-600"
+                            />
+                          )}
+                          <text
+                            x={kx}
+                            y={node.y + 1}
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                            className={
+                              isFound
+                                ? "fill-amber-800 text-[12px] font-semibold dark:fill-amber-200"
+                                : "fill-gray-800 text-[12px] dark:fill-gray-100"
+                            }
+                          >
+                            {key}
+                          </text>
+                        </g>
+                      );
+                    })}
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
         ) : (
           <p className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
             Empty tree — insert a key or load the sample.

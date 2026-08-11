@@ -6,6 +6,8 @@ import {
   createBTree,
   inOrder,
   insert,
+  LAYOUT,
+  layoutTree,
   remove,
   search,
   withDegree,
@@ -94,5 +96,20 @@ describe("B-tree", () => {
     tree = clear(tree);
     assert.equal(tree.root, null);
     assert.equal(tree.size, 0);
+  });
+
+  it("lays out nodes fully inside the SVG bounds", () => {
+    let tree = createBTree(2);
+    for (const key of [10, 20, 5, 6, 12, 30, 7, 17, 3]) {
+      tree = insert(tree, key);
+    }
+    const layout = layoutTree(tree.root);
+    assert.ok(layout.nodes.length > 0);
+    for (const node of layout.nodes) {
+      assert.ok(node.y - LAYOUT.NODE_H / 2 >= 0, "top clipped");
+      assert.ok(node.y + LAYOUT.NODE_H / 2 <= layout.height, "bottom clipped");
+      assert.ok(node.x - node.width / 2 >= 0, "left clipped");
+      assert.ok(node.x + node.width / 2 <= layout.width, "right clipped");
+    }
   });
 });

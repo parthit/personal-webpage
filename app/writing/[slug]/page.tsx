@@ -47,7 +47,7 @@ export default async function WritingPostPage({ params }: PageProps) {
   }
 
   return (
-    <article className="mx-auto w-full max-w-2xl overflow-x-clip">
+    <article className="mx-auto w-full max-w-2xl">
       <Link
         href="/writing"
         className="mb-6 inline-block text-sm text-gray-600 hover:underline dark:text-gray-400"
