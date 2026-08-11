@@ -52,6 +52,10 @@ test.describe("SEO discovery", () => {
       "content",
       "summary_large_image"
     );
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      "href",
+      /parthitpatel\.com\/?$/
+    );
 
     const jsonLd = page.locator('script[type="application/ld+json"]').first();
     await expect(jsonLd).toBeAttached();
@@ -59,5 +63,19 @@ test.describe("SEO discovery", () => {
     const graph = payload["@graph"] ?? [payload];
     const types = graph.map((node: { "@type"?: string }) => node["@type"]);
     expect(types).toEqual(expect.arrayContaining(["Person", "WebSite"]));
+  });
+
+  test("non-home routes do not inherit the homepage canonical", async ({
+    page,
+  }) => {
+    await page.goto("/videos");
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      "href",
+      /\/videos\/?$/
+    );
+    await expect(page.locator('link[rel="canonical"]')).not.toHaveAttribute(
+      "href",
+      /parthitpatel\.com\/?$/
+    );
   });
 });

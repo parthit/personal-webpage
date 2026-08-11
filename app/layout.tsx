@@ -24,13 +24,10 @@ export const metadata: Metadata = {
   creator: SITE_NAME,
   publisher: SITE_NAME,
   applicationName: SITE_NAME,
-  alternates: {
-    canonical: "/",
-  },
+  // Canonical and openGraph.url are set per-page so routes do not inherit "/".
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: SITE_URL,
     siteName: SITE_NAME,
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,

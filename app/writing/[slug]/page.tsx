@@ -6,7 +6,12 @@ import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import { mdxComponents } from "@/components/content/mdx/components";
 import { getAllWritingSlugs, getPostBySlug } from "@/lib/content/writing";
-import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/site";
+import {
+  SITE_NAME,
+  SITE_URL,
+  absoluteUrl,
+  socialShareImage,
+} from "@/lib/site";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -23,18 +28,14 @@ export async function generateMetadata({
   const post = getPostBySlug(slug);
   // External-only posts are listed on /writing but have no local page.
   if (!post || post.externalUrl) {
-    return { title: "Post not found" };
+    return {
+      title: "Post not found",
+      robots: { index: false, follow: false },
+    };
   }
 
   const path = `/writing/${post.slug}`;
-  const images = post.cover
-    ? [
-        {
-          url: post.cover,
-          alt: post.title,
-        },
-      ]
-    : undefined;
+  const shareImage = socialShareImage(post.cover, post.title);
 
   return {
     title: post.title,
@@ -42,22 +43,22 @@ export async function generateMetadata({
     alternates: {
       canonical: path,
     },
-    authors: [{ name: "Parthit Patel" }],
+    authors: [{ name: SITE_NAME }],
     openGraph: {
       title: post.title,
       description: post.summary,
       url: path,
       type: "article",
       publishedTime: post.date,
-      authors: ["Parthit Patel"],
+      authors: [SITE_NAME],
       tags: post.tags,
-      images,
+      images: [shareImage],
     },
     twitter: {
       card: "summary_large_image",
       title: post.title,
       description: post.summary,
-      images: post.cover ? [post.cover] : undefined,
+      images: [shareImage.url],
     },
   };
 }
@@ -95,7 +96,7 @@ export default async function WritingPostPage({ params }: PageProps) {
       "@type": "WebPage",
       "@id": absoluteUrl(path),
     },
-    image: post.cover ? [absoluteUrl(post.cover)] : undefined,
+    image: [absoluteUrl(socialShareImage(post.cover, post.title).url)],
     keywords: post.tags.join(", "),
   };
 

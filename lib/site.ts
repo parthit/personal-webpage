@@ -28,10 +28,28 @@ export const SOCIAL = {
   email: "parthitpatel@gmail.com",
 } as const;
 
+/** Default raster image for Open Graph / Twitter cards. */
+export const DEFAULT_OG_IMAGE = "/content/images/parthit.jpeg";
+
 export function absoluteUrl(path = "/") {
   if (path.startsWith("http://") || path.startsWith("https://")) {
     return path;
   }
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return `${SITE_URL}${normalized === "/" ? "" : normalized}` || SITE_URL;
+}
+
+/**
+ * Social platforms often skip SVG link-preview images.
+ * Prefer raster covers; otherwise fall back to the default OG image.
+ */
+export function socialShareImage(cover?: string, alt = SITE_NAME) {
+  const candidate = cover?.trim();
+  const isSvg = !!candidate && /\.svg(?:$|\?)/i.test(candidate);
+  const url = !candidate || isSvg ? DEFAULT_OG_IMAGE : candidate;
+
+  return {
+    url,
+    alt: !candidate || isSvg ? SITE_NAME : alt,
+  };
 }
