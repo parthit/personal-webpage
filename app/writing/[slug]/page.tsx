@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
+import remarkGfm from "remark-gfm";
 import { mdxComponents } from "@/components/content/mdx/components";
 import { getAllWritingSlugs, getPostBySlug } from "@/lib/content/writing";
 
@@ -91,7 +92,15 @@ export default async function WritingPostPage({ params }: PageProps) {
       </header>
 
       <div className="writing-prose">
-        <MDXRemote source={post.content} components={mdxComponents} />
+        <MDXRemote
+          source={post.content}
+          components={mdxComponents}
+          options={{
+            mdxOptions: {
+              remarkPlugins: [remarkGfm],
+            },
+          }}
+        />
       </div>
     </article>
   );

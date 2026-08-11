@@ -91,6 +91,7 @@ Registered in `components/content/mdx/components.tsx`:
 | Name | Usage |
 |---|---|
 | Standard markdown | headings, lists, links, code, blockquotes |
+| GFM tables | pipe tables (`\| col \|`) via `remark-gfm` |
 | Images | `![alt](/content/images/...)` → optimized `next/image` |
 | `YouTube` | `<YouTube id="..." title="..." />` |
 | `BTreeVisualizer` | `<BTreeVisualizer />` — interactive B-tree (insert/search/delete) |

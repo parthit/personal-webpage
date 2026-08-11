@@ -69,27 +69,28 @@ export const mdxComponents: MDXComponents = {
     />
   ),
   table: (props) => (
-    <div className="mb-6 w-full overflow-x-auto">
+    <div className="mb-6 w-full overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
       <table
-        className="w-full min-w-[20rem] border-collapse text-left text-sm"
+        className="w-full min-w-[28rem] border-collapse text-left text-sm"
         {...props}
       />
     </div>
   ),
   thead: (props) => (
-    <thead className="border-b border-gray-300 dark:border-gray-600" {...props} />
+    <thead
+      className="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100"
+      {...props}
+    />
+  ),
+  tbody: (props) => <tbody {...props} />,
+  tr: (props) => (
+    <tr className="border-t border-gray-200 dark:border-gray-700" {...props} />
   ),
   th: (props) => (
-    <th
-      className="px-3 py-2 font-semibold text-gray-900 dark:text-gray-100"
-      {...props}
-    />
+    <th className="px-3 py-2.5 font-semibold whitespace-nowrap" {...props} />
   ),
   td: (props) => (
-    <td
-      className="border-t border-gray-200 px-3 py-2 text-gray-800 dark:border-gray-700 dark:text-gray-200"
-      {...props}
-    />
+    <td className="px-3 py-2.5 align-top text-gray-800 dark:text-gray-200" {...props} />
   ),
   hr: () => <hr className="my-8 border-gray-300 dark:border-gray-700" />,
   img: (props) => <MDXImage {...props} />,
