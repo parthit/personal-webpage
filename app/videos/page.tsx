@@ -16,11 +16,6 @@ export const metadata: Metadata = {
     url: "/videos",
     type: "website",
   },
-  twitter: {
-    title: "Videos · Parthit Patel",
-    description:
-      "System design explainers and architecture videos curated by Parthit Patel.",
-  },
 };
 
 export default function VideosPage() {

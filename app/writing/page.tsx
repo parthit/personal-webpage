@@ -16,11 +16,6 @@ export const metadata: Metadata = {
     url: "/writing",
     type: "website",
   },
-  twitter: {
-    title: "Writing · Parthit Patel",
-    description:
-      "Essays and system-design notes on scalable systems, data structures, and software engineering.",
-  },
 };
 
 export default function WritingIndexPage() {

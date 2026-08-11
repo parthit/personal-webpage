@@ -20,10 +20,6 @@ export const metadata: Metadata = {
     url: SITE_URL,
     type: "website",
   },
-  twitter: {
-    title: SITE_TITLE,
-    description: SITE_DESCRIPTION,
-  },
 };
 
 export default function Home() {
