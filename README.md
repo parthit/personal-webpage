@@ -19,7 +19,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Optional: set `NEXT_PUBLIC_SITE_URL` to your canonical domain (defaults to the Vercel deployment URL).
+Canonical site URL defaults to `https://parthitpatel.com`. Override with `NEXT_PUBLIC_SITE_URL` if needed.
 
 ## Content
 
