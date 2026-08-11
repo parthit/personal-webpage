@@ -6,6 +6,12 @@ export const DEMO_POST = {
   path: "/writing/demo-url-shortener",
 } as const;
 
+export const BTREE_POST = {
+  slug: "b-trees",
+  title: "B-Trees: Balanced Search for Memory and Disk",
+  path: "/writing/b-trees",
+} as const;
+
 export const DEMO_VIDEO = {
   slug: "demo-system-design-intro",
   title: "Demo: Intro to Architecture and Systems Design Interviews",

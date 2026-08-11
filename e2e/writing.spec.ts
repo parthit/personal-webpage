@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  BTREE_POST,
   DEMO_POST,
   expectActiveNav,
   expectImageLoaded,
@@ -95,5 +96,34 @@ test.describe("writing section", () => {
       "content",
       /sample system-design post/i
     );
+  });
+
+  test("renders the B-tree post with interactive demos", async ({ page }) => {
+    await page.goto("/writing");
+    await expect(page.getByRole("link", { name: BTREE_POST.title })).toBeVisible();
+
+    await page.goto(BTREE_POST.path);
+    await expect(
+      page.getByRole("heading", { name: BTREE_POST.title })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Interactive B-tree" })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("img", { name: "B-tree visualization" })
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Insert" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Search" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Delete" })).toBeVisible();
+
+    await page.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
+    await page.getByRole("button", { name: "Insert" }).click();
+    await expect(page.getByText(/Inserted 99/i)).toBeVisible();
+
+    await expect(
+      page.getByRole("heading", { name: "Interactive index demo" })
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Use B-tree index" }).click();
+    await expect(page.getByText(/Index walk visited/i)).toBeVisible();
   });
 });
