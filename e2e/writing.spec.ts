@@ -133,9 +133,10 @@ test.describe("writing section", () => {
     await expect(
       page.getByRole("heading", { name: "Complexity cheatsheet" })
     ).toBeVisible();
-    const cheatsheet = page.getByRole("table");
+    const cheatsheet = page
+      .getByRole("table")
+      .filter({ has: page.getByRole("columnheader", { name: "Operation" }) });
     await expect(cheatsheet).toBeVisible();
-    await expect(cheatsheet.getByRole("columnheader", { name: "Operation" })).toBeVisible();
     await expect(cheatsheet.getByRole("cell", { name: "Search" })).toBeVisible();
     await expect(cheatsheet.getByRole("cell", { name: "Insert" })).toBeVisible();
   });
