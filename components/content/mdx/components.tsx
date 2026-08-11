@@ -2,6 +2,8 @@ import type { MDXComponents } from "mdx/types";
 import Link from "next/link";
 import { MDXImage } from "./MDXImage";
 import { YouTube } from "../YouTube";
+import { BTreeVisualizer } from "./BTreeVisualizer";
+import { BTreeIndexDemo } from "./BTreeIndexDemo";
 
 export const mdxComponents: MDXComponents = {
   h1: (props) => (
@@ -67,4 +69,6 @@ export const mdxComponents: MDXComponents = {
   hr: () => <hr className="my-8 border-gray-300 dark:border-gray-700" />,
   img: (props) => <MDXImage {...props} />,
   YouTube,
+  BTreeVisualizer,
+  BTreeIndexDemo,
 };

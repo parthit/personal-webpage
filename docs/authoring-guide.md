@@ -93,6 +93,8 @@ Registered in `components/content/mdx/components.tsx`:
 | Standard markdown | headings, lists, links, code, blockquotes |
 | Images | `![alt](/content/images/...)` → optimized `next/image` |
 | `YouTube` | `<YouTube id="..." title="..." />` |
+| `BTreeVisualizer` | `<BTreeVisualizer />` — interactive B-tree (insert/search/delete) |
+| `BTreeIndexDemo` | `<BTreeIndexDemo />` — table scan vs B-tree index I/O demo |
 
 To add a new custom block (callout, quiz, etc.):
 
