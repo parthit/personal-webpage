@@ -133,12 +133,12 @@ export function BTreeVisualizer() {
 
   return (
     <figure className="not-prose my-8 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50">
-      <figcaption className="border-b border-gray-200 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-300">
+      <figcaption className="border-b border-gray-200 px-3 py-3 text-sm text-gray-600 sm:px-4 dark:border-gray-700 dark:text-gray-300">
         Interactive B-tree — insert, search, delete, and change order
       </figcaption>
 
-      <div className="flex flex-wrap items-end gap-2 border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-        <label className="flex min-w-[10rem] flex-1 flex-col gap-1 text-xs text-gray-600 dark:text-gray-400">
+      <div className="space-y-3 border-b border-gray-200 px-3 py-3 sm:px-4 dark:border-gray-700">
+        <label className="flex w-full flex-col gap-1 text-xs text-gray-600 dark:text-gray-400">
           Key(s)
           <input
             value={input}
@@ -147,48 +147,76 @@ export function BTreeVisualizer() {
               if (e.key === "Enter") runInsert();
             }}
             placeholder="e.g. 15 or 1, 8, 22"
-            className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-500 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
+            className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-500 sm:h-9 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
           />
         </label>
-        <Button type="button" size="sm" onClick={runInsert}>
-          Insert
-        </Button>
-        <Button type="button" size="sm" variant="secondary" onClick={runSearch}>
-          Search
-        </Button>
-        <Button type="button" size="sm" variant="destructive" onClick={runDelete}>
-          Delete
-        </Button>
-        <Button type="button" size="sm" variant="outline" onClick={runClear}>
-          Clear
-        </Button>
-        <Button type="button" size="sm" variant="outline" onClick={loadSample}>
-          Sample
-        </Button>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <Button type="button" size="sm" className="w-full sm:w-auto" onClick={runInsert}>
+            Insert
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="w-full sm:w-auto"
+            onClick={runSearch}
+          >
+            Search
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="destructive"
+            className="w-full sm:w-auto"
+            onClick={runDelete}
+          >
+            Delete
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={runClear}
+          >
+            Clear
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="col-span-2 w-full sm:col-span-1 sm:w-auto"
+            onClick={loadSample}
+          >
+            Sample
+          </Button>
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 border-b border-gray-200 px-4 py-3 text-sm dark:border-gray-700">
-        <span className="text-gray-600 dark:text-gray-400">Min degree t</span>
-        {[2, 3, 4].map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => changeDegree(t)}
-            className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-              degree === t
-                ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
-                : "bg-white text-gray-700 ring-1 ring-gray-300 hover:bg-gray-100 dark:bg-gray-950 dark:text-gray-200 dark:ring-gray-600 dark:hover:bg-gray-800"
-            }`}
-          >
-            t = {t}
-          </button>
-        ))}
-        <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">
+      <div className="flex flex-col gap-2 border-b border-gray-200 px-3 py-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:px-4 dark:border-gray-700">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-gray-600 dark:text-gray-400">Min degree t</span>
+          {[2, 3, 4].map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => changeDegree(t)}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                degree === t
+                  ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                  : "bg-white text-gray-700 ring-1 ring-gray-300 hover:bg-gray-100 dark:bg-gray-950 dark:text-gray-200 dark:ring-gray-600 dark:hover:bg-gray-800"
+              }`}
+            >
+              t = {t}
+            </button>
+          ))}
+        </div>
+        <span className="text-xs text-gray-500 sm:ml-auto dark:text-gray-400">
           size {tree.size} · height {tree.height} · max keys/node {2 * degree - 1}
         </span>
       </div>
 
-      <div className="overflow-x-auto px-2 py-4">
+      <div className="-mx-0 overflow-x-auto overscroll-x-contain px-2 py-4">
         {tree.root ? (
           <svg
             width={svgWidth}
@@ -196,7 +224,7 @@ export function BTreeVisualizer() {
             viewBox={`0 0 ${svgWidth} ${svgHeight}`}
             role="img"
             aria-label="B-tree visualization"
-            className="mx-auto block"
+            className="mx-auto block max-w-none"
           >
             {layout.edges.map((edge) => (
               <line
@@ -278,7 +306,7 @@ export function BTreeVisualizer() {
         )}
       </div>
 
-      <p className="border-t border-gray-200 px-4 py-3 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-300">
+      <p className="border-t border-gray-200 px-3 py-3 text-sm leading-relaxed text-gray-700 sm:px-4 dark:border-gray-700 dark:text-gray-300">
         {message}
       </p>
     </figure>

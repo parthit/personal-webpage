@@ -13,7 +13,7 @@ That property matters wherever a “node” is expensive to fetch — especially
 
 ## Why B-trees exist
 
-Binary trees of \(n\) keys can be \(\Theta(n)\) deep in the worst case. Even balanced binary trees are \(\Theta(\log_2 n)\) deep. A B-tree of minimum degree \(t\) has height roughly \(\Theta(\log_t n)\). Raise \(t\) (more keys per node) and the height drops fast.
+Binary trees of n keys can be Θ(n) deep in the worst case. Even balanced binary trees are Θ(log₂ n) deep. A B-tree of minimum degree t has height roughly Θ(logₜ n). Raise t (more keys per node) and the height drops fast.
 
 Typical use cases:
 
@@ -24,22 +24,22 @@ Typical use cases:
 
 Most production systems use a close cousin — the **B+tree** — where all records live in leaves and internal nodes store only separators. The balancing ideas are the same; this post focuses on classic B-trees so the algorithms stay readable.
 
-## The rules (minimum degree \(t\))
+## The rules (minimum degree t)
 
-Pick an integer \(t \ge 2\). Then every B-tree obeys:
+Pick an integer t ≥ 2. Then every B-tree obeys:
 
-1. Every node has **at most** \(2t - 1\) keys.
-2. Every node except the root has **at least** \(t - 1\) keys.
+1. Every node has **at most** 2t − 1 keys.
+2. Every node except the root has **at least** t − 1 keys.
 3. The root has at least one key unless the tree is empty.
-4. A non-leaf with \(k\) keys has exactly \(k + 1\) children.
+4. A non-leaf with k keys has exactly k + 1 children.
 5. All leaves sit at the **same depth**.
-6. Keys inside a node are sorted; subtree \(i\) holds keys between key \(i-1\) and key \(i\).
+6. Keys inside a node are sorted; subtree i holds keys between key i−1 and key i.
 
-Example: \(t = 2\) means 1–3 keys per non-root node (a 2-3-4 tree).
+Example: t = 2 means 1–3 keys per non-root node (a 2-3-4 tree).
 
 ## Interactive B-tree
 
-Use the playground below to insert, search, and delete. Change \(t\) to see how fanout reshapes the tree. Search highlights the path from the root.
+Use the playground below to insert, search, and delete. Change t to see how fanout reshapes the tree. Search highlights the path from the root.
 
 <BTreeVisualizer />
 
@@ -67,7 +67,7 @@ Each step discards whole ranges of keys. With large nodes, one comparison sequen
 
 ### Insert
 
-Insert always lands in a **leaf**. Before descending into a full child (\(2t - 1\) keys), split that child so there is room for a future promotion.
+Insert always lands in a **leaf**. Before descending into a full child (2t − 1 keys), split that child so there is room for a future promotion.
 
 ```
 B-TREE-SPLIT-CHILD(x, i)
@@ -124,7 +124,7 @@ Splitting eagerly on the way down keeps recursion simple: you never insert into 
 
 ### Delete
 
-Delete is the fiddly one. Guarantees still hold if, before descending into a child with only \(t - 1\) keys, you either **borrow** a key from a sibling or **merge** with a sibling.
+Delete is the fiddly one. Guarantees still hold if, before descending into a child with only t − 1 keys, you either **borrow** a key from a sibling or **merge** with a sibling.
 
 ```
 B-TREE-DELETE(x, k)
@@ -167,7 +167,7 @@ A B-tree **secondary index** on `id` stores keys in tree order. Each leaf entry 
 1. Walk a handful of index nodes from the root (one I/O each, unless cached).
 2. Read exactly one heap page for the row.
 
-On large tables that difference is enormous: \(O(n)\) page reads vs \(O(\log_t n)\) index reads + 1 heap read.
+On large tables that difference is enormous: O(n) page reads vs O(logₜ n) index reads + 1 heap read.
 
 ### Interactive index demo
 
@@ -191,12 +191,12 @@ Still, the mental model in the demo is the one that matters: **the tree turns a 
 
 | Operation | I/O / node visits | Notes |
 |---|---|---|
-| Search | \(O(\log_t n)\) | One node per level |
-| Insert | \(O(\log_t n)\) | Splits are \(O(1)\) work per level |
-| Delete | \(O(\log_t n)\) | Borrow/merge along the path |
-| Range scan (B+tree) | \(O(\log_t n + k)\) | \(k\) leaf entries after the first |
+| Search | O(logₜ n) | One node per level |
+| Insert | O(logₜ n) | Splits are O(1) work per level |
+| Delete | O(logₜ n) | Borrow/merge along the path |
+| Range scan (B+tree) | O(logₜ n + k) | k leaf entries after the first |
 
-Space is \(O(n)\). Constants hide page size, key width, and caching — which is why B-trees win on disk even when a hash index has \(O(1)\) average probes for point lookups.
+Space is O(n). Constants hide page size, key width, and caching — which is why B-trees win on disk even when a hash index has O(1) average probes for point lookups.
 
 ## When to reach for a B-tree
 

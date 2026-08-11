@@ -56,13 +56,38 @@ export const mdxComponents: MDXComponents = {
   ),
   code: (props) => (
     <code
-      className="rounded bg-gray-200 px-1.5 py-0.5 text-sm dark:bg-gray-800"
+      className="rounded bg-gray-200 px-1.5 py-0.5 text-[0.9em] text-gray-900 dark:bg-gray-800 dark:text-gray-100"
       {...props}
     />
   ),
+  // Light, high-contrast blocks so nested <code> never paints white-on-white.
+  // [&_code] clears the inline-code chip styles used inside fenced blocks.
   pre: (props) => (
     <pre
-      className="mb-6 overflow-x-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"
+      className="mb-6 overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-[13px] leading-relaxed text-gray-900 sm:p-4 sm:text-sm dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 [&_code]:bg-transparent [&_code]:p-0 [&_code]:text-inherit [&_code]:rounded-none"
+      {...props}
+    />
+  ),
+  table: (props) => (
+    <div className="mb-6 w-full overflow-x-auto">
+      <table
+        className="w-full min-w-[20rem] border-collapse text-left text-sm"
+        {...props}
+      />
+    </div>
+  ),
+  thead: (props) => (
+    <thead className="border-b border-gray-300 dark:border-gray-600" {...props} />
+  ),
+  th: (props) => (
+    <th
+      className="px-3 py-2 font-semibold text-gray-900 dark:text-gray-100"
+      {...props}
+    />
+  ),
+  td: (props) => (
+    <td
+      className="border-t border-gray-200 px-3 py-2 text-gray-800 dark:border-gray-700 dark:text-gray-200"
       {...props}
     />
   ),

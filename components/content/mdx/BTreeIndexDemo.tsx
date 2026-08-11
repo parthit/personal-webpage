@@ -179,21 +179,21 @@ export function BTreeIndexDemo() {
 
   return (
     <figure className="not-prose my-8 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50">
-      <figcaption className="border-b border-gray-200 px-4 py-3 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-300">
+      <figcaption className="border-b border-gray-200 px-3 py-3 text-sm text-gray-600 sm:px-4 dark:border-gray-700 dark:text-gray-300">
         Interactive index — table scan vs B-tree lookup (simulated page I/O)
       </figcaption>
 
-      <div className="grid gap-0 md:grid-cols-2">
-        <div className="border-b border-gray-200 p-4 md:border-b-0 md:border-r dark:border-gray-700">
+      <div className="grid gap-0 lg:grid-cols-2">
+        <div className="border-b border-gray-200 p-3 sm:p-4 lg:border-b-0 lg:border-r dark:border-gray-700">
           <h4 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
             Heap table (users)
           </h4>
-          <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mb-3 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
             Rows are stored in insertion order across {pageCount} pages (
             {PAGE_SIZE} rows/page). A scan must walk pages until it hits the id.
           </p>
-          <div className="max-h-64 overflow-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950">
-            <table className="w-full text-left text-xs">
+          <div className="max-h-56 overflow-auto overscroll-contain rounded-lg border border-gray-200 bg-white sm:max-h-64 dark:border-gray-700 dark:bg-gray-950">
+            <table className="w-full min-w-[16rem] text-left text-xs">
               <thead className="sticky top-0 bg-gray-100 text-gray-600 dark:bg-gray-900 dark:text-gray-300">
                 <tr>
                   <th className="px-2 py-1.5 font-medium">Page</th>
@@ -229,22 +229,22 @@ export function BTreeIndexDemo() {
           </div>
         </div>
 
-        <div className="p-4">
+        <div className="p-3 sm:p-4">
           <h4 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
             Secondary memory index on id
           </h4>
-          <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+          <p className="mb-3 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
             The B-tree stores keys (and, in a real engine, pointers to heap
             pages). Height stays small, so lookups cost a few node reads.
           </p>
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white px-1 py-3 dark:border-gray-700 dark:bg-gray-950">
+          <div className="overflow-x-auto overscroll-x-contain rounded-lg border border-gray-200 bg-white px-1 py-3 dark:border-gray-700 dark:bg-gray-950">
             <svg
               width={svgWidth}
               height={svgHeight}
               viewBox={`0 0 ${svgWidth} ${svgHeight}`}
               role="img"
               aria-label="B-tree index on user id"
-              className="mx-auto block"
+              className="mx-auto block max-w-none"
             >
               {layout.edges.map((edge) => (
                 <line
@@ -301,32 +301,47 @@ export function BTreeIndexDemo() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-end gap-2 border-t border-gray-200 px-4 py-3 dark:border-gray-700">
-        <label className="flex w-32 flex-col gap-1 text-xs text-gray-600 dark:text-gray-400">
-          Lookup id
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") runIndex();
-            }}
-            className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-500 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
-          />
-        </label>
-        <Button type="button" size="sm" variant="secondary" onClick={runScan}>
-          Table scan
-        </Button>
-        <Button type="button" size="sm" onClick={runIndex}>
-          Use B-tree index
-        </Button>
-        <span className="ml-auto text-xs text-gray-500 dark:text-gray-400">
+      <div className="space-y-3 border-t border-gray-200 px-3 py-3 sm:px-4 dark:border-gray-700">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <label className="flex w-full flex-col gap-1 text-xs text-gray-600 sm:w-32 dark:text-gray-400">
+            Lookup id
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") runIndex();
+              }}
+              className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-500 sm:h-9 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
+            />
+          </label>
+          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="w-full sm:w-auto"
+              onClick={runScan}
+            >
+              Table scan
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={runIndex}
+            >
+              Use B-tree index
+            </Button>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-gray-400">
           Try 33 (exists) or 11 (missing)
-        </span>
+        </p>
       </div>
 
       {result && (
-        <div className="border-t border-gray-200 px-4 py-3 text-sm dark:border-gray-700">
-          <div className="mb-2 flex flex-wrap gap-3 text-xs">
+        <div className="border-t border-gray-200 px-3 py-3 text-sm sm:px-4 dark:border-gray-700">
+          <div className="mb-2 flex flex-wrap gap-2 text-xs">
             <span className="rounded bg-white px-2 py-1 ring-1 ring-gray-200 dark:bg-gray-950 dark:ring-gray-700">
               Mode: {result.mode === "scan" ? "table scan" : "index lookup"}
             </span>
@@ -345,7 +360,9 @@ export function BTreeIndexDemo() {
               </span>
             )}
           </div>
-          <p className="text-gray-700 dark:text-gray-300">{result.explanation}</p>
+          <p className="leading-relaxed text-gray-700 dark:text-gray-300">
+            {result.explanation}
+          </p>
         </div>
       )}
     </figure>
