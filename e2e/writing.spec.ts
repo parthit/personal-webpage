@@ -129,5 +129,15 @@ test.describe("writing section", () => {
     ).toBeVisible();
     await page.getByRole("button", { name: "Use B-tree index" }).click();
     await expect(page.getByText(/Index walk visited/i)).toBeVisible();
+
+    await expect(
+      page.getByRole("heading", { name: "Complexity cheatsheet" })
+    ).toBeVisible();
+    const cheatsheet = page
+      .getByRole("table")
+      .filter({ has: page.getByRole("columnheader", { name: "Operation" }) });
+    await expect(cheatsheet).toBeVisible();
+    await expect(cheatsheet.getByRole("cell", { name: "Search" })).toBeVisible();
+    await expect(cheatsheet.getByRole("cell", { name: "Insert" })).toBeVisible();
   });
 });
