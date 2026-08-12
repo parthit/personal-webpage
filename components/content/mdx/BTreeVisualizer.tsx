@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   clear,
+  contains,
   createBTree,
   insert,
   LAYOUT,
@@ -14,6 +15,15 @@ import {
   type BTreeSnapshot,
   type SearchStep,
 } from "@/lib/btree/btree";
+import {
+  buildDeleteFrames,
+  buildInsertFrames,
+  buildSearchFrames,
+  effectiveStepMs,
+  playFrames,
+  type VizAccent,
+  type VizFrame,
+} from "@/lib/btree/demo-animation";
 
 const SAMPLE = [10, 20, 5, 6, 12, 30, 7, 17, 3];
 
@@ -24,6 +34,11 @@ function parseKeys(raw: string): number[] {
     .filter(Boolean)
     .map(Number)
     .filter((n) => Number.isFinite(n));
+}
+
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 /** Wider than the writing column on desktop; full width on mobile. */
@@ -38,95 +53,187 @@ export function BTreeVisualizer() {
   });
   const [input, setInput] = useState("");
   const [message, setMessage] = useState(
-    "Try insert, search, or delete. Default minimum degree t = 2 (max 3 keys/node)."
+    "Try insert, search, or delete — each walk animates the path so nodes don't just pop in."
   );
   const [highlight, setHighlight] = useState<SearchStep[]>([]);
+  const [accent, setAccent] = useState<VizAccent | null>(null);
   const [degree, setDegree] = useState(2);
+  const [busy, setBusy] = useState(false);
+  const treeRef = useRef(tree);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    treeRef.current = tree;
+  }, [tree]);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const layout = useMemo(() => layoutTree(tree.root), [tree]);
 
   const highlightedIds = new Set(highlight.map((s) => s.nodeId));
   const foundStep = highlight.find((s) => s.found);
 
-  function runInsert() {
+  function cancelAnimation() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+  }
+
+  async function runFrames(
+    frames: VizFrame[],
+    onCommit?: () => void
+  ): Promise<boolean> {
+    cancelAnimation();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setBusy(true);
+
+    const stepMs = effectiveStepMs(prefersReducedMotion());
+    const holdMs = effectiveStepMs(prefersReducedMotion(), 480);
+
+    try {
+      await playFrames(
+        frames,
+        async (frame) => {
+          setHighlight(frame.highlight);
+          setAccent(frame.accent);
+          setMessage(frame.message);
+          if (frame.commitMutation) {
+            onCommit?.();
+          }
+        },
+        { stepMs, holdMs, signal: controller.signal }
+      );
+      return true;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return false;
+      }
+      throw err;
+    } finally {
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+        setBusy(false);
+      }
+    }
+  }
+
+  async function runInsert() {
     const keys = parseKeys(input);
     if (keys.length === 0) {
       setMessage("Enter one or more numbers to insert.");
       return;
     }
-    let next = tree;
+
+    setInput("");
+    let working = treeRef.current;
     const added: number[] = [];
+
     for (const key of keys) {
-      const before = next.size;
-      next = insert(next, key);
-      if (next.size > before) added.push(key);
+      const before = working;
+      const willInsert = !contains(before, key);
+      const path = search(before.root, key);
+      const frames = buildInsertFrames(key, path.steps, willInsert);
+
+      const ok = await runFrames(frames, () => {
+        const next = insert(before, key);
+        working = next;
+        treeRef.current = next;
+        setTree(next);
+        if (next.size > before.size) added.push(key);
+      });
+      if (!ok) return;
     }
-    setTree(next);
-    setHighlight([]);
+
     setMessage(
       added.length
-        ? `Inserted ${added.join(", ")}. Size ${next.size}, height ${next.height}.`
+        ? `Inserted ${added.join(", ")}. Size ${working.size}, height ${working.height}.`
         : "No new keys inserted (duplicates are ignored)."
     );
-    setInput("");
   }
 
-  function runSearch() {
+  async function runSearch() {
     const keys = parseKeys(input);
     if (keys.length !== 1) {
       setMessage("Enter a single number to search.");
       return;
     }
-    const result = search(tree.root, keys[0]);
-    setHighlight(result.steps);
+    const key = keys[0];
+    const result = search(treeRef.current.root, key);
+    const frames = buildSearchFrames(key, result.steps, result.found);
+    const ok = await runFrames(frames);
+    if (!ok) return;
     setMessage(
       result.found
-        ? `Found ${keys[0]} after visiting ${result.steps.length} node(s).`
-        : `${keys[0]} not found. Path length ${result.steps.length}.`
+        ? `Found ${key} after visiting ${result.steps.length} node(s).`
+        : `${key} not found. Path length ${result.steps.length}.`
     );
   }
 
-  function runDelete() {
+  async function runDelete() {
     const keys = parseKeys(input);
     if (keys.length === 0) {
       setMessage("Enter one or more numbers to delete.");
       return;
     }
-    let next = tree;
+
+    setInput("");
+    let working = treeRef.current;
     const removed: number[] = [];
+
     for (const key of keys) {
-      const before = next.size;
-      next = remove(next, key);
-      if (next.size < before) removed.push(key);
+      const before = working;
+      const willDelete = contains(before, key);
+      const path = search(before.root, key);
+      const frames = buildDeleteFrames(key, path.steps, willDelete);
+
+      const ok = await runFrames(frames, () => {
+        const next = remove(before, key);
+        working = next;
+        treeRef.current = next;
+        setTree(next);
+        if (next.size < before.size) removed.push(key);
+      });
+      if (!ok) return;
     }
-    setTree(next);
-    setHighlight([]);
+
     setMessage(
       removed.length
-        ? `Deleted ${removed.join(", ")}. Size ${next.size}, height ${next.height}.`
+        ? `Deleted ${removed.join(", ")}. Size ${working.size}, height ${working.height}.`
         : "No matching keys to delete."
     );
-    setInput("");
   }
 
   function runClear() {
-    setTree(clear(tree));
+    cancelAnimation();
+    setBusy(false);
+    setTree(clear(treeRef.current));
     setHighlight([]);
+    setAccent(null);
     setMessage("Tree cleared.");
   }
 
   function loadSample() {
+    cancelAnimation();
+    setBusy(false);
     let next = createBTree(degree);
     for (const key of SAMPLE) next = insert(next, key);
     setTree(next);
     setHighlight([]);
+    setAccent(null);
     setMessage(`Loaded sample keys: ${SAMPLE.join(", ")}.`);
   }
 
   function changeDegree(nextDegree: number) {
+    cancelAnimation();
+    setBusy(false);
     setDegree(nextDegree);
     setTree((prev) => withDegree(prev, nextDegree));
     setHighlight([]);
+    setAccent(null);
     setMessage(
       `Minimum degree t = ${nextDegree} (max ${2 * nextDegree - 1} keys per node).`
     );
@@ -136,9 +243,9 @@ export function BTreeVisualizer() {
   const svgHeight = Math.max(layout.height, 120);
 
   return (
-    <figure className={figureShell}>
+    <figure className={figureShell} data-btree-visualizer>
       <figcaption className="border-b border-gray-200 px-3 py-3 text-sm text-gray-600 sm:px-4 dark:border-gray-700 dark:text-gray-300">
-        Interactive B-tree — insert, search, delete, and change order
+        Interactive B-tree — insert, search, and delete animate along the path
       </figcaption>
 
       <div className="space-y-3 border-b border-gray-200 px-3 py-3 sm:px-4 dark:border-gray-700">
@@ -148,14 +255,21 @@ export function BTreeVisualizer() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") runInsert();
+              if (e.key === "Enter" && !busy) void runInsert();
             }}
             placeholder="e.g. 15 or 1, 8, 22"
-            className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-500 sm:h-9 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
+            disabled={busy}
+            className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-500 disabled:opacity-60 sm:h-9 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
           />
         </label>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          <Button type="button" size="sm" className="w-full sm:w-auto" onClick={runInsert}>
+          <Button
+            type="button"
+            size="sm"
+            className="w-full sm:w-auto"
+            disabled={busy}
+            onClick={() => void runInsert()}
+          >
             Insert
           </Button>
           <Button
@@ -163,7 +277,8 @@ export function BTreeVisualizer() {
             size="sm"
             variant="secondary"
             className="w-full sm:w-auto"
-            onClick={runSearch}
+            disabled={busy}
+            onClick={() => void runSearch()}
           >
             Search
           </Button>
@@ -172,7 +287,8 @@ export function BTreeVisualizer() {
             size="sm"
             variant="destructive"
             className="w-full sm:w-auto"
-            onClick={runDelete}
+            disabled={busy}
+            onClick={() => void runDelete()}
           >
             Delete
           </Button>
@@ -195,6 +311,15 @@ export function BTreeVisualizer() {
             Sample
           </Button>
         </div>
+        {busy && (
+          <p
+            className="text-xs font-medium text-amber-700 dark:text-amber-300"
+            aria-live="polite"
+            data-btree-animating
+          >
+            Animating operation…
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col gap-2 border-b border-gray-200 px-3 py-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:px-4 dark:border-gray-700">
@@ -205,7 +330,8 @@ export function BTreeVisualizer() {
               key={t}
               type="button"
               onClick={() => changeDegree(t)}
-              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+              disabled={busy}
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-60 ${
                 degree === t
                   ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
                   : "bg-white text-gray-700 ring-1 ring-gray-300 hover:bg-gray-100 dark:bg-gray-950 dark:text-gray-200 dark:ring-gray-600 dark:hover:bg-gray-800"
@@ -241,7 +367,7 @@ export function BTreeVisualizer() {
                   y1={edge.fromY}
                   x2={edge.toX}
                   y2={edge.toY}
-                  className="stroke-gray-400 dark:stroke-gray-500"
+                  className="stroke-gray-400 transition-[stroke] duration-300 dark:stroke-gray-500"
                   strokeWidth={1.5}
                 />
               ))}
@@ -249,13 +375,19 @@ export function BTreeVisualizer() {
                 const x = node.x - node.width / 2;
                 const y = node.y - LAYOUT.NODE_H / 2;
                 const isOnPath = highlightedIds.has(node.id);
+                const isFocus =
+                  highlight.length > 0 &&
+                  highlight[highlight.length - 1]?.nodeId === node.id;
                 const foundIdx =
                   foundStep && foundStep.nodeId === node.id
                     ? foundStep.keyIndex
                     : null;
 
                 return (
-                  <g key={node.id}>
+                  <g
+                    key={node.id}
+                    className={isFocus ? "btree-pulse" : undefined}
+                  >
                     <rect
                       x={x}
                       y={y}
@@ -264,8 +396,8 @@ export function BTreeVisualizer() {
                       rx={6}
                       className={
                         isOnPath
-                          ? "fill-amber-100 stroke-amber-500 dark:fill-amber-950 dark:stroke-amber-400"
-                          : "fill-white stroke-gray-400 dark:fill-gray-950 dark:stroke-gray-500"
+                          ? "fill-amber-100 stroke-amber-500 transition-[fill,stroke] duration-300 dark:fill-amber-950 dark:stroke-amber-400"
+                          : "fill-white stroke-gray-400 transition-[fill,stroke] duration-300 dark:fill-gray-950 dark:stroke-gray-500"
                       }
                       strokeWidth={isOnPath ? 2 : 1.25}
                     />
@@ -276,6 +408,18 @@ export function BTreeVisualizer() {
                         i * LAYOUT.KEY_W +
                         LAYOUT.KEY_W / 2;
                       const isFound = foundIdx === i;
+                      const isAccentKey = accent?.key === key;
+                      const accentClass =
+                        isAccentKey && accent?.kind === "insert"
+                          ? "btree-key-pop fill-emerald-700 font-semibold dark:fill-emerald-300"
+                          : isAccentKey && accent?.kind === "delete"
+                            ? "btree-key-fade fill-rose-700 font-semibold dark:fill-rose-300"
+                            : isAccentKey && accent?.kind === "found"
+                              ? "btree-key-pop fill-amber-800 font-semibold dark:fill-amber-200"
+                              : isFound
+                                ? "fill-amber-800 font-semibold dark:fill-amber-200"
+                                : "fill-gray-800 dark:fill-gray-100";
+
                       return (
                         <g key={`${node.id}-${key}-${i}`}>
                           {i > 0 && (
@@ -292,10 +436,10 @@ export function BTreeVisualizer() {
                             y={node.y + 1}
                             textAnchor="middle"
                             dominantBaseline="middle"
-                            className={
-                              isFound
-                                ? "fill-amber-800 text-[12px] font-semibold dark:fill-amber-200"
-                                : "fill-gray-800 text-[12px] dark:fill-gray-100"
+                            className={`text-[12px] ${accentClass}`}
+                            data-btree-key={key}
+                            data-btree-accent={
+                              isAccentKey ? accent?.kind : undefined
                             }
                           >
                             {key}
@@ -315,7 +459,11 @@ export function BTreeVisualizer() {
         )}
       </div>
 
-      <p className="border-t border-gray-200 px-3 py-3 text-sm leading-relaxed text-gray-700 sm:px-4 dark:border-gray-700 dark:text-gray-300">
+      <p
+        className="border-t border-gray-200 px-3 py-3 text-sm leading-relaxed text-gray-700 sm:px-4 dark:border-gray-700 dark:text-gray-300"
+        aria-live="polite"
+        data-btree-status
+      >
         {message}
       </p>
     </figure>
