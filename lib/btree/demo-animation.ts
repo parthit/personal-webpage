@@ -188,35 +188,41 @@ export function buildInsertFrames(
   }
 
   if (willInsert) {
-    // Pause on the target leaf before mutating so the destination is obvious.
-    if (steps.length > 0) {
+    if (steps.length === 0) {
+      frames.push({
+        highlight: [],
+        accent: { key, kind: "insert" },
+        message: `Tree was empty — ${key} becomes the new root.`,
+        commitMutation: true,
+        relocateAfterCommit: key,
+      });
+      frames.push({
+        highlight: [],
+        accent: { key, kind: "insert" },
+        message: `Inserted ${key} as the root.`,
+        relocateAfterCommit: key,
+      });
+    } else {
+      // Pause on the target leaf before mutating so the destination is obvious.
       frames.push({
         highlight: steps,
         accent: null,
         message: `Ready to insert ${key} into that leaf (a full ancestor may split first).`,
       });
+      frames.push({
+        highlight: steps,
+        accent: { key, kind: "insert" },
+        message: `Placing ${key} now…`,
+        commitMutation: true,
+        relocateAfterCommit: key,
+      });
+      frames.push({
+        highlight: steps,
+        accent: { key, kind: "insert" },
+        message: `Inserted ${key}. Highlight shows its home after any splits.`,
+        relocateAfterCommit: key,
+      });
     }
-    frames.push({
-      highlight: steps,
-      accent: { key, kind: "insert" },
-      message: `Placing ${key} now…`,
-      commitMutation: true,
-      relocateAfterCommit: key,
-    });
-    frames.push({
-      highlight: steps,
-      accent: { key, kind: "insert" },
-      message: `Inserted ${key}. Highlight shows its home after any splits.`,
-      relocateAfterCommit: key,
-    });
-  } else if (steps.length === 0) {
-    frames.push({
-      highlight: [],
-      accent: { key, kind: "insert" },
-      message: `Tree was empty — ${key} becomes the new root.`,
-      commitMutation: true,
-      relocateAfterCommit: key,
-    });
   }
 
   return frames;
@@ -390,6 +396,15 @@ export function buildIndexLookupFrames(
     const step = steps[i];
     pathNodeIds.push(step.nodeId);
     const nodesVisited = pathNodeIds.length;
+    const isLast = i === steps.length - 1;
+    let explanation: string;
+    if (step.found) {
+      explanation = `Index node ${nodesVisited}: key ${key} found. Next, fetch its heap page.`;
+    } else if (isLast) {
+      explanation = `Read index node ${nodesVisited} (1 page I/O). Key ${key} is absent from this leaf — stop; no further descent.`;
+    } else {
+      explanation = `Read index node ${nodesVisited} (1 page I/O). Narrow the range and descend.`;
+    }
     frames.push({
       mode: "index",
       key,
@@ -401,9 +416,7 @@ export function buildIndexLookupFrames(
       nodesVisited,
       heapFetched: false,
       rowId: null,
-      explanation: step.found
-        ? `Index node ${nodesVisited}: key ${key} found. Next, fetch its heap page.`
-        : `Read index node ${nodesVisited} (1 page I/O). Narrow the range and descend.`,
+      explanation,
       done: false,
     });
   }

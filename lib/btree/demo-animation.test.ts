@@ -63,6 +63,15 @@ describe("demo-animation helpers", () => {
     assert.match(dup.at(-1)!.message, /already present/i);
   });
 
+  it("uses the empty-tree root copy when inserting into an empty path", () => {
+    const empty = buildInsertFrames(5, [], true);
+    assert.ok(empty.some((f) => f.commitMutation));
+    assert.ok(
+      empty.some((f) => /Tree was empty — 5 becomes the new root/i.test(f.message))
+    );
+    assert.ok(!empty.some((f) => /Ready to insert|Placing 5 now/i.test(f.message)));
+  });
+
   it("builds delete frames that mark, then commit, then clear", () => {
     const hit: SearchStep[] = [
       { nodeId: "n1", keyIndex: null, found: false },
@@ -156,6 +165,12 @@ describe("demo-animation helpers", () => {
     assert.equal(miss.at(-1)?.heapFetched, false);
     assert.equal(miss.at(-1)?.pagesRead, 1);
     assert.match(miss.at(-1)!.explanation, /no heap fetch/i);
+    const leafMiss = miss.find(
+      (f) => !f.done && f.nodesVisited === 1 && !f.heapFetched
+    );
+    assert.ok(leafMiss);
+    assert.match(leafMiss!.explanation, /absent from this leaf|no further descent/i);
+    assert.doesNotMatch(leafMiss!.explanation, /Narrow the range and descend/i);
   });
 
   it("compares I/O costs with a clear multiplier", () => {
