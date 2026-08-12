@@ -204,4 +204,19 @@ describe("demo-animation helpers", () => {
       /AbortError/
     );
   });
+
+  it("aborts cleanly between frames and after onFrame", async () => {
+    const seen: number[] = [];
+    const controller = new AbortController();
+    const playing = playFrames(
+      [1, 2, 3],
+      async (n) => {
+        seen.push(n);
+        if (n === 1) controller.abort();
+      },
+      { stepMs: 20, holdMs: 20, signal: controller.signal }
+    );
+    await assert.rejects(() => playing, /AbortError/);
+    assert.deepEqual(seen, [1]);
+  });
 });

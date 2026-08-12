@@ -43,9 +43,23 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+function isAbortError(err: unknown): boolean {
+  return err instanceof DOMException && err.name === "AbortError";
+}
+
 /** Wider than the writing column on desktop; full width on mobile. */
 const figureShell =
   "not-prose relative my-8 w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50 lg:left-1/2 lg:w-[min(56rem,calc(100vw-2.5rem))] lg:max-w-none lg:-translate-x-1/2";
+
+type FrameView = {
+  highlight: SearchStep[];
+  accent: VizAccent | null;
+  message: string;
+  stepInfo: { index: number; total: number } | null;
+};
+
+const INITIAL_MESSAGE =
+  "Try insert, search, or delete — each walk animates the path so nodes don't just pop in.";
 
 export function BTreeVisualizer() {
   const [tree, setTree] = useState<BTreeSnapshot>(() => {
@@ -54,18 +68,18 @@ export function BTreeVisualizer() {
     return t;
   });
   const [input, setInput] = useState("");
-  const [message, setMessage] = useState(
-    "Try insert, search, or delete — each walk animates the path so nodes don't just pop in."
-  );
-  const [highlight, setHighlight] = useState<SearchStep[]>([]);
-  const [accent, setAccent] = useState<VizAccent | null>(null);
+  const [frameView, setFrameView] = useState<FrameView>({
+    highlight: [],
+    accent: null,
+    message: INITIAL_MESSAGE,
+    stepInfo: null,
+  });
   const [degree, setDegree] = useState(2);
   const [busy, setBusy] = useState(false);
-  const [stepInfo, setStepInfo] = useState<{ index: number; total: number } | null>(
-    null
-  );
   const treeRef = useRef(tree);
   const abortRef = useRef<AbortController | null>(null);
+  /** Bumps on cancel so in-flight frame callbacks cannot commit after Clear/Sample. */
+  const runIdRef = useRef(0);
 
   useEffect(() => {
     treeRef.current = tree;
@@ -79,12 +93,29 @@ export function BTreeVisualizer() {
 
   const layout = useMemo(() => layoutTree(tree.root), [tree]);
 
-  const highlightedIds = new Set(highlight.map((s) => s.nodeId));
-  const foundStep = highlight.find((s) => s.found);
+  const highlightedIds = useMemo(
+    () => new Set(frameView.highlight.map((s) => s.nodeId)),
+    [frameView.highlight]
+  );
+  const foundStep = useMemo(
+    () => frameView.highlight.find((s) => s.found),
+    [frameView.highlight]
+  );
 
   function cancelAnimation() {
     abortRef.current?.abort();
     abortRef.current = null;
+    runIdRef.current += 1;
+  }
+
+  function resetView(message: string) {
+    setBusy(false);
+    setFrameView({
+      highlight: [],
+      accent: null,
+      message,
+      stepInfo: null,
+    });
   }
 
   async function runFrames(
@@ -93,9 +124,13 @@ export function BTreeVisualizer() {
   ): Promise<boolean> {
     cancelAnimation();
     const controller = new AbortController();
+    const runId = runIdRef.current;
     abortRef.current = controller;
     setBusy(true);
-    setStepInfo({ index: 0, total: frames.length });
+    setFrameView((prev) => ({
+      ...prev,
+      stepInfo: { index: 0, total: frames.length },
+    }));
 
     const reduced = prefersReducedMotion();
     const stepMs = effectiveStepMs(reduced, VIZ_STEP_MS);
@@ -106,11 +141,16 @@ export function BTreeVisualizer() {
       await playFrames(
         frames,
         async (frame, index) => {
-          setStepInfo({ index: index + 1, total: frames.length });
-          setAccent(frame.accent);
-          setMessage(frame.message);
+          if (runId !== runIdRef.current || controller.signal.aborted) {
+            throw new DOMException("Aborted", "AbortError");
+          }
+
+          let nextHighlight = frame.highlight;
 
           if (frame.commitMutation) {
+            if (runId !== runIdRef.current || controller.signal.aborted) {
+              throw new DOMException("Aborted", "AbortError");
+            }
             const next = onCommit?.();
             if (next) {
               latestTree = next;
@@ -122,24 +162,32 @@ export function BTreeVisualizer() {
               latestTree.root,
               frame.relocateAfterCommit
             );
-            setHighlight(relocated.steps);
-          } else {
-            setHighlight(frame.highlight);
+            nextHighlight = relocated.steps;
           }
+
+          if (runId !== runIdRef.current || controller.signal.aborted) {
+            throw new DOMException("Aborted", "AbortError");
+          }
+
+          // Single state update per frame → one React render.
+          setFrameView({
+            highlight: nextHighlight,
+            accent: frame.accent,
+            message: frame.message,
+            stepInfo: { index: index + 1, total: frames.length },
+          });
         },
         { stepMs, holdMs, signal: controller.signal }
       );
-      return true;
+      return runId === runIdRef.current;
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        return false;
-      }
+      if (isAbortError(err)) return false;
       throw err;
     } finally {
-      if (abortRef.current === controller) {
+      if (abortRef.current === controller && runId === runIdRef.current) {
         abortRef.current = null;
         setBusy(false);
-        setStepInfo(null);
+        setFrameView((prev) => ({ ...prev, stepInfo: null }));
       }
     }
   }
@@ -147,7 +195,10 @@ export function BTreeVisualizer() {
   async function runInsert() {
     const keys = parseKeys(input);
     if (keys.length === 0) {
-      setMessage("Enter one or more numbers to insert.");
+      setFrameView((prev) => ({
+        ...prev,
+        message: "Enter one or more numbers to insert.",
+      }));
       return;
     }
 
@@ -172,17 +223,21 @@ export function BTreeVisualizer() {
       if (!ok) return;
     }
 
-    setMessage(
-      added.length
+    setFrameView((prev) => ({
+      ...prev,
+      message: added.length
         ? `Inserted ${added.join(", ")}. Size ${working.size}, height ${working.height}.`
-        : "No new keys inserted (duplicates are ignored)."
-    );
+        : "No new keys inserted (duplicates are ignored).",
+    }));
   }
 
   async function runSearch() {
     const keys = parseKeys(input);
     if (keys.length !== 1) {
-      setMessage("Enter a single number to search.");
+      setFrameView((prev) => ({
+        ...prev,
+        message: "Enter a single number to search.",
+      }));
       return;
     }
     const key = keys[0];
@@ -190,17 +245,21 @@ export function BTreeVisualizer() {
     const frames = buildSearchFrames(key, result.steps, result.found);
     const ok = await runFrames(frames);
     if (!ok) return;
-    setMessage(
-      result.found
+    setFrameView((prev) => ({
+      ...prev,
+      message: result.found
         ? `Found ${key} after visiting ${result.steps.length} node(s).`
-        : `${key} not found. Path length ${result.steps.length}.`
-    );
+        : `${key} not found. Path length ${result.steps.length}.`,
+    }));
   }
 
   async function runDelete() {
     const keys = parseKeys(input);
     if (keys.length === 0) {
-      setMessage("Enter one or more numbers to delete.");
+      setFrameView((prev) => ({
+        ...prev,
+        message: "Enter one or more numbers to delete.",
+      }));
       return;
     }
 
@@ -225,50 +284,40 @@ export function BTreeVisualizer() {
       if (!ok) return;
     }
 
-    setMessage(
-      removed.length
+    setFrameView((prev) => ({
+      ...prev,
+      message: removed.length
         ? `Deleted ${removed.join(", ")}. Size ${working.size}, height ${working.height}.`
-        : "No matching keys to delete."
-    );
+        : "No matching keys to delete.",
+    }));
   }
 
   function runClear() {
     cancelAnimation();
-    setBusy(false);
-    setStepInfo(null);
     setTree(clear(treeRef.current));
-    setHighlight([]);
-    setAccent(null);
-    setMessage("Tree cleared.");
+    resetView("Tree cleared.");
   }
 
   function loadSample() {
     cancelAnimation();
-    setBusy(false);
-    setStepInfo(null);
     let next = createBTree(degree);
     for (const key of SAMPLE) next = insert(next, key);
     setTree(next);
-    setHighlight([]);
-    setAccent(null);
-    setMessage(`Loaded sample keys: ${SAMPLE.join(", ")}.`);
+    resetView(`Loaded sample keys: ${SAMPLE.join(", ")}.`);
   }
 
   function changeDegree(nextDegree: number) {
     cancelAnimation();
-    setBusy(false);
-    setStepInfo(null);
     setDegree(nextDegree);
     setTree((prev) => withDegree(prev, nextDegree));
-    setHighlight([]);
-    setAccent(null);
-    setMessage(
+    resetView(
       `Minimum degree t = ${nextDegree} (max ${2 * nextDegree - 1} keys per node).`
     );
   }
 
   const svgWidth = Math.max(layout.width, 320);
   const svgHeight = Math.max(layout.height, 120);
+  const { highlight, accent, message, stepInfo } = frameView;
 
   return (
     <figure className={figureShell} data-btree-visualizer>
@@ -398,13 +447,11 @@ export function BTreeVisualizer() {
                   y1={edge.fromY}
                   x2={edge.toX}
                   y2={edge.toY}
-                  className="stroke-gray-400 transition-[stroke] duration-300 dark:stroke-gray-500"
+                  className="btree-edge stroke-gray-400 dark:stroke-gray-500"
                   strokeWidth={1.5}
                 />
               ))}
               {layout.nodes.map((node) => {
-                const x = node.x - node.width / 2;
-                const y = node.y - LAYOUT.NODE_H / 2;
                 const isOnPath = highlightedIds.has(node.id);
                 const isFocus =
                   highlight.length > 0 &&
@@ -417,67 +464,85 @@ export function BTreeVisualizer() {
                 return (
                   <g
                     key={node.id}
-                    className={isFocus ? "btree-pulse" : undefined}
+                    className="btree-node btree-node-enter"
+                    style={{
+                      transform: `translate(${node.x}px, ${node.y}px)`,
+                    }}
                   >
-                    <rect
-                      x={x}
-                      y={y}
-                      width={node.width}
-                      height={LAYOUT.NODE_H}
-                      rx={6}
-                      className={
-                        isOnPath
-                          ? "fill-amber-100 stroke-amber-500 transition-[fill,stroke] duration-300 dark:fill-amber-950 dark:stroke-amber-400"
-                          : "fill-white stroke-gray-400 transition-[fill,stroke] duration-300 dark:fill-gray-950 dark:stroke-gray-500"
-                      }
-                      strokeWidth={isOnPath ? 2 : 1.25}
-                    />
-                    {node.keys.map((key, i) => {
-                      const kx =
-                        x +
-                        LAYOUT.KEY_PAD / 2 +
-                        i * LAYOUT.KEY_W +
-                        LAYOUT.KEY_W / 2;
-                      const isFound = foundIdx === i;
-                      const isAccentKey = accent?.key === key;
-                      const accentClass =
-                        isAccentKey && accent?.kind === "insert"
-                          ? "btree-key-pop fill-emerald-700 font-semibold dark:fill-emerald-300"
-                          : isAccentKey && accent?.kind === "delete"
-                            ? "btree-key-fade fill-rose-700 font-semibold dark:fill-rose-300"
-                            : isAccentKey && accent?.kind === "found"
-                              ? "btree-key-pop fill-amber-800 font-semibold dark:fill-amber-200"
-                              : isFound
-                                ? "fill-amber-800 font-semibold dark:fill-amber-200"
-                                : "fill-gray-800 dark:fill-gray-100";
+                    <g className={isFocus ? "btree-pulse" : undefined}>
+                      <rect
+                        x={-node.width / 2}
+                        y={-LAYOUT.NODE_H / 2}
+                        width={node.width}
+                        height={LAYOUT.NODE_H}
+                        rx={6}
+                        className={
+                          isOnPath
+                            ? "fill-amber-100 stroke-amber-500 transition-[fill,stroke] duration-300 dark:fill-amber-950 dark:stroke-amber-400"
+                            : "fill-white stroke-gray-400 transition-[fill,stroke] duration-300 dark:fill-gray-950 dark:stroke-gray-500"
+                        }
+                        strokeWidth={isOnPath ? 2 : 1.25}
+                      />
+                      {node.keys.map((key, i) => {
+                        const kx =
+                          -node.width / 2 +
+                          LAYOUT.KEY_PAD / 2 +
+                          i * LAYOUT.KEY_W +
+                          LAYOUT.KEY_W / 2;
+                        const isFound = foundIdx === i;
+                        const isAccentKey = accent?.key === key;
+                        const accentClass =
+                          isAccentKey && accent?.kind === "insert"
+                            ? "btree-key-pop fill-emerald-700 font-semibold dark:fill-emerald-300"
+                            : isAccentKey && accent?.kind === "delete"
+                              ? "btree-key-fade fill-rose-700 font-semibold dark:fill-rose-300"
+                              : isAccentKey && accent?.kind === "found"
+                                ? "btree-key-pop fill-amber-800 font-semibold dark:fill-amber-200"
+                                : isFound
+                                  ? "fill-amber-800 font-semibold dark:fill-amber-200"
+                                  : "fill-gray-800 dark:fill-gray-100";
 
-                      return (
-                        <g key={`${node.id}-${key}-${i}`}>
-                          {i > 0 && (
-                            <line
-                              x1={x + LAYOUT.KEY_PAD / 2 + i * LAYOUT.KEY_W}
-                              y1={y + 6}
-                              x2={x + LAYOUT.KEY_PAD / 2 + i * LAYOUT.KEY_W}
-                              y2={y + LAYOUT.NODE_H - 6}
-                              className="stroke-gray-300 dark:stroke-gray-600"
-                            />
-                          )}
-                          <text
-                            x={kx}
-                            y={node.y + 1}
-                            textAnchor="middle"
-                            dominantBaseline="middle"
-                            className={`text-[12px] ${accentClass}`}
-                            data-btree-key={key}
-                            data-btree-accent={
-                              isAccentKey ? accent?.kind : undefined
-                            }
-                          >
-                            {key}
-                          </text>
-                        </g>
-                      );
-                    })}
+                        return (
+                          <g key={`${node.id}-${key}-${i}`}>
+                            {i > 0 && (
+                              <line
+                                x1={
+                                  -node.width / 2 +
+                                  LAYOUT.KEY_PAD / 2 +
+                                  i * LAYOUT.KEY_W
+                                }
+                                y1={-LAYOUT.NODE_H / 2 + 6}
+                                x2={
+                                  -node.width / 2 +
+                                  LAYOUT.KEY_PAD / 2 +
+                                  i * LAYOUT.KEY_W
+                                }
+                                y2={LAYOUT.NODE_H / 2 - 6}
+                                className="stroke-gray-300 dark:stroke-gray-600"
+                              />
+                            )}
+                            <text
+                              key={
+                                isAccentKey
+                                  ? `${node.id}-${key}-${accent?.kind}`
+                                  : undefined
+                              }
+                              x={kx}
+                              y={1}
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                              className={`text-[12px] ${accentClass}`}
+                              data-btree-key={key}
+                              data-btree-accent={
+                                isAccentKey ? accent?.kind : undefined
+                              }
+                            >
+                              {key}
+                            </text>
+                          </g>
+                        );
+                      })}
+                    </g>
                   </g>
                 );
               })}

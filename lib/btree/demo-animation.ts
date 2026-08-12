@@ -57,19 +57,59 @@ export type IndexDemoFrame = {
   done: boolean;
 };
 
+function abortError(): DOMException {
+  return new DOMException("Aborted", "AbortError");
+}
+
+/**
+ * Wait `ms`, aligned to the next animation frame when possible so visual
+ * updates land on a paint boundary instead of mid-frame.
+ */
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.reject(abortError());
   if (ms <= 0) return Promise.resolve();
+
   return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(new DOMException("Aborted", "AbortError"));
-      return;
-    }
-    const timer = setTimeout(resolve, ms);
-    const onAbort = () => {
-      clearTimeout(timer);
-      reject(new DOMException("Aborted", "AbortError"));
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let raf = 0;
+
+    const cleanup = () => {
+      if (timer != null) clearTimeout(timer);
+      if (raf && typeof cancelAnimationFrame === "function") {
+        cancelAnimationFrame(raf);
+      }
+      signal?.removeEventListener("abort", onAbort);
     };
+
+    const onAbort = () => {
+      cleanup();
+      reject(abortError());
+    };
+
     signal?.addEventListener("abort", onAbort, { once: true });
+
+    const finish = () => {
+      cleanup();
+      if (signal?.aborted) {
+        reject(abortError());
+        return;
+      }
+      resolve();
+    };
+
+    // Fire slightly early, then settle on rAF so the next frame paints cleanly.
+    const lead = typeof requestAnimationFrame === "function" ? Math.max(0, ms - 16) : ms;
+    timer = setTimeout(() => {
+      timer = null;
+      if (typeof requestAnimationFrame === "function") {
+        raf = requestAnimationFrame(() => {
+          raf = 0;
+          finish();
+        });
+      } else {
+        finish();
+      }
+    }, lead);
   });
 }
 
@@ -479,6 +519,8 @@ export function compareIoCost(scanPages: number, indexPages: number): string {
 /**
  * Play frames sequentially. Calls `onFrame` for each frame, waiting `stepMs`
  * between frames (and `holdMs` after the last). Aborts cleanly via signal.
+ * Checks abort both before and after `onFrame` so a Clear/Sample mid-commit
+ * cannot leave a stale mutation callback running.
  */
 export async function playFrames<T>(
   frames: T[],
@@ -494,10 +536,9 @@ export async function playFrames<T>(
   const { signal } = options;
 
   for (let i = 0; i < frames.length; i += 1) {
-    if (signal?.aborted) {
-      throw new DOMException("Aborted", "AbortError");
-    }
+    if (signal?.aborted) throw abortError();
     await onFrame(frames[i], i);
+    if (signal?.aborted) throw abortError();
     const delay = i === frames.length - 1 ? holdMs : stepMs;
     await sleep(delay, signal);
   }
