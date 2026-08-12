@@ -97,6 +97,13 @@ Registered in `components/content/mdx/components.tsx`:
 | `BTreeVisualizer` | `<BTreeVisualizer />` — interactive B-tree with animated insert/search/delete |
 | `BTreeIndexDemo` | `<BTreeIndexDemo />` — animated table-scan vs B-tree index I/O comparison |
 
+### Before you publish
+
+Follow [`.cursor/pr-checklist.md`](../.cursor/pr-checklist.md): judge the
+rendered page on desktop and mobile, not only the MDX source. Only use formats
+the content pipeline supports, and make sure interactive bits stay readable and
+reachable.
+
 To add a new custom block (callout, quiz, etc.):
 
 1. Create the component under `components/content/mdx/`

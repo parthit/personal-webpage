@@ -2,6 +2,11 @@
 
 This project uses [Playwright](https://playwright.dev/) for end-to-end coverage of the personal site and content system.
 
+For visual, interactive, or content UI, follow
+[`.cursor/pr-checklist.md`](../.cursor/pr-checklist.md) before opening a PR.
+Automated tests are necessary but not sufficient — confirm the rendered
+experience on desktop and mobile.
+
 ## What the E2E suite covers
 
 | Area | Spec | Assertions |
