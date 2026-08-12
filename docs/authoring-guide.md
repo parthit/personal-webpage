@@ -97,16 +97,12 @@ Registered in `components/content/mdx/components.tsx`:
 | `BTreeVisualizer` | `<BTreeVisualizer />` — interactive B-tree with animated insert/search/delete |
 | `BTreeIndexDemo` | `<BTreeIndexDemo />` — animated table-scan vs B-tree index I/O comparison |
 
-### Writing gotchas (do not reintroduce)
+### Before you publish
 
-Before publishing interactive or math-heavy posts, follow
-[`.cursor/pr-checklist.md`](../.cursor/pr-checklist.md). Short version:
-
-- No LaTeX/`\(...\)` — there is no math renderer; use Unicode (`Θ(n)`, `t ≥ 2`)
-- Confirm fenced pseudocode is readable (no light chips on dark `pre`)
-- Pipe tables only work because `remark-gfm` is wired in `app/writing/[slug]/page.tsx`
-- Visually check **desktop and mobile**: tree roots fully visible, wide SVGs
-  scroll inside their cards, demos do not force whole-page sideways scroll
+Follow [`.cursor/pr-checklist.md`](../.cursor/pr-checklist.md): judge the
+rendered page on desktop and mobile, not only the MDX source. Only use formats
+the content pipeline supports, and make sure interactive bits stay readable and
+reachable.
 
 To add a new custom block (callout, quiz, etc.):
 
