@@ -7,7 +7,9 @@ import {
   buildSearchFrames,
   buildTableScanFrames,
   compareIoCost,
+  DEMO_STEP_MS,
   effectiveStepMs,
+  INDEX_STEP_MS,
   playFrames,
   VIZ_HOLD_MS,
   VIZ_STEP_MS,
@@ -128,9 +130,11 @@ describe("demo-animation helpers", () => {
   });
 
   it("uses a slower default pace for the CRUD visualizer than the index demo", () => {
-    assert.ok(VIZ_STEP_MS >= 1400);
-    assert.ok(VIZ_HOLD_MS >= 2000);
-    assert.ok(VIZ_STEP_MS > 400);
+    assert.ok(VIZ_STEP_MS >= 1800);
+    assert.ok(VIZ_HOLD_MS >= 2400);
+    assert.ok(INDEX_STEP_MS >= 1200);
+    assert.ok(INDEX_STEP_MS > DEMO_STEP_MS);
+    assert.ok(VIZ_STEP_MS >= INDEX_STEP_MS);
   });
 
   it("builds table-scan frames that count pages and stop on hit", () => {
@@ -180,9 +184,10 @@ describe("demo-animation helpers", () => {
     assert.match(compareIoCost(3, 4), /late id like 69/);
   });
 
-  it("skips delay when reduced motion is preferred", () => {
-    assert.equal(effectiveStepMs(true, 400), 0);
-    assert.equal(effectiveStepMs(false, 400), 400);
+  it("keeps walkthrough delays even when reduced motion is preferred", () => {
+    // Decorative CSS is gated separately; pacing must stay readable.
+    assert.equal(effectiveStepMs(true, 400), 400);
+    assert.equal(effectiveStepMs(false, 1400), 1400);
   });
 
   it("plays frames in order and respects abort", async () => {

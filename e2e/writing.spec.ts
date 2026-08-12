@@ -138,7 +138,7 @@ test.describe("writing section", () => {
     );
     await expect(visualizer.locator("[data-btree-status]")).toContainText(
       /Inserted 99/i,
-      { timeout: 35_000 }
+      { timeout: 50_000 }
     );
     await expect(insertBtn).toBeEnabled({ timeout: 5_000 });
 

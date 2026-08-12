@@ -14,7 +14,11 @@ import {
   buildIndexLookupFrames,
   buildTableScanFrames,
   compareIoCost,
+  DEMO_HOLD_MS,
+  DEMO_STEP_MS,
   effectiveStepMs,
+  INDEX_HOLD_MS,
+  INDEX_STEP_MS,
   playFrames,
   type IndexDemoFrame,
 } from "@/lib/btree/demo-animation";
@@ -210,16 +214,16 @@ export function BTreeIndexDemo() {
     setBusy(true);
     prevPagesRef.current = -1;
 
-    // Index paths are short — dwell longer so each node read is readable.
-    // Table scans have many frames; keep them snappy.
+    // Index paths are short — long dwell per node. Scans have many frames.
     const indexMode = frames[0]?.mode === "index";
+    const reduced = prefersReducedMotion();
     const stepMs = effectiveStepMs(
-      prefersReducedMotion(),
-      indexMode ? 520 : 280
+      reduced,
+      indexMode ? INDEX_STEP_MS : DEMO_STEP_MS
     );
     const holdMs = effectiveStepMs(
-      prefersReducedMotion(),
-      indexMode ? 900 : 520
+      reduced,
+      indexMode ? INDEX_HOLD_MS : DEMO_HOLD_MS
     );
 
     try {
