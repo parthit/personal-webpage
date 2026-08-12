@@ -5,8 +5,16 @@
 
 import type { SearchStep } from "./btree";
 
-export const DEMO_STEP_MS = 380;
-export const DEMO_HOLD_MS = 520;
+/** Default pacing for the index I/O demo (many frames on a table scan). */
+export const DEMO_STEP_MS = 320;
+export const DEMO_HOLD_MS = 600;
+
+/**
+ * Slower pacing for the interactive B-tree CRUD visualizer.
+ * Paths are short (2–3 nodes), so each step needs a long dwell to be readable.
+ */
+export const VIZ_STEP_MS = 1100;
+export const VIZ_HOLD_MS = 1700;
 
 export type VizAccent = {
   key: number;
@@ -20,6 +28,11 @@ export type VizFrame = {
   message: string;
   /** When true, the caller should apply the pending tree mutation after this frame. */
   commitMutation?: boolean;
+  /**
+   * After a mutating commit, re-run search for this key and replace `highlight`
+   * with the post-mutation path (splits/merges can move the key to a new node).
+   */
+  relocateAfterCommit?: number;
 };
 
 export type ScanRow = {
@@ -85,23 +98,35 @@ export function buildSearchFrames(
     const step = steps[i];
     const highlight = steps.slice(0, i + 1);
     const depth = i + 1;
+    const isLast = i === steps.length - 1;
+
     if (step.found) {
+      frames.push({
+        highlight,
+        accent: null,
+        message: `Node ${depth}: scan its keys…`,
+      });
       frames.push({
         highlight,
         accent: { key, kind: "found" },
         message: `Found ${key} in node ${depth} of the path.`,
       });
-    } else if (i === steps.length - 1 && !found) {
+    } else if (isLast && !found) {
+      frames.push({
+        highlight,
+        accent: null,
+        message: `Node ${depth}: ${key} is not among its keys.`,
+      });
       frames.push({
         highlight,
         accent: { key, kind: "miss" },
-        message: `${key} not in this node — path exhausted (${steps.length} node${steps.length === 1 ? "" : "s"}).`,
+        message: `${key} not found — searched ${steps.length} node${steps.length === 1 ? "" : "s"} down to a leaf.`,
       });
     } else {
       frames.push({
         highlight,
         accent: null,
-        message: `Visit node ${depth}: compare against its keys, then follow the matching child.`,
+        message: `Node ${depth}: ${key} is not here — follow the child whose range covers it.`,
       });
     }
   }
@@ -127,8 +152,8 @@ export function buildInsertFrames(
       highlight: [],
       accent: null,
       message: willInsert
-        ? `Insert ${key}: walk down to the leaf that should hold it.`
-        : `Insert ${key}: checking whether it already exists.`,
+        ? `Insert ${key}: walk root → leaf to find the insertion spot.`
+        : `Insert ${key}: first check whether it already exists.`,
     },
   ];
 
@@ -136,30 +161,53 @@ export function buildInsertFrames(
     const step = steps[i];
     const highlight = steps.slice(0, i + 1);
     const depth = i + 1;
+    const isLast = i === steps.length - 1;
+
     if (step.found) {
       frames.push({
         highlight,
-        accent: { key, kind: "miss" },
-        message: `${key} already present — duplicates are ignored.`,
+        accent: { key, kind: "found" },
+        message: `${key} already present in node ${depth} — duplicates are ignored.`,
       });
       return frames;
     }
-    frames.push({
-      highlight,
-      accent: null,
-      message:
-        i === steps.length - 1
-          ? `Reached the target leaf (node ${depth} on the path).`
-          : `Descending via node ${depth}…`,
-    });
+
+    if (isLast) {
+      frames.push({
+        highlight,
+        accent: null,
+        message: `Node ${depth}: arrived at the leaf that should hold ${key}.`,
+      });
+    } else {
+      frames.push({
+        highlight,
+        accent: null,
+        message: `Node ${depth}: ${key} is not in this node — descend toward the matching child.`,
+      });
+    }
   }
 
   if (willInsert) {
+    // Pause on the target leaf before mutating so the destination is obvious.
+    if (steps.length > 0) {
+      frames.push({
+        highlight: steps,
+        accent: null,
+        message: `Ready to insert ${key} into that leaf (a full ancestor may split first).`,
+      });
+    }
     frames.push({
       highlight: steps,
       accent: { key, kind: "insert" },
-      message: `Placing ${key} into the leaf (splits may reshape ancestors).`,
+      message: `Placing ${key} now…`,
       commitMutation: true,
+      relocateAfterCommit: key,
+    });
+    frames.push({
+      highlight: steps,
+      accent: { key, kind: "insert" },
+      message: `Inserted ${key}. Highlight shows its home after any splits.`,
+      relocateAfterCommit: key,
     });
   } else if (steps.length === 0) {
     frames.push({
@@ -167,6 +215,7 @@ export function buildInsertFrames(
       accent: { key, kind: "insert" },
       message: `Tree was empty — ${key} becomes the new root.`,
       commitMutation: true,
+      relocateAfterCommit: key,
     });
   }
 
@@ -182,7 +231,7 @@ export function buildDeleteFrames(
     {
       highlight: [],
       accent: null,
-      message: `Delete ${key}: locate it first.`,
+      message: `Delete ${key}: locate it with the same root → leaf walk as search.`,
     },
   ];
 
@@ -190,27 +239,39 @@ export function buildDeleteFrames(
     const step = steps[i];
     const highlight = steps.slice(0, i + 1);
     const depth = i + 1;
+    const isLast = i === steps.length - 1;
+
     if (step.found) {
       frames.push({
         highlight,
-        accent: { key, kind: "delete" },
-        message: `Found ${key} — mark it for removal.`,
+        accent: null,
+        message: `Node ${depth}: found ${key} — pause before removing it.`,
       });
       frames.push({
         highlight,
         accent: { key, kind: "delete" },
-        message: `Removing ${key} (borrow/merge may rebalance).`,
+        message: `Marking ${key} for deletion.`,
+      });
+      frames.push({
+        highlight,
+        accent: { key, kind: "delete" },
+        message: `Removing ${key} (borrow/merge may rebalance the path).`,
         commitMutation: true,
+      });
+      frames.push({
+        highlight: [],
+        accent: null,
+        message: `Deleted ${key}. Tree may be shorter or reshaped after rebalancing.`,
       });
       return frames;
     }
+
     frames.push({
       highlight,
       accent: null,
-      message:
-        i === steps.length - 1
-          ? `${key} not found after ${depth} node${depth === 1 ? "" : "s"} — nothing to delete.`
-          : `Checking node ${depth}…`,
+      message: isLast
+        ? `${key} not found after ${depth} node${depth === 1 ? "" : "s"} — nothing to delete.`
+        : `Node ${depth}: ${key} not here — keep descending.`,
     });
   }
 

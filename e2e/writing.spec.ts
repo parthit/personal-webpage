@@ -104,7 +104,7 @@ test.describe("writing section", () => {
   });
 
   test("renders the B-tree post with interactive demos", async ({ page }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(120_000);
     await page.goto("/writing");
     await expect(page.getByRole("link", { name: BTREE_POST.title })).toBeVisible();
 
@@ -138,7 +138,7 @@ test.describe("writing section", () => {
     );
     await expect(visualizer.locator("[data-btree-status]")).toContainText(
       /Inserted 99/i,
-      { timeout: 15_000 }
+      { timeout: 25_000 }
     );
     await expect(insertBtn).toBeEnabled({ timeout: 5_000 });
 
@@ -152,7 +152,7 @@ test.describe("writing section", () => {
     );
     await expect(visualizer.locator("[data-btree-status]")).toContainText(
       /Found 99 after visiting/i,
-      { timeout: 15_000 }
+      { timeout: 25_000 }
     );
 
     await visualizer.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
@@ -165,7 +165,7 @@ test.describe("writing section", () => {
     );
     await expect(visualizer.locator("[data-btree-status]")).toContainText(
       /Deleted 99/i,
-      { timeout: 15_000 }
+      { timeout: 25_000 }
     );
     await expect(deleteBtn).toBeEnabled({ timeout: 5_000 });
 

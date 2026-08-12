@@ -21,6 +21,8 @@ import {
   buildSearchFrames,
   effectiveStepMs,
   playFrames,
+  VIZ_HOLD_MS,
+  VIZ_STEP_MS,
   type VizAccent,
   type VizFrame,
 } from "@/lib/btree/demo-animation";
@@ -84,25 +86,40 @@ export function BTreeVisualizer() {
 
   async function runFrames(
     frames: VizFrame[],
-    onCommit?: () => void
+    onCommit?: () => BTreeSnapshot | void
   ): Promise<boolean> {
     cancelAnimation();
     const controller = new AbortController();
     abortRef.current = controller;
     setBusy(true);
 
-    const stepMs = effectiveStepMs(prefersReducedMotion());
-    const holdMs = effectiveStepMs(prefersReducedMotion(), 480);
+    const reduced = prefersReducedMotion();
+    const stepMs = effectiveStepMs(reduced, VIZ_STEP_MS);
+    const holdMs = effectiveStepMs(reduced, VIZ_HOLD_MS);
+    let latestTree = treeRef.current;
 
     try {
       await playFrames(
         frames,
         async (frame) => {
-          setHighlight(frame.highlight);
           setAccent(frame.accent);
           setMessage(frame.message);
+
           if (frame.commitMutation) {
-            onCommit?.();
+            const next = onCommit?.();
+            if (next) {
+              latestTree = next;
+            }
+          }
+
+          if (frame.relocateAfterCommit != null) {
+            const relocated = search(
+              latestTree.root,
+              frame.relocateAfterCommit
+            );
+            setHighlight(relocated.steps);
+          } else {
+            setHighlight(frame.highlight);
           }
         },
         { stepMs, holdMs, signal: controller.signal }
@@ -144,6 +161,7 @@ export function BTreeVisualizer() {
         treeRef.current = next;
         setTree(next);
         if (next.size > before.size) added.push(key);
+        return next;
       });
       if (!ok) return;
     }
@@ -196,6 +214,7 @@ export function BTreeVisualizer() {
         treeRef.current = next;
         setTree(next);
         if (next.size < before.size) removed.push(key);
+        return next;
       });
       if (!ok) return;
     }
