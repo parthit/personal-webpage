@@ -2,9 +2,10 @@
 
 This project uses [Playwright](https://playwright.dev/) for end-to-end coverage of the personal site and content system.
 
-For interactive B-tree demos and other timed UI, also follow
+For interactive B-tree demos, MDX layout, and other timed/visual UI, follow
 [`.cursor/pr-checklist.md`](../.cursor/pr-checklist.md) before opening a PR —
-e2e passing is not enough if walkthrough pacing is unreadable.
+e2e passing is not enough if walkthrough pacing is unreadable, trees are clipped,
+mobile SVGs do not scroll, math shows raw LaTeX, or tables fail to render.
 
 ## What the E2E suite covers
 
