@@ -129,6 +129,7 @@ export function BTreeIndexDemo() {
   const abortRef = useRef<AbortController | null>(null);
   const runIdRef = useRef(0);
   const tableBodyRef = useRef<HTMLTableSectionElement | null>(null);
+  const treeScrollRef = useRef<HTMLDivElement | null>(null);
   const prevPagesRef = useRef(-1);
   const ioTickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -142,6 +143,11 @@ export function BTreeIndexDemo() {
     () => new Set(frame?.scannedIds ?? []),
     [frame?.scannedIds]
   );
+  const nodeById = useMemo(() => {
+    const map = new Map<string, (typeof layout.nodes)[number]>();
+    for (const node of layout.nodes) map.set(node.id, node);
+    return map;
+  }, [layout]);
 
   useEffect(() => {
     return () => {
@@ -158,6 +164,27 @@ export function BTreeIndexDemo() {
     // Instant scroll avoids competing with the frame clock (smooth scroll janks).
     el?.scrollIntoView({ block: "nearest", behavior: "auto" });
   }, [frame?.focusId]);
+
+  // Keep the focused index node in view — the tree is often wider than the pane.
+  useEffect(() => {
+    const scroller = treeScrollRef.current;
+    const focusId = frame?.focusNodeId;
+    if (!scroller || !focusId) return;
+    const node = nodeById.get(focusId);
+    if (!node) return;
+
+    const pad = 28;
+    const left = node.x - node.width / 2 - pad;
+    const right = node.x + node.width / 2 + pad;
+    const viewLeft = scroller.scrollLeft;
+    const viewRight = viewLeft + scroller.clientWidth;
+
+    if (left < viewLeft) {
+      scroller.scrollLeft = Math.max(0, left);
+    } else if (right > viewRight) {
+      scroller.scrollLeft = Math.max(0, right - scroller.clientWidth);
+    }
+  }, [frame?.focusNodeId, nodeById]);
 
   function cancelAnimation() {
     abortRef.current?.abort();
@@ -183,8 +210,17 @@ export function BTreeIndexDemo() {
     setBusy(true);
     prevPagesRef.current = -1;
 
-    const stepMs = effectiveStepMs(prefersReducedMotion(), 280);
-    const holdMs = effectiveStepMs(prefersReducedMotion(), 520);
+    // Index paths are short — dwell longer so each node read is readable.
+    // Table scans have many frames; keep them snappy.
+    const indexMode = frames[0]?.mode === "index";
+    const stepMs = effectiveStepMs(
+      prefersReducedMotion(),
+      indexMode ? 520 : 280
+    );
+    const holdMs = effectiveStepMs(
+      prefersReducedMotion(),
+      indexMode ? 900 : 520
+    );
 
     try {
       await playFrames(
@@ -341,7 +377,10 @@ export function BTreeIndexDemo() {
             pages). Height stays small, so lookups cost a few node reads.
             Swipe sideways to see the full tree on small screens.
           </p>
-          <div className="min-w-0 w-full overflow-x-auto overscroll-x-contain touch-pan-x rounded-lg border border-gray-200 bg-white px-1 py-3 dark:border-gray-700 dark:bg-gray-950">
+          <div
+            ref={treeScrollRef}
+            className="min-w-0 w-full overflow-x-auto overscroll-x-contain touch-pan-x rounded-lg border border-gray-200 bg-white px-1 py-3 dark:border-gray-700 dark:bg-gray-950"
+          >
             <div
               className="mx-auto"
               style={{ width: svgWidth, height: svgHeight, minWidth: svgWidth }}

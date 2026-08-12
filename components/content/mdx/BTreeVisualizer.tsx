@@ -80,6 +80,7 @@ export function BTreeVisualizer() {
   const abortRef = useRef<AbortController | null>(null);
   /** Bumps on cancel so in-flight frame callbacks cannot commit after Clear/Sample. */
   const runIdRef = useRef(0);
+  const treeScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     treeRef.current = tree;
@@ -101,6 +102,34 @@ export function BTreeVisualizer() {
     () => frameView.highlight.find((s) => s.found),
     [frameView.highlight]
   );
+  const focusNodeId =
+    frameView.highlight.length > 0
+      ? frameView.highlight[frameView.highlight.length - 1]?.nodeId
+      : null;
+  const nodeById = useMemo(() => {
+    const map = new Map<string, (typeof layout.nodes)[number]>();
+    for (const node of layout.nodes) map.set(node.id, node);
+    return map;
+  }, [layout]);
+
+  useEffect(() => {
+    const scroller = treeScrollRef.current;
+    if (!scroller || !focusNodeId) return;
+    const node = nodeById.get(focusNodeId);
+    if (!node) return;
+
+    const pad = 28;
+    const left = node.x - node.width / 2 - pad;
+    const right = node.x + node.width / 2 + pad;
+    const viewLeft = scroller.scrollLeft;
+    const viewRight = viewLeft + scroller.clientWidth;
+
+    if (left < viewLeft) {
+      scroller.scrollLeft = Math.max(0, left);
+    } else if (right > viewRight) {
+      scroller.scrollLeft = Math.max(0, right - scroller.clientWidth);
+    }
+  }, [focusNodeId, nodeById]);
 
   function cancelAnimation() {
     abortRef.current?.abort();
@@ -426,7 +455,10 @@ export function BTreeVisualizer() {
         </span>
       </div>
 
-      <div className="min-w-0 w-full overflow-x-auto overscroll-x-contain touch-pan-x px-2 py-4">
+      <div
+        ref={treeScrollRef}
+        className="min-w-0 w-full overflow-x-auto overscroll-x-contain touch-pan-x px-2 py-4"
+      >
         {tree.root ? (
           <div
             className="mx-auto"
