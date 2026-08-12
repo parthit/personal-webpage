@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   createBTree,
@@ -10,6 +10,14 @@ import {
   LAYOUT,
   type BTreeSnapshot,
 } from "@/lib/btree/btree";
+import {
+  buildIndexLookupFrames,
+  buildTableScanFrames,
+  compareIoCost,
+  effectiveStepMs,
+  playFrames,
+  type IndexDemoFrame,
+} from "@/lib/btree/demo-animation";
 
 type Row = {
   id: number;
@@ -91,100 +99,153 @@ function buildDataset(): { rows: Row[]; index: BTreeSnapshot; pageCount: number 
   };
 }
 
-type LookupResult = {
-  mode: "scan" | "index";
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+type LastCosts = {
   key: number;
-  row: Row | null;
-  pagesRead: number;
-  nodesVisited: number;
-  pathNodeIds: string[];
-  scannedIds: number[];
-  explanation: string;
+  scanPages: number | null;
+  indexPages: number | null;
 };
 
 export function BTreeIndexDemo() {
   const [{ rows, index, pageCount }] = useState(buildDataset);
-  // Prefer a leaf key so the demo shows a multi-level index walk (36 lives in the root).
-  const [query, setQuery] = useState("33");
-  const [result, setResult] = useState<LookupResult | null>(null);
+  // Prefer a late leaf key so table scan burns more heap pages than the index walk.
+  const [query, setQuery] = useState("69");
+  const [frame, setFrame] = useState<IndexDemoFrame | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [lastCosts, setLastCosts] = useState<LastCosts>({
+    key: 69,
+    scanPages: null,
+    indexPages: null,
+  });
+  const [ioPulse, setIoPulse] = useState(0);
+  const abortRef = useRef<AbortController | null>(null);
+  const tableBodyRef = useRef<HTMLTableSectionElement | null>(null);
 
   const layout = useMemo(() => layoutTree(index.root), [index]);
   const byId = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
 
-  function runScan() {
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!frame?.focusId || !tableBodyRef.current) return;
+    const el = tableBodyRef.current.querySelector(
+      `[data-row-id="${frame.focusId}"]`
+    );
+    el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [frame?.focusId]);
+
+  function cancelAnimation() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+  }
+
+  async function playDemo(frames: IndexDemoFrame[]): Promise<boolean> {
+    cancelAnimation();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setBusy(true);
+
+    const stepMs = effectiveStepMs(prefersReducedMotion(), 320);
+    const holdMs = effectiveStepMs(prefersReducedMotion(), 600);
+    let prevPages = -1;
+
+    try {
+      await playFrames(
+        frames,
+        async (next) => {
+          setFrame(next);
+          if (next.pagesRead !== prevPages) {
+            prevPages = next.pagesRead;
+            setIoPulse((n) => n + 1);
+          }
+        },
+        { stepMs, holdMs, signal: controller.signal }
+      );
+      return true;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return false;
+      }
+      throw err;
+    } finally {
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+        setBusy(false);
+      }
+    }
+  }
+
+  async function runScan() {
     const key = Number(query);
     if (!Number.isFinite(key)) {
-      setResult(null);
+      setFrame(null);
       return;
     }
 
-    const scannedIds: number[] = [];
-    let pagesRead = 0;
-    let lastPage = -1;
-    let row: Row | null = null;
-
-    for (const candidate of rows) {
-      if (candidate.page !== lastPage) {
-        pagesRead += 1;
-        lastPage = candidate.page;
-      }
-      scannedIds.push(candidate.id);
-      if (candidate.id === key) {
-        row = candidate;
-        break;
-      }
-    }
-
-    setResult({
-      mode: "scan",
+    const frames = buildTableScanFrames(
       key,
-      row,
-      pagesRead,
-      nodesVisited: 0,
-      pathNodeIds: [],
-      scannedIds,
-      explanation: row
-        ? `Table scan found id ${key} after reading ${pagesRead} heap page(s) (out of ${pageCount}).`
-        : `Table scan read all ${pagesRead} heap page(s) and did not find id ${key}.`,
-    });
+      rows.map((r) => ({ id: r.id, page: r.page })),
+      pageCount
+    );
+    const ok = await playDemo(frames);
+    if (!ok) return;
+
+    const done = frames.at(-1)!;
+    setLastCosts((prev) => ({
+      key,
+      scanPages: done.pagesRead,
+      indexPages: prev.key === key ? prev.indexPages : null,
+    }));
   }
 
-  function runIndex() {
+  async function runIndex() {
     const key = Number(query);
     if (!Number.isFinite(key)) {
-      setResult(null);
+      setFrame(null);
       return;
     }
 
     const path = search(index.root, key);
     const row = byId.get(key) ?? null;
-    // Index lookup cost: one "page" per B-tree node visited + one heap page if found
-    const indexPages = path.steps.length;
-    const heapPages = row ? 1 : 0;
-
-    setResult({
-      mode: "index",
+    const frames = buildIndexLookupFrames(
       key,
-      row,
-      pagesRead: indexPages + heapPages,
-      nodesVisited: path.steps.length,
-      pathNodeIds: path.steps.map((s) => s.nodeId),
-      scannedIds: [],
-      explanation: row
-        ? `Index walk visited ${indexPages} B-tree node(s), then fetched heap page ${row.page}. Total I/O: ${indexPages + heapPages}.`
-        : `Index walk visited ${indexPages} B-tree node(s) and confirmed the key is absent — no heap fetch.`,
-    });
+      path.steps,
+      row ? row.page : null
+    );
+    const ok = await playDemo(frames);
+    if (!ok) return;
+
+    const done = frames.at(-1)!;
+    setLastCosts((prev) => ({
+      key,
+      scanPages: prev.key === key ? prev.scanPages : null,
+      indexPages: done.pagesRead,
+    }));
   }
 
-  const pathSet = new Set(result?.pathNodeIds ?? []);
-  const scannedSet = new Set(result?.scannedIds ?? []);
+  const pathSet = new Set(frame?.pathNodeIds ?? []);
+  const scannedSet = new Set(frame?.scannedIds ?? []);
   const svgWidth = Math.max(layout.width, 280);
   const svgHeight = Math.max(layout.height, 100);
+  const ioMax = Math.max(pageCount, frame?.pagesRead ?? 0, 1);
+  const ioRatio = frame ? Math.min(1, frame.pagesRead / ioMax) : 0;
+  const comparison =
+    lastCosts.scanPages != null || lastCosts.indexPages != null
+      ? compareIoCost(lastCosts.scanPages ?? 0, lastCosts.indexPages ?? 0)
+      : null;
 
   return (
-    <figure className={figureShell}>
+    <figure className={figureShell} data-btree-index-demo>
       <figcaption className="border-b border-gray-200 px-3 py-3 text-sm text-gray-600 sm:px-4 dark:border-gray-700 dark:text-gray-300">
-        Interactive index — table scan vs B-tree lookup (simulated page I/O)
+        Interactive index — watch page I/O tick for table scan vs B-tree lookup
       </figcaption>
 
       <div className="grid min-w-0 gap-0 lg:grid-cols-2">
@@ -193,8 +254,9 @@ export function BTreeIndexDemo() {
             Heap table (users)
           </h4>
           <p className="mb-3 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-            Rows are stored in insertion order across {pageCount} pages (
-            {PAGE_SIZE} rows/page). A scan must walk pages until it hits the id.
+            Rows sit in insertion order across {pageCount} pages (
+            {PAGE_SIZE} rows/page). A scan walks pages one-by-one until it hits
+            the id — each new page is another I/O.
           </p>
           <div className="max-h-56 overflow-auto overscroll-contain rounded-lg border border-gray-200 bg-white sm:max-h-64 dark:border-gray-700 dark:bg-gray-950">
             <table className="w-full min-w-[16rem] text-left text-xs">
@@ -206,19 +268,26 @@ export function BTreeIndexDemo() {
                   <th className="px-2 py-1.5 font-medium">city</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody ref={tableBodyRef}>
                 {rows.map((row) => {
                   const touched = scannedSet.has(row.id);
-                  const match = result?.row?.id === row.id;
+                  const focused = frame?.focusId === row.id;
+                  const match =
+                    frame?.mode === "scan"
+                      ? frame.rowId === row.id
+                      : frame?.heapFetched && frame.rowId === row.id;
                   return (
                     <tr
                       key={row.id}
+                      data-row-id={row.id}
                       className={
                         match
-                          ? "bg-emerald-100 dark:bg-emerald-950"
-                          : touched
-                            ? "bg-amber-50 dark:bg-amber-950/40"
-                            : undefined
+                          ? "bg-emerald-100 transition-colors duration-300 dark:bg-emerald-950"
+                          : focused
+                            ? "btree-row-flash bg-amber-100 dark:bg-amber-900/50"
+                            : touched
+                              ? "bg-amber-50 transition-colors duration-300 dark:bg-amber-950/40"
+                              : "transition-colors duration-300"
                       }
                     >
                       <td className="px-2 py-1 text-gray-500">{row.page}</td>
@@ -270,8 +339,12 @@ export function BTreeIndexDemo() {
                   const x = node.x - node.width / 2;
                   const y = node.y - LAYOUT.NODE_H / 2;
                   const onPath = pathSet.has(node.id);
+                  const focused = frame?.focusNodeId === node.id;
                   return (
-                    <g key={node.id}>
+                    <g
+                      key={node.id}
+                      className={focused ? "btree-pulse" : undefined}
+                    >
                       <rect
                         x={x}
                         y={y}
@@ -280,8 +353,8 @@ export function BTreeIndexDemo() {
                         rx={6}
                         className={
                           onPath
-                            ? "fill-sky-100 stroke-sky-500 dark:fill-sky-950 dark:stroke-sky-400"
-                            : "fill-white stroke-gray-400 dark:fill-gray-900 dark:stroke-gray-500"
+                            ? "fill-sky-100 stroke-sky-500 transition-[fill,stroke] duration-300 dark:fill-sky-950 dark:stroke-sky-400"
+                            : "fill-white stroke-gray-400 transition-[fill,stroke] duration-300 dark:fill-gray-900 dark:stroke-gray-500"
                         }
                         strokeWidth={onPath ? 2 : 1.25}
                       />
@@ -297,7 +370,11 @@ export function BTreeIndexDemo() {
                           y={node.y + 1}
                           textAnchor="middle"
                           dominantBaseline="middle"
-                          className="fill-gray-800 text-[11px] dark:fill-gray-100"
+                          className={
+                            frame?.rowId === key && frame.heapFetched
+                              ? "btree-key-pop fill-emerald-700 text-[11px] font-semibold dark:fill-emerald-300"
+                              : "fill-gray-800 text-[11px] dark:fill-gray-100"
+                          }
                         >
                           {key}
                         </text>
@@ -319,9 +396,10 @@ export function BTreeIndexDemo() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") runIndex();
+                if (e.key === "Enter" && !busy) void runIndex();
               }}
-              className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-500 sm:h-9 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
+              disabled={busy}
+              className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-500 disabled:opacity-60 sm:h-9 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
             />
           </label>
           <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
@@ -330,7 +408,8 @@ export function BTreeIndexDemo() {
               size="sm"
               variant="secondary"
               className="w-full sm:w-auto"
-              onClick={runScan}
+              disabled={busy}
+              onClick={() => void runScan()}
             >
               Table scan
             </Button>
@@ -338,43 +417,112 @@ export function BTreeIndexDemo() {
               type="button"
               size="sm"
               className="w-full sm:w-auto"
-              onClick={runIndex}
+              disabled={busy}
+              onClick={() => void runIndex()}
             >
               Use B-tree index
             </Button>
           </div>
         </div>
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Try 33 (exists) or 11 (missing)
+          Default 69 sits late in the heap (scan reads many pages). Try 33 for a
+          shorter scan, or 11 for a miss. Run both modes on the same id.
         </p>
+        {busy && (
+          <p
+            className="text-xs font-medium text-sky-700 dark:text-sky-300"
+            aria-live="polite"
+            data-index-animating
+          >
+            Animating lookup…
+          </p>
+        )}
       </div>
 
-      {result && (
-        <div className="border-t border-gray-200 px-3 py-3 text-sm sm:px-4 dark:border-gray-700">
-          <div className="mb-2 flex flex-wrap gap-2 text-xs">
-            <span className="rounded bg-white px-2 py-1 ring-1 ring-gray-200 dark:bg-gray-950 dark:ring-gray-700">
-              Mode: {result.mode === "scan" ? "table scan" : "index lookup"}
-            </span>
-            <span className="rounded bg-white px-2 py-1 ring-1 ring-gray-200 dark:bg-gray-950 dark:ring-gray-700">
-              Simulated I/O: {result.pagesRead} page read
-              {result.pagesRead === 1 ? "" : "s"}
-            </span>
-            {result.mode === "index" && (
-              <span className="rounded bg-white px-2 py-1 ring-1 ring-gray-200 dark:bg-gray-950 dark:ring-gray-700">
-                Nodes visited: {result.nodesVisited}
+      <div className="border-t border-gray-200 px-3 py-3 sm:px-4 dark:border-gray-700">
+        <div className="mb-2 flex items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+              Simulated page I/O
+            </p>
+            <p
+              key={ioPulse}
+              className={`mt-0.5 font-mono text-2xl font-semibold tabular-nums text-gray-900 dark:text-gray-50 ${
+                ioPulse > 0 ? "btree-io-tick" : ""
+              }`}
+              data-io-count
+            >
+              {frame?.pagesRead ?? 0}
+              <span className="ml-1 text-sm font-normal text-gray-500 dark:text-gray-400">
+                / {pageCount} heap pages
               </span>
-            )}
-            {result.row && (
-              <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-950 dark:text-emerald-200 dark:ring-emerald-800">
-                Row: {result.row.name} · {result.row.city} · page {result.row.page}
-              </span>
-            )}
+            </p>
           </div>
-          <p className="leading-relaxed text-gray-700 dark:text-gray-300">
-            {result.explanation}
-          </p>
+          {frame && (
+            <span className="rounded bg-white px-2 py-1 text-xs ring-1 ring-gray-200 dark:bg-gray-950 dark:ring-gray-700">
+              {frame.mode === "scan" ? "table scan" : "index lookup"}
+              {frame.mode === "index"
+                ? ` · ${frame.nodesVisited} node${frame.nodesVisited === 1 ? "" : "s"}`
+                : null}
+            </span>
+          )}
         </div>
-      )}
+        <div
+          className="h-2.5 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={ioMax}
+          aria-valuenow={frame?.pagesRead ?? 0}
+          aria-label="Simulated page reads"
+        >
+          <div
+            className={`h-full rounded-full transition-[width] duration-300 ease-out ${
+              frame?.mode === "index"
+                ? "bg-sky-500 dark:bg-sky-400"
+                : "bg-amber-500 dark:bg-amber-400"
+            }`}
+            style={{ width: `${ioRatio * 100}%` }}
+          />
+        </div>
+        <p
+          className="mt-3 text-sm leading-relaxed text-gray-700 dark:text-gray-300"
+          aria-live="polite"
+          data-index-status
+        >
+          {frame?.explanation ??
+            "Pick a lookup id, then run Table scan or Use B-tree index to watch each page read."}
+        </p>
+        {frame?.rowId != null && byId.get(frame.rowId) && (
+          <p className="mt-2 text-xs text-emerald-800 dark:text-emerald-200">
+            Row: {byId.get(frame.rowId)!.name} · {byId.get(frame.rowId)!.city} ·
+            page {byId.get(frame.rowId)!.page}
+          </p>
+        )}
+        {comparison && (
+          <div
+            className="mt-3 space-y-2 rounded-lg bg-white px-3 py-2 ring-1 ring-gray-200 dark:bg-gray-950 dark:ring-gray-700"
+            data-io-comparison
+          >
+            {(lastCosts.scanPages != null || lastCosts.indexPages != null) && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                {lastCosts.scanPages != null && (
+                  <span className="rounded bg-amber-50 px-2 py-1 text-amber-900 ring-1 ring-amber-200 dark:bg-amber-950 dark:text-amber-100 dark:ring-amber-800">
+                    Last scan (id {lastCosts.key}): {lastCosts.scanPages} I/O
+                  </span>
+                )}
+                {lastCosts.indexPages != null && (
+                  <span className="rounded bg-sky-50 px-2 py-1 text-sky-900 ring-1 ring-sky-200 dark:bg-sky-950 dark:text-sky-100 dark:ring-sky-800">
+                    Last index (id {lastCosts.key}): {lastCosts.indexPages} I/O
+                  </span>
+                )}
+              </div>
+            )}
+            <p className="text-sm leading-relaxed text-gray-800 dark:text-gray-200">
+              {comparison}
+            </p>
+          </div>
+        )}
+      </div>
     </figure>
   );
 }

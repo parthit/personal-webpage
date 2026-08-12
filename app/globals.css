@@ -22,3 +22,100 @@ body {
 @utility text-balance {
   text-wrap: balance;
 }
+
+/* B-tree blog demos: intentional motion for insert / delete / search walks */
+@keyframes btree-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+@keyframes btree-key-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.65);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes btree-key-fade {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes btree-io-tick {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes btree-row-flash {
+  0% {
+    background-color: rgb(254 243 199 / 0.15);
+  }
+  50% {
+    background-color: rgb(251 191 36 / 0.45);
+  }
+  100% {
+    background-color: rgb(254 243 199 / 0.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btree-pulse,
+  .btree-key-pop,
+  .btree-key-fade,
+  .btree-io-tick,
+  .btree-row-flash {
+    animation: none !important;
+  }
+}
+
+.btree-pulse {
+  animation: btree-pulse 0.7s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.btree-key-pop {
+  animation: btree-key-pop 0.55s ease-out both;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.btree-key-fade {
+  animation: btree-key-fade 0.55s ease-in both;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.btree-io-tick {
+  animation: btree-io-tick 0.35s ease-out;
+}
+
+.btree-row-flash {
+  animation: btree-row-flash 0.45s ease-out;
+}

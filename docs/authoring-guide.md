@@ -94,8 +94,8 @@ Registered in `components/content/mdx/components.tsx`:
 | GFM tables | pipe tables (`\| col \|`) via `remark-gfm` |
 | Images | `![alt](/content/images/...)` → optimized `next/image` |
 | `YouTube` | `<YouTube id="..." title="..." />` |
-| `BTreeVisualizer` | `<BTreeVisualizer />` — interactive B-tree (insert/search/delete) |
-| `BTreeIndexDemo` | `<BTreeIndexDemo />` — table scan vs B-tree index I/O demo |
+| `BTreeVisualizer` | `<BTreeVisualizer />` — interactive B-tree with animated insert/search/delete |
+| `BTreeIndexDemo` | `<BTreeIndexDemo />` — animated table-scan vs B-tree index I/O comparison |
 
 To add a new custom block (callout, quiz, etc.):
 

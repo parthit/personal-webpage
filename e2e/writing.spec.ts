@@ -104,6 +104,7 @@ test.describe("writing section", () => {
   });
 
   test("renders the B-tree post with interactive demos", async ({ page }) => {
+    test.setTimeout(180_000);
     await page.goto("/writing");
     await expect(page.getByRole("link", { name: BTREE_POST.title })).toBeVisible();
 
@@ -114,26 +115,96 @@ test.describe("writing section", () => {
     await expect(
       page.getByRole("heading", { name: "Interactive B-tree" })
     ).toBeVisible();
+
+    const visualizer = page.locator("[data-btree-visualizer]");
+    await visualizer.scrollIntoViewIfNeeded();
     await expect(
-      page.getByRole("img", { name: "B-tree visualization" })
+      visualizer.getByRole("img", { name: "B-tree visualization" })
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Insert" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Search" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Delete" })).toBeVisible();
+    const insertBtn = visualizer.getByRole("button", { name: "Insert" });
+    const searchBtn = visualizer.getByRole("button", { name: "Search" });
+    const deleteBtn = visualizer.getByRole("button", { name: "Delete" });
+    await expect(insertBtn).toBeVisible();
+    await expect(searchBtn).toBeVisible();
+    await expect(deleteBtn).toBeVisible();
 
-    await page.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
-    await page.getByRole("button", { name: "Insert" }).click();
-    await expect(page.getByText(/Inserted 99/i)).toBeVisible();
+    await visualizer.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
+    await insertBtn.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await insertBtn.click();
+    await expect(visualizer.locator("[data-btree-status]")).toContainText(
+      /Insert 99|Descending|Placing 99|Inserted 99/i
+    );
+    await expect(visualizer.locator("[data-btree-status]")).toContainText(
+      /Inserted 99/i,
+      { timeout: 35_000 }
+    );
+    await expect(insertBtn).toBeEnabled({ timeout: 5_000 });
 
-    await page.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
-    await page.getByRole("button", { name: "Delete" }).click();
-    await expect(page.getByText(/Deleted 99/i)).toBeVisible();
+    await visualizer.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
+    await searchBtn.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await searchBtn.click();
+    await expect(visualizer.locator("[data-btree-status]")).toContainText(
+      /Searching for 99|Visit node|Found 99/i
+    );
+    await expect(visualizer.locator("[data-btree-status]")).toContainText(
+      /Found 99 after visiting/i,
+      { timeout: 35_000 }
+    );
+
+    await visualizer.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
+    await deleteBtn.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await deleteBtn.click();
+    await expect(visualizer.locator("[data-btree-status]")).toContainText(
+      /Delete 99|Found 99|Removing 99|Deleted 99/i
+    );
+    await expect(visualizer.locator("[data-btree-status]")).toContainText(
+      /Deleted 99/i,
+      { timeout: 35_000 }
+    );
+    await expect(deleteBtn).toBeEnabled({ timeout: 5_000 });
 
     await expect(
       page.getByRole("heading", { name: "Interactive index demo" })
     ).toBeVisible();
-    await page.getByRole("button", { name: "Use B-tree index" }).click();
-    await expect(page.getByText(/Index walk visited/i)).toBeVisible();
+
+    const indexDemo = page.locator("[data-btree-index-demo]");
+    await indexDemo.scrollIntoViewIfNeeded();
+    const scanBtn = indexDemo.getByRole("button", { name: "Table scan" });
+    const indexBtn = indexDemo.getByRole("button", { name: "Use B-tree index" });
+    await scanBtn.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await scanBtn.click();
+    await expect(indexDemo.locator("[data-index-status]")).toContainText(
+      /Table scan|Page |Scan finished/i
+    );
+    await expect(indexDemo.locator("[data-index-status]")).toContainText(
+      /Scan finished/i,
+      { timeout: 25_000 }
+    );
+    await expect(indexDemo.locator("[data-io-count]")).toContainText(/[1-9]/);
+
+    await indexBtn.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await indexBtn.click();
+    await expect(indexDemo.locator("[data-index-status]")).toContainText(
+      /B-tree index lookup|Read index node|Fetch heap page|Key absent/i
+    );
+    await expect(indexDemo.locator("[data-index-status]")).toContainText(
+      /heap page|no heap fetch|Total:/i,
+      { timeout: 15_000 }
+    );
+    await expect(indexDemo.locator("[data-io-comparison]")).toContainText(
+      /fewer page reads with the B-tree|scan .+ I\/O vs index/i,
+      { timeout: 5_000 }
+    );
 
     await expect(
       page.getByRole("heading", { name: "Complexity cheatsheet" })
@@ -144,5 +215,33 @@ test.describe("writing section", () => {
     await expect(cheatsheet).toBeVisible();
     await expect(cheatsheet.getByRole("cell", { name: "Search" })).toBeVisible();
     await expect(cheatsheet.getByRole("cell", { name: "Insert" })).toBeVisible();
+  });
+
+  test("B-tree demos stay usable on a narrow viewport", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(BTREE_POST.path);
+
+    const visualizer = page.locator("[data-btree-visualizer]");
+    await visualizer.scrollIntoViewIfNeeded();
+    await expect(visualizer).toBeVisible();
+    await expect(visualizer.getByRole("button", { name: "Insert" })).toBeVisible();
+    await expect(
+      visualizer.getByRole("img", { name: "B-tree visualization" })
+    ).toBeVisible();
+
+    const indexDemo = page.locator("[data-btree-index-demo]");
+    await indexDemo.scrollIntoViewIfNeeded();
+    await expect(indexDemo.getByRole("button", { name: "Table scan" })).toBeVisible();
+    await expect(
+      indexDemo.getByRole("button", { name: "Use B-tree index" })
+    ).toBeVisible();
+    await expect(
+      indexDemo.getByRole("img", { name: "B-tree index on user id" })
+    ).toBeVisible();
+
+    // Controls should not overflow the viewport width.
+    const box = await indexDemo.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width).toBeLessThanOrEqual(390);
   });
 });

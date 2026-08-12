@@ -39,7 +39,7 @@ Example: t = 2 means 1–3 keys per non-root node (a 2-3-4 tree).
 
 ## Interactive B-tree
 
-Use the playground below to insert, search, and delete. Change t to see how fanout reshapes the tree. Search highlights the path from the root.
+Use the playground below to insert, search, and delete. Each operation **animates the path** from the root so you can see which nodes are touched before the tree reshapes. Change t to see how fanout reshapes the tree.
 
 <BTreeVisualizer />
 
@@ -171,7 +171,7 @@ On large tables that difference is enormous: O(n) page reads vs O(logₜ n) inde
 
 ### Interactive index demo
 
-The demo below packs 24 rows into heap pages of 4 rows each and builds a B-tree index on `id`. Run a **table scan** and an **index lookup** for the same key and compare simulated page I/O. Existing ids are multiples of 3 (`3 … 72`); try leaf key `33` (multi-level walk) and a miss like `11`.
+The demo below packs 24 rows into heap pages of 4 rows each and builds a B-tree index on `id`. Hit **table scan** and watch rows light up page by page as the I/O counter climbs; then **Use B-tree index** on the same key and watch a short root-to-leaf walk. Existing ids are multiples of 3 (`3 … 72`). Default `69` is late in the heap (scan pays for almost every page); try `33` for a shorter scan or a miss like `11`.
 
 <BTreeIndexDemo />
 
