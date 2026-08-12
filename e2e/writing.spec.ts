@@ -184,7 +184,7 @@ test.describe("writing section", () => {
       { timeout: 15_000 }
     );
     await expect(indexDemo.locator("[data-io-comparison]")).toContainText(
-      /scan .+ I\/O vs index|fewer page reads|Run both/i,
+      /fewer page reads with the B-tree|scan .+ I\/O vs index/i,
       { timeout: 5_000 }
     );
 

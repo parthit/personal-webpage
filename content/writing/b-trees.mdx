@@ -171,7 +171,7 @@ On large tables that difference is enormous: O(n) page reads vs O(logₜ n) inde
 
 ### Interactive index demo
 
-The demo below packs 24 rows into heap pages of 4 rows each and builds a B-tree index on `id`. Hit **table scan** and watch rows light up page by page as the I/O counter climbs; then **Use B-tree index** on the same key and watch a short root-to-leaf walk. Existing ids are multiples of 3 (`3 … 72`); try leaf key `33` (multi-level walk) and a miss like `11`.
+The demo below packs 24 rows into heap pages of 4 rows each and builds a B-tree index on `id`. Hit **table scan** and watch rows light up page by page as the I/O counter climbs; then **Use B-tree index** on the same key and watch a short root-to-leaf walk. Existing ids are multiples of 3 (`3 … 72`). Default `69` is late in the heap (scan pays for almost every page); try `33` for a shorter scan or a miss like `11`.
 
 <BTreeIndexDemo />
 

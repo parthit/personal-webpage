@@ -104,6 +104,7 @@ describe("demo-animation helpers", () => {
     assert.match(compareIoCost(6, 3), /2\.0×/);
     assert.match(compareIoCost(3, 0), /Run the B-tree index/);
     assert.match(compareIoCost(0, 0), /Run both/);
+    assert.match(compareIoCost(3, 4), /late id like 69/);
   });
 
   it("skips delay when reduced motion is preferred", () => {

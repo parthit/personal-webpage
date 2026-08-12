@@ -112,12 +112,12 @@ type LastCosts = {
 
 export function BTreeIndexDemo() {
   const [{ rows, index, pageCount }] = useState(buildDataset);
-  // Prefer a leaf key so the demo shows a multi-level index walk (36 lives in the root).
-  const [query, setQuery] = useState("33");
+  // Prefer a late leaf key so table scan burns more heap pages than the index walk.
+  const [query, setQuery] = useState("69");
   const [frame, setFrame] = useState<IndexDemoFrame | null>(null);
   const [busy, setBusy] = useState(false);
   const [lastCosts, setLastCosts] = useState<LastCosts>({
-    key: 33,
+    key: 69,
     scanPages: null,
     indexPages: null,
   });
@@ -425,8 +425,8 @@ export function BTreeIndexDemo() {
           </div>
         </div>
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          Try 33 (exists, late in the heap) or 11 (missing). Run both modes on
-          the same id to see the I/O gap.
+          Default 69 sits late in the heap (scan reads many pages). Try 33 for a
+          shorter scan, or 11 for a miss. Run both modes on the same id.
         </p>
         {busy && (
           <p
@@ -499,12 +499,28 @@ export function BTreeIndexDemo() {
           </p>
         )}
         {comparison && (
-          <p
-            className="mt-3 rounded-lg bg-white px-3 py-2 text-sm leading-relaxed text-gray-800 ring-1 ring-gray-200 dark:bg-gray-950 dark:text-gray-200 dark:ring-gray-700"
+          <div
+            className="mt-3 space-y-2 rounded-lg bg-white px-3 py-2 ring-1 ring-gray-200 dark:bg-gray-950 dark:ring-gray-700"
             data-io-comparison
           >
-            {comparison}
-          </p>
+            {(lastCosts.scanPages != null || lastCosts.indexPages != null) && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                {lastCosts.scanPages != null && (
+                  <span className="rounded bg-amber-50 px-2 py-1 text-amber-900 ring-1 ring-amber-200 dark:bg-amber-950 dark:text-amber-100 dark:ring-amber-800">
+                    Last scan (id {lastCosts.key}): {lastCosts.scanPages} I/O
+                  </span>
+                )}
+                {lastCosts.indexPages != null && (
+                  <span className="rounded bg-sky-50 px-2 py-1 text-sky-900 ring-1 ring-sky-200 dark:bg-sky-950 dark:text-sky-100 dark:ring-sky-800">
+                    Last index (id {lastCosts.key}): {lastCosts.indexPages} I/O
+                  </span>
+                )}
+              </div>
+            )}
+            <p className="text-sm leading-relaxed text-gray-800 dark:text-gray-200">
+              {comparison}
+            </p>
+          </div>
         )}
       </div>
     </figure>

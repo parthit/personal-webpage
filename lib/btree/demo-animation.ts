@@ -397,9 +397,9 @@ export function compareIoCost(scanPages: number, indexPages: number): string {
     return `Same id: scan ${scanPages} I/O vs index ${indexPages} I/O — about ${ratio}× fewer page reads with the B-tree.`;
   }
   if (indexPages === scanPages) {
-    return `Same id: both paths used ${scanPages} page read${scanPages === 1 ? "" : "s"} on this tiny table — the index wins as the heap grows.`;
+    return `Same id: both paths used ${scanPages} page read${scanPages === 1 ? "" : "s"} on this tiny table — the index stays near tree height while a scan grows with the heap.`;
   }
-  return `Same id: scan ${scanPages} I/O vs index ${indexPages} I/O.`;
+  return `Same id: scan ${scanPages} I/O vs index ${indexPages} I/O. On this toy heap the key was early, so the scan looked cheap — try a late id like 69 or 72 to see the index win, and remember real tables have millions of pages.`;
 }
 
 /**
