@@ -5,16 +5,22 @@
 
 import type { SearchStep } from "./btree";
 
-/** Default pacing for the index I/O demo (many frames on a table scan). */
-export const DEMO_STEP_MS = 320;
-export const DEMO_HOLD_MS = 600;
+/** Table-scan pacing (many frames — keep each row tick readable but not glacial). */
+export const DEMO_STEP_MS = 450;
+export const DEMO_HOLD_MS = 800;
 
 /**
- * Slower pacing for the interactive B-tree CRUD visualizer.
- * Paths are short (2–3 nodes), so each step needs a long dwell to be readable.
+ * Index-lookup pacing. Paths are only a few nodes, so each read needs a long dwell.
  */
-export const VIZ_STEP_MS = 1500;
-export const VIZ_HOLD_MS = 2200;
+export const INDEX_STEP_MS = 1400;
+export const INDEX_HOLD_MS = 2000;
+
+/**
+ * CRUD visualizer pacing. Paths are short (2–3 nodes), so each step needs
+ * a long dwell to be readable.
+ */
+export const VIZ_STEP_MS = 2000;
+export const VIZ_HOLD_MS = 2800;
 
 export type VizAccent = {
   key: number;
@@ -113,12 +119,16 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-/** Prefer instant playback when the user asks for reduced motion. */
+/**
+ * Frame dwell for demos. Decorative CSS is already disabled under
+ * `prefers-reduced-motion`; keep walkthrough pacing so steps stay readable
+ * instead of collapsing to an instant jump.
+ */
 export function effectiveStepMs(
-  prefersReducedMotion: boolean,
+  _prefersReducedMotion: boolean,
   stepMs = DEMO_STEP_MS
 ): number {
-  return prefersReducedMotion ? 0 : stepMs;
+  return stepMs;
 }
 
 export function buildSearchFrames(

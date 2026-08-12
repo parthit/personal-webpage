@@ -138,7 +138,7 @@ test.describe("writing section", () => {
     );
     await expect(visualizer.locator("[data-btree-status]")).toContainText(
       /Inserted 99/i,
-      { timeout: 35_000 }
+      { timeout: 50_000 }
     );
     await expect(insertBtn).toBeEnabled({ timeout: 5_000 });
 
@@ -152,7 +152,7 @@ test.describe("writing section", () => {
     );
     await expect(visualizer.locator("[data-btree-status]")).toContainText(
       /Found 99 after visiting/i,
-      { timeout: 35_000 }
+      { timeout: 50_000 }
     );
 
     await visualizer.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
@@ -165,7 +165,7 @@ test.describe("writing section", () => {
     );
     await expect(visualizer.locator("[data-btree-status]")).toContainText(
       /Deleted 99/i,
-      { timeout: 35_000 }
+      { timeout: 50_000 }
     );
     await expect(deleteBtn).toBeEnabled({ timeout: 5_000 });
 
@@ -186,7 +186,7 @@ test.describe("writing section", () => {
     );
     await expect(indexDemo.locator("[data-index-status]")).toContainText(
       /Scan finished/i,
-      { timeout: 25_000 }
+      { timeout: 40_000 }
     );
     await expect(indexDemo.locator("[data-io-count]")).toContainText(/[1-9]/);
 
@@ -199,7 +199,7 @@ test.describe("writing section", () => {
     );
     await expect(indexDemo.locator("[data-index-status]")).toContainText(
       /heap page|no heap fetch|Total:/i,
-      { timeout: 15_000 }
+      { timeout: 30_000 }
     );
     await expect(indexDemo.locator("[data-io-comparison]")).toContainText(
       /fewer page reads with the B-tree|scan .+ I\/O vs index/i,
