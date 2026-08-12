@@ -104,6 +104,10 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+function isAbortError(err: unknown): boolean {
+  return err instanceof DOMException && err.name === "AbortError";
+}
+
 type LastCosts = {
   key: number;
   scanPages: number | null;
@@ -121,16 +125,34 @@ export function BTreeIndexDemo() {
     scanPages: null,
     indexPages: null,
   });
-  const [ioPulse, setIoPulse] = useState(0);
+  const [ioTick, setIoTick] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const runIdRef = useRef(0);
   const tableBodyRef = useRef<HTMLTableSectionElement | null>(null);
+  const treeScrollRef = useRef<HTMLDivElement | null>(null);
+  const prevPagesRef = useRef(-1);
+  const ioTickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const layout = useMemo(() => layoutTree(index.root), [index]);
   const byId = useMemo(() => new Map(rows.map((r) => [r.id, r])), [rows]);
+  const pathSet = useMemo(
+    () => new Set(frame?.pathNodeIds ?? []),
+    [frame?.pathNodeIds]
+  );
+  const scannedSet = useMemo(
+    () => new Set(frame?.scannedIds ?? []),
+    [frame?.scannedIds]
+  );
+  const nodeById = useMemo(() => {
+    const map = new Map<string, (typeof layout.nodes)[number]>();
+    for (const node of layout.nodes) map.set(node.id, node);
+    return map;
+  }, [layout]);
 
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
+      if (ioTickTimerRef.current) clearTimeout(ioTickTimerRef.current);
     };
   }, []);
 
@@ -139,44 +161,88 @@ export function BTreeIndexDemo() {
     const el = tableBodyRef.current.querySelector(
       `[data-row-id="${frame.focusId}"]`
     );
-    el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    // Instant scroll avoids competing with the frame clock (smooth scroll janks).
+    el?.scrollIntoView({ block: "nearest", behavior: "auto" });
   }, [frame?.focusId]);
+
+  // Keep the focused index node in view — the tree is often wider than the pane.
+  useEffect(() => {
+    const scroller = treeScrollRef.current;
+    const focusId = frame?.focusNodeId;
+    if (!scroller || !focusId) return;
+    const node = nodeById.get(focusId);
+    if (!node) return;
+
+    const pad = 28;
+    const left = node.x - node.width / 2 - pad;
+    const right = node.x + node.width / 2 + pad;
+    const viewLeft = scroller.scrollLeft;
+    const viewRight = viewLeft + scroller.clientWidth;
+
+    if (left < viewLeft) {
+      scroller.scrollLeft = Math.max(0, left);
+    } else if (right > viewRight) {
+      scroller.scrollLeft = Math.max(0, right - scroller.clientWidth);
+    }
+  }, [frame?.focusNodeId, nodeById]);
 
   function cancelAnimation() {
     abortRef.current?.abort();
     abortRef.current = null;
+    runIdRef.current += 1;
+  }
+
+  function pulseIo() {
+    setIoTick(false);
+    // Next frame: re-add class so the CSS animation restarts without remounting.
+    requestAnimationFrame(() => {
+      setIoTick(true);
+      if (ioTickTimerRef.current) clearTimeout(ioTickTimerRef.current);
+      ioTickTimerRef.current = setTimeout(() => setIoTick(false), 320);
+    });
   }
 
   async function playDemo(frames: IndexDemoFrame[]): Promise<boolean> {
     cancelAnimation();
     const controller = new AbortController();
+    const runId = runIdRef.current;
     abortRef.current = controller;
     setBusy(true);
+    prevPagesRef.current = -1;
 
-    const stepMs = effectiveStepMs(prefersReducedMotion(), 320);
-    const holdMs = effectiveStepMs(prefersReducedMotion(), 600);
-    let prevPages = -1;
+    // Index paths are short — dwell longer so each node read is readable.
+    // Table scans have many frames; keep them snappy.
+    const indexMode = frames[0]?.mode === "index";
+    const stepMs = effectiveStepMs(
+      prefersReducedMotion(),
+      indexMode ? 520 : 280
+    );
+    const holdMs = effectiveStepMs(
+      prefersReducedMotion(),
+      indexMode ? 900 : 520
+    );
 
     try {
       await playFrames(
         frames,
         async (next) => {
+          if (runId !== runIdRef.current || controller.signal.aborted) {
+            throw new DOMException("Aborted", "AbortError");
+          }
           setFrame(next);
-          if (next.pagesRead !== prevPages) {
-            prevPages = next.pagesRead;
-            setIoPulse((n) => n + 1);
+          if (next.pagesRead !== prevPagesRef.current) {
+            prevPagesRef.current = next.pagesRead;
+            pulseIo();
           }
         },
         { stepMs, holdMs, signal: controller.signal }
       );
-      return true;
+      return runId === runIdRef.current;
     } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        return false;
-      }
+      if (isAbortError(err)) return false;
       throw err;
     } finally {
-      if (abortRef.current === controller) {
+      if (abortRef.current === controller && runId === runIdRef.current) {
         abortRef.current = null;
         setBusy(false);
       }
@@ -231,8 +297,6 @@ export function BTreeIndexDemo() {
     }));
   }
 
-  const pathSet = new Set(frame?.pathNodeIds ?? []);
-  const scannedSet = new Set(frame?.scannedIds ?? []);
   const svgWidth = Math.max(layout.width, 280);
   const svgHeight = Math.max(layout.height, 100);
   const ioMax = Math.max(pageCount, frame?.pagesRead ?? 0, 1);
@@ -241,6 +305,8 @@ export function BTreeIndexDemo() {
     lastCosts.scanPages != null || lastCosts.indexPages != null
       ? compareIoCost(lastCosts.scanPages ?? 0, lastCosts.indexPages ?? 0)
       : null;
+  const matchedRow =
+    frame?.rowId != null ? byId.get(frame.rowId) ?? null : null;
 
   return (
     <figure className={figureShell} data-btree-index-demo>
@@ -311,7 +377,10 @@ export function BTreeIndexDemo() {
             pages). Height stays small, so lookups cost a few node reads.
             Swipe sideways to see the full tree on small screens.
           </p>
-          <div className="min-w-0 w-full overflow-x-auto overscroll-x-contain touch-pan-x rounded-lg border border-gray-200 bg-white px-1 py-3 dark:border-gray-700 dark:bg-gray-950">
+          <div
+            ref={treeScrollRef}
+            className="min-w-0 w-full overflow-x-auto overscroll-x-contain touch-pan-x rounded-lg border border-gray-200 bg-white px-1 py-3 dark:border-gray-700 dark:bg-gray-950"
+          >
             <div
               className="mx-auto"
               style={{ width: svgWidth, height: svgHeight, minWidth: svgWidth }}
@@ -331,54 +400,57 @@ export function BTreeIndexDemo() {
                     y1={edge.fromY}
                     x2={edge.toX}
                     y2={edge.toY}
-                    className="stroke-gray-400 dark:stroke-gray-500"
+                    className="btree-edge stroke-gray-400 dark:stroke-gray-500"
                     strokeWidth={1.5}
                   />
                 ))}
                 {layout.nodes.map((node) => {
-                  const x = node.x - node.width / 2;
-                  const y = node.y - LAYOUT.NODE_H / 2;
                   const onPath = pathSet.has(node.id);
                   const focused = frame?.focusNodeId === node.id;
                   return (
                     <g
                       key={node.id}
-                      className={focused ? "btree-pulse" : undefined}
+                      className="btree-node"
+                      style={{
+                        transform: `translate(${node.x}px, ${node.y}px)`,
+                      }}
                     >
-                      <rect
-                        x={x}
-                        y={y}
-                        width={node.width}
-                        height={LAYOUT.NODE_H}
-                        rx={6}
-                        className={
-                          onPath
-                            ? "fill-sky-100 stroke-sky-500 transition-[fill,stroke] duration-300 dark:fill-sky-950 dark:stroke-sky-400"
-                            : "fill-white stroke-gray-400 transition-[fill,stroke] duration-300 dark:fill-gray-900 dark:stroke-gray-500"
-                        }
-                        strokeWidth={onPath ? 2 : 1.25}
-                      />
-                      {node.keys.map((key, i) => (
-                        <text
-                          key={`${node.id}-${key}`}
-                          x={
-                            x +
-                            LAYOUT.KEY_PAD / 2 +
-                            i * LAYOUT.KEY_W +
-                            LAYOUT.KEY_W / 2
-                          }
-                          y={node.y + 1}
-                          textAnchor="middle"
-                          dominantBaseline="middle"
+                      <g className={focused ? "btree-pulse" : undefined}>
+                        <rect
+                          x={-node.width / 2}
+                          y={-LAYOUT.NODE_H / 2}
+                          width={node.width}
+                          height={LAYOUT.NODE_H}
+                          rx={6}
                           className={
-                            frame?.rowId === key && frame.heapFetched
-                              ? "btree-key-pop fill-emerald-700 text-[11px] font-semibold dark:fill-emerald-300"
-                              : "fill-gray-800 text-[11px] dark:fill-gray-100"
+                            onPath
+                              ? "fill-sky-100 stroke-sky-500 transition-[fill,stroke] duration-300 dark:fill-sky-950 dark:stroke-sky-400"
+                              : "fill-white stroke-gray-400 transition-[fill,stroke] duration-300 dark:fill-gray-900 dark:stroke-gray-500"
                           }
-                        >
-                          {key}
-                        </text>
-                      ))}
+                          strokeWidth={onPath ? 2 : 1.25}
+                        />
+                        {node.keys.map((key, i) => (
+                          <text
+                            key={`${node.id}-${key}`}
+                            x={
+                              -node.width / 2 +
+                              LAYOUT.KEY_PAD / 2 +
+                              i * LAYOUT.KEY_W +
+                              LAYOUT.KEY_W / 2
+                            }
+                            y={1}
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                            className={
+                              frame?.rowId === key && frame.heapFetched
+                                ? "btree-key-pop fill-emerald-700 text-[11px] font-semibold dark:fill-emerald-300"
+                                : "fill-gray-800 text-[11px] dark:fill-gray-100"
+                            }
+                          >
+                            {key}
+                          </text>
+                        ))}
+                      </g>
                     </g>
                   );
                 })}
@@ -446,9 +518,8 @@ export function BTreeIndexDemo() {
               Simulated page I/O
             </p>
             <p
-              key={ioPulse}
               className={`mt-0.5 font-mono text-2xl font-semibold tabular-nums text-gray-900 dark:text-gray-50 ${
-                ioPulse > 0 ? "btree-io-tick" : ""
+                ioTick ? "btree-io-tick" : ""
               }`}
               data-io-count
             >
@@ -476,12 +547,12 @@ export function BTreeIndexDemo() {
           aria-label="Simulated page reads"
         >
           <div
-            className={`h-full rounded-full transition-[width] duration-300 ease-out ${
+            className={`btree-io-bar-fill h-full w-full rounded-full ${
               frame?.mode === "index"
                 ? "bg-sky-500 dark:bg-sky-400"
                 : "bg-amber-500 dark:bg-amber-400"
             }`}
-            style={{ width: `${ioRatio * 100}%` }}
+            style={{ transform: `scaleX(${ioRatio})` }}
           />
         </div>
         <p
@@ -492,10 +563,9 @@ export function BTreeIndexDemo() {
           {frame?.explanation ??
             "Pick a lookup id, then run Table scan or Use B-tree index to watch each page read."}
         </p>
-        {frame?.rowId != null && byId.get(frame.rowId) && (
+        {matchedRow && (
           <p className="mt-2 text-xs text-emerald-800 dark:text-emerald-200">
-            Row: {byId.get(frame.rowId)!.name} · {byId.get(frame.rowId)!.city} ·
-            page {byId.get(frame.rowId)!.page}
+            Row: {matchedRow.name} · {matchedRow.city} · page {matchedRow.page}
           </p>
         )}
         {comparison && (
