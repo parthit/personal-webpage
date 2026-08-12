@@ -119,8 +119,8 @@ describe("demo-animation helpers", () => {
   });
 
   it("uses a slower default pace for the CRUD visualizer than the index demo", () => {
-    assert.ok(VIZ_STEP_MS >= 900);
-    assert.ok(VIZ_HOLD_MS >= 1400);
+    assert.ok(VIZ_STEP_MS >= 1400);
+    assert.ok(VIZ_HOLD_MS >= 2000);
     assert.ok(VIZ_STEP_MS > 400);
   });
 

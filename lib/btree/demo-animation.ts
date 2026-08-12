@@ -13,8 +13,8 @@ export const DEMO_HOLD_MS = 600;
  * Slower pacing for the interactive B-tree CRUD visualizer.
  * Paths are short (2–3 nodes), so each step needs a long dwell to be readable.
  */
-export const VIZ_STEP_MS = 1100;
-export const VIZ_HOLD_MS = 1700;
+export const VIZ_STEP_MS = 1500;
+export const VIZ_HOLD_MS = 2200;
 
 export type VizAccent = {
   key: number;

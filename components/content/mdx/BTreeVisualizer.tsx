@@ -61,6 +61,9 @@ export function BTreeVisualizer() {
   const [accent, setAccent] = useState<VizAccent | null>(null);
   const [degree, setDegree] = useState(2);
   const [busy, setBusy] = useState(false);
+  const [stepInfo, setStepInfo] = useState<{ index: number; total: number } | null>(
+    null
+  );
   const treeRef = useRef(tree);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -92,6 +95,7 @@ export function BTreeVisualizer() {
     const controller = new AbortController();
     abortRef.current = controller;
     setBusy(true);
+    setStepInfo({ index: 0, total: frames.length });
 
     const reduced = prefersReducedMotion();
     const stepMs = effectiveStepMs(reduced, VIZ_STEP_MS);
@@ -101,7 +105,8 @@ export function BTreeVisualizer() {
     try {
       await playFrames(
         frames,
-        async (frame) => {
+        async (frame, index) => {
+          setStepInfo({ index: index + 1, total: frames.length });
           setAccent(frame.accent);
           setMessage(frame.message);
 
@@ -134,6 +139,7 @@ export function BTreeVisualizer() {
       if (abortRef.current === controller) {
         abortRef.current = null;
         setBusy(false);
+        setStepInfo(null);
       }
     }
   }
@@ -229,6 +235,7 @@ export function BTreeVisualizer() {
   function runClear() {
     cancelAnimation();
     setBusy(false);
+    setStepInfo(null);
     setTree(clear(treeRef.current));
     setHighlight([]);
     setAccent(null);
@@ -238,6 +245,7 @@ export function BTreeVisualizer() {
   function loadSample() {
     cancelAnimation();
     setBusy(false);
+    setStepInfo(null);
     let next = createBTree(degree);
     for (const key of SAMPLE) next = insert(next, key);
     setTree(next);
@@ -249,6 +257,7 @@ export function BTreeVisualizer() {
   function changeDegree(nextDegree: number) {
     cancelAnimation();
     setBusy(false);
+    setStepInfo(null);
     setDegree(nextDegree);
     setTree((prev) => withDegree(prev, nextDegree));
     setHighlight([]);
@@ -336,7 +345,10 @@ export function BTreeVisualizer() {
             aria-live="polite"
             data-btree-animating
           >
-            Animating operation…
+            Animating operation
+            {stepInfo
+              ? ` — step ${stepInfo.index} of ${stepInfo.total}`
+              : "…"}
           </p>
         )}
       </div>
