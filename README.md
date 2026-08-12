@@ -8,6 +8,7 @@ Personal site built with [Next.js](https://nextjs.org/) (App Router), TypeScript
 - Cal.com booking at `/chat`
 - **Writing** — MDX posts at `/writing`
 - **Videos** — curated YouTube system-design catalog at `/videos`
+- **SEO** — metadata, Open Graph, JSON-LD, `/robots.txt`, and `/sitemap.xml`
 
 ## Getting started
 
@@ -17,6 +18,8 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+Canonical site URL defaults to `https://www.parthitpatel.com` (Vercel redirects the apex domain there). Override with `NEXT_PUBLIC_SITE_URL` if needed.
 
 ## Content
 

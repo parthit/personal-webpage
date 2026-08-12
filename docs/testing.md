@@ -11,6 +11,7 @@ This project uses [Playwright](https://playwright.dev/) for end-to-end coverage 
 | Writing | `e2e/writing.spec.ts` | Index metadata, MDX body, cover/diagram images, YouTube embed, 404, SEO meta |
 | Videos | `e2e/videos.spec.ts` | Featured catalog, facade thumbnail, click-to-iframe, outbound YouTube link |
 | Chat | `e2e/chat.spec.ts` | Booking page shell + nav (does not assert Cal.com remote UI) |
+| SEO | `e2e/seo.spec.ts` | robots.txt, sitemap.xml, home Open Graph / JSON-LD |
 
 Projects:
 

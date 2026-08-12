@@ -96,6 +96,11 @@ test.describe("writing section", () => {
       "content",
       /sample system-design post/i
     );
+
+    // SVG covers are fine in-page but not for social previews.
+    const ogImage = page.locator('meta[property="og:image"]');
+    await expect(ogImage).toHaveAttribute("content", /parthit\.jpeg/i);
+    await expect(ogImage).not.toHaveAttribute("content", /\.svg/i);
   });
 
   test("renders the B-tree post with interactive demos", async ({ page }) => {

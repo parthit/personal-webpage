@@ -6,6 +6,12 @@ import { MDXRemote } from "next-mdx-remote/rsc";
 import remarkGfm from "remark-gfm";
 import { mdxComponents } from "@/components/content/mdx/components";
 import { getAllWritingSlugs, getPostBySlug } from "@/lib/content/writing";
+import {
+  SITE_NAME,
+  SITE_URL,
+  absoluteUrl,
+  socialShareImage,
+} from "@/lib/site";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -22,12 +28,38 @@ export async function generateMetadata({
   const post = getPostBySlug(slug);
   // External-only posts are listed on /writing but have no local page.
   if (!post || post.externalUrl) {
-    return { title: "Post not found" };
+    return {
+      title: "Post not found",
+      robots: { index: false, follow: false },
+    };
   }
 
+  const path = `/writing/${post.slug}`;
+  const shareImage = socialShareImage(post.cover, post.title);
+
   return {
-    title: `${post.title} — Parthit Patel`,
+    title: post.title,
     description: post.summary,
+    alternates: {
+      canonical: path,
+    },
+    authors: [{ name: SITE_NAME }],
+    openGraph: {
+      title: post.title,
+      description: post.summary,
+      url: path,
+      type: "article",
+      publishedTime: post.date,
+      authors: [SITE_NAME],
+      tags: post.tags,
+      images: [shareImage],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.summary,
+      images: [shareImage.url],
+    },
   };
 }
 
@@ -47,8 +79,33 @@ export default async function WritingPostPage({ params }: PageProps) {
     notFound();
   }
 
+  const path = `/writing/${post.slug}`;
+  const articleJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.summary,
+    datePublished: post.date,
+    dateModified: post.date,
+    author: {
+      "@type": "Person",
+      name: SITE_NAME,
+      url: SITE_URL,
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": absoluteUrl(path),
+    },
+    image: [absoluteUrl(socialShareImage(post.cover, post.title).url)],
+    keywords: post.tags.join(", "),
+  };
+
   return (
     <article className="mx-auto w-full max-w-2xl">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
       <Link
         href="/writing"
         className="mb-6 inline-block text-sm text-gray-600 hover:underline dark:text-gray-400"
