@@ -1,7 +1,7 @@
 /** Canonical site URL used for metadata, sitemap, and robots. */
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-  "https://parthitpatel.com";
+  "https://www.parthitpatel.com";
 
 export const SITE_NAME = "Parthit Patel";
 

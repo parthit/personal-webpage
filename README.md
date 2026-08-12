@@ -19,7 +19,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-Canonical site URL defaults to `https://parthitpatel.com`. Override with `NEXT_PUBLIC_SITE_URL` if needed.
+Canonical site URL defaults to `https://www.parthitpatel.com` (Vercel redirects the apex domain there). Override with `NEXT_PUBLIC_SITE_URL` if needed.
 
 ## Content
 

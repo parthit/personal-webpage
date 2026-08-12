@@ -54,7 +54,7 @@ test.describe("SEO discovery", () => {
     );
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       "href",
-      /parthitpatel\.com\/?$/
+      /www\.parthitpatel\.com\/?$/
     );
 
     const jsonLd = page.locator('script[type="application/ld+json"]').first();
@@ -75,7 +75,7 @@ test.describe("SEO discovery", () => {
     );
     await expect(page.locator('link[rel="canonical"]')).not.toHaveAttribute(
       "href",
-      /parthitpatel\.com\/?$/
+      /www\.parthitpatel\.com\/?$/
     );
   });
 });
