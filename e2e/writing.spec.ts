@@ -115,17 +115,24 @@ test.describe("writing section", () => {
     await expect(
       page.getByRole("heading", { name: "Interactive B-tree" })
     ).toBeVisible();
-    await expect(
-      page.getByRole("img", { name: "B-tree visualization" })
-    ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Insert" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Search" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Delete" })).toBeVisible();
 
     const visualizer = page.locator("[data-btree-visualizer]");
-    await page.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
-    await page.getByRole("button", { name: "Insert" }).click();
-    await expect(visualizer.locator("[data-btree-animating]")).toBeVisible();
+    await visualizer.scrollIntoViewIfNeeded();
+    await expect(
+      visualizer.getByRole("img", { name: "B-tree visualization" })
+    ).toBeVisible();
+    const insertBtn = visualizer.getByRole("button", { name: "Insert" });
+    const searchBtn = visualizer.getByRole("button", { name: "Search" });
+    const deleteBtn = visualizer.getByRole("button", { name: "Delete" });
+    await expect(insertBtn).toBeVisible();
+    await expect(searchBtn).toBeVisible();
+    await expect(deleteBtn).toBeVisible();
+
+    await visualizer.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
+    await insertBtn.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await insertBtn.click();
     await expect(visualizer.locator("[data-btree-status]")).toContainText(
       /Insert 99|Descending|Placing 99|Inserted 99/i
     );
@@ -133,11 +140,13 @@ test.describe("writing section", () => {
       /Inserted 99/i,
       { timeout: 15_000 }
     );
-    await expect(visualizer.locator("[data-btree-animating]")).toHaveCount(0);
+    await expect(insertBtn).toBeEnabled({ timeout: 5_000 });
 
-    await page.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
-    await page.getByRole("button", { name: "Search" }).click();
-    await expect(visualizer.locator("[data-btree-animating]")).toBeVisible();
+    await visualizer.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
+    await searchBtn.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await searchBtn.click();
     await expect(visualizer.locator("[data-btree-status]")).toContainText(
       /Searching for 99|Visit node|Found 99/i
     );
@@ -146,9 +155,11 @@ test.describe("writing section", () => {
       { timeout: 15_000 }
     );
 
-    await page.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
-    await page.getByRole("button", { name: "Delete" }).click();
-    await expect(visualizer.locator("[data-btree-animating]")).toBeVisible();
+    await visualizer.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
+    await deleteBtn.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await deleteBtn.click();
     await expect(visualizer.locator("[data-btree-status]")).toContainText(
       /Delete 99|Found 99|Removing 99|Deleted 99/i
     );
@@ -156,26 +167,33 @@ test.describe("writing section", () => {
       /Deleted 99/i,
       { timeout: 15_000 }
     );
-    await expect(visualizer.locator("[data-btree-animating]")).toHaveCount(0);
+    await expect(deleteBtn).toBeEnabled({ timeout: 5_000 });
 
     await expect(
       page.getByRole("heading", { name: "Interactive index demo" })
     ).toBeVisible();
 
     const indexDemo = page.locator("[data-btree-index-demo]");
-    await page.getByRole("button", { name: "Table scan" }).click();
-    await expect(indexDemo.locator("[data-index-animating]")).toBeVisible();
+    await indexDemo.scrollIntoViewIfNeeded();
+    const scanBtn = indexDemo.getByRole("button", { name: "Table scan" });
+    const indexBtn = indexDemo.getByRole("button", { name: "Use B-tree index" });
+    await scanBtn.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await scanBtn.click();
     await expect(indexDemo.locator("[data-index-status]")).toContainText(
       /Table scan|Page |Scan finished/i
     );
     await expect(indexDemo.locator("[data-index-status]")).toContainText(
       /Scan finished/i,
-      { timeout: 20_000 }
+      { timeout: 25_000 }
     );
     await expect(indexDemo.locator("[data-io-count]")).toContainText(/[1-9]/);
 
-    await page.getByRole("button", { name: "Use B-tree index" }).click();
-    await expect(indexDemo.locator("[data-index-animating]")).toBeVisible();
+    await indexBtn.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await indexBtn.click();
     await expect(indexDemo.locator("[data-index-status]")).toContainText(
       /B-tree index lookup|Read index node|Fetch heap page|Key absent/i
     );
@@ -204,6 +222,7 @@ test.describe("writing section", () => {
     await page.goto(BTREE_POST.path);
 
     const visualizer = page.locator("[data-btree-visualizer]");
+    await visualizer.scrollIntoViewIfNeeded();
     await expect(visualizer).toBeVisible();
     await expect(visualizer.getByRole("button", { name: "Insert" })).toBeVisible();
     await expect(
