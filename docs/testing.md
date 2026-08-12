@@ -2,6 +2,10 @@
 
 This project uses [Playwright](https://playwright.dev/) for end-to-end coverage of the personal site and content system.
 
+For interactive B-tree demos and other timed UI, also follow
+[`.cursor/pr-checklist.md`](../.cursor/pr-checklist.md) before opening a PR —
+e2e passing is not enough if walkthrough pacing is unreadable.
+
 ## What the E2E suite covers
 
 | Area | Spec | Assertions |
