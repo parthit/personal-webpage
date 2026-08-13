@@ -6,6 +6,7 @@ import {
   createMultiLeaderCluster,
   createPeerCluster,
   formatCart,
+  lastWriteQuorum,
   quorumIntersects,
   quorumSafe,
   readQuorumIds,
@@ -163,5 +164,13 @@ describe("quorums", () => {
     const read = buildQuorumReadFrames(createPeerCluster(5), 2);
     assert.match(read[0].message, /No completed write yet/i);
     assert.equal(read.at(-1)?.stale, false);
+  });
+
+  it("lastWriteQuorum is partial while write frames are still landing", () => {
+    const frames = buildQuorumWriteFrames(createPeerCluster(5), "42", 3);
+    const firstAck = frames.find((f) => f.kind === "quorum-write" && f.toId === "n1");
+    assert.ok(firstAck);
+    assert.equal(lastWriteQuorum(firstAck.replicas), 1);
+    assert.equal(lastWriteQuorum(frames.at(-1)!.replicas), 3);
   });
 });

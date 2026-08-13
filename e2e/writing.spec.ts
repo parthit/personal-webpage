@@ -327,6 +327,10 @@ test.describe("writing section", () => {
     const quorum = page.locator("[data-quorum-demo]");
     await quorum.scrollIntoViewIfNeeded();
     await expect(quorum.locator("[data-quorum-math]")).toContainText(/W\+R = 4/);
+    await expect(quorum.locator("[data-quorum-math]")).toHaveAttribute(
+      "data-last-write-w",
+      "none"
+    );
     await quorum.getByRole("button", { name: "Write" }).click();
     await expect(quorum.locator("[data-replication-status]")).toContainText(
       /Write succeeds/i,
@@ -334,6 +338,13 @@ test.describe("writing section", () => {
     );
     const quorumRead = quorum.getByRole("button", { name: "Read" });
     await expect(quorumRead).toBeEnabled({ timeout: 8_000 });
+    await expect(quorum.locator("[data-quorum-math]")).toHaveAttribute(
+      "data-last-write-w",
+      "2"
+    );
+    await expect(quorum.locator("[data-quorum-math]")).toContainText(
+      /Last completed write used W=2/
+    );
     await quorumRead.click();
     await expect(quorum.locator("[data-replication-status]")).toContainText(
       /Missed version|stale|disjoint/i,

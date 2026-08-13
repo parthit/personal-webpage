@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   createPeerCluster,
-  lastWriteQuorum,
   quorumSafe,
   readQuorumIds,
   writeQuorumIds,
@@ -28,15 +27,18 @@ export function QuorumDemo() {
   const [w, setW] = useState(2);
   const [r, setR] = useState(2);
   const [value, setValue] = useState("42");
+  /** W of the last write whose animation finished. Not inferred mid-frame. */
+  const [committedW, setCommittedW] = useState<number | null>(null);
 
   const writeIds = useMemo(() => writeQuorumIds(N, w), [w]);
   const readIds = useMemo(() => readQuorumIds(N, r), [r]);
-  const committedW = lastWriteQuorum(view.replicas);
   const nextSafe = quorumSafe(N, w, r);
 
   async function onWrite() {
+    const writeW = w;
     const next = value.trim() || "42";
-    await run(buildQuorumWriteFrames(replicasRef.current, next, w));
+    const ok = await run(buildQuorumWriteFrames(replicasRef.current, next, writeW));
+    if (ok) setCommittedW(writeW);
   }
 
   async function onRead() {
@@ -87,7 +89,11 @@ export function QuorumDemo() {
             />
           </label>
         </div>
-        <p className="text-xs text-gray-600 dark:text-gray-400" data-quorum-math>
+        <p
+          className="text-xs text-gray-600 dark:text-gray-400"
+          data-quorum-math
+          data-last-write-w={committedW == null ? "none" : String(committedW)}
+        >
           Next write W+R = {w + r} {nextSafe ? ">" : "≤"} N={N}
           {nextSafe
             ? " — any write set of that W and read set of this R must overlap."
@@ -131,6 +137,7 @@ export function QuorumDemo() {
               setW(2);
               setR(2);
               setValue("42");
+              setCommittedW(null);
               reset(createPeerCluster(N), IDLE);
             }}
           >
