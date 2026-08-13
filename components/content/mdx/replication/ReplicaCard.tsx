@@ -26,7 +26,7 @@ export function ReplicaCard({
       data-replica-alive={replica.alive ? "true" : "false"}
       data-replica-role={replica.role}
       className={cn(
-        "relative min-w-[9.5rem] flex-1 rounded-lg border bg-white p-3 shadow-sm transition-shadow dark:bg-gray-950",
+        "relative min-w-[8.5rem] flex-1 basis-[9rem] rounded-lg border bg-white p-3 shadow-sm transition-shadow dark:bg-gray-950",
         replica.alive
           ? "border-gray-200 dark:border-gray-700"
           : "border-red-300 bg-red-50 opacity-80 dark:border-red-800 dark:bg-red-950/40",

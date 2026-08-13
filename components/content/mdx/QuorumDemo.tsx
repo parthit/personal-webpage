@@ -144,7 +144,7 @@ export function QuorumDemo() {
       </div>
 
       <div
-        className="flex gap-3 overflow-x-auto p-3 sm:p-4"
+        className="flex flex-wrap gap-3 p-3 sm:p-4"
         role="img"
         aria-label="Five leaderless replicas"
       >
