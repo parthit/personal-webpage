@@ -135,13 +135,33 @@ describe("quorums", () => {
     assert.equal(after.replicas.find((r) => r.id === "n1")?.value, "42");
     assert.equal(after.replicas.find((r) => r.id === "n5")?.value, "—");
 
-    const staleRead = buildQuorumReadFrames(after.replicas, 2, 2);
+    const staleRead = buildQuorumReadFrames(after.replicas, 2);
     assert.equal(staleRead.at(-1)?.stale, true);
     assert.equal(staleRead.at(-1)?.readValue, "—");
 
     const safeWrite = buildQuorumWriteFrames(cluster, "42", 3);
-    const safeRead = buildQuorumReadFrames(safeWrite.at(-1)!.replicas, 3, 3);
+    const safeRead = buildQuorumReadFrames(safeWrite.at(-1)!.replicas, 3);
     assert.equal(safeRead.at(-1)?.stale, false);
     assert.equal(safeRead.at(-1)?.readValue, "42");
+  });
+
+  it("judges a later read against the write W that actually ran, not a new slider", () => {
+    const cluster = createPeerCluster(5);
+    const written = buildQuorumWriteFrames(cluster, "42", 2);
+    const after = written.at(-1)!;
+    // Slider moved to W=3, R=3: that *next* pair would overlap, but the
+    // completed write only touched n1,n2. Infer W from replica versions.
+    const read = buildQuorumReadFrames(after.replicas, 3);
+    const last = read.at(-1)!;
+    assert.equal(last.stale, true);
+    assert.match(last.message, /last write W=2/i);
+    assert.match(last.message, /are disjoint/i);
+    assert.doesNotMatch(last.message, /sets overlap/i);
+  });
+
+  it("does not invent a write quorum when the cluster is still empty", () => {
+    const read = buildQuorumReadFrames(createPeerCluster(5), 2);
+    assert.match(read[0].message, /No completed write yet/i);
+    assert.equal(read.at(-1)?.stale, false);
   });
 });

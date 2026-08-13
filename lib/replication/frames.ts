@@ -3,6 +3,7 @@ import {
   formatCart,
   leaderOf,
   lwwWinner,
+  lastWriteQuorum,
   maxVersion,
   parseCart,
   pickHighestVersion,
@@ -484,19 +485,47 @@ export function buildQuorumWriteFrames(
 
 export function buildQuorumReadFrames(
   start: Replica[],
-  r: number,
-  w: number
+  r: number
 ): SimFrame[] {
   const replicas = cloneReplicas(start);
   const n = replicas.length;
   const ids = readQuorumIds(n, r);
+  const w = lastWriteQuorum(replicas);
   const frames: SimFrame[] = [];
+
+  if (w == null) {
+    const winner = pickHighestVersion(replicas, ids);
+    frames.push(
+      frame(replicas, {
+        message: `Client read with R=${r} from ${ids.join(", ")}. No completed write yet.`,
+        kind: "quorum-read",
+        highlightIds: ids,
+        clientWaiting: true,
+        clientAcked: false,
+      })
+    );
+    frames.push(
+      frame(replicas, {
+        message: `Read returns ${winner.value} from ${winner.name} (version ${winner.version}). Write first so the read set can overlap a real write quorum.`,
+        kind: "quorum-read",
+        fromId: winner.id,
+        highlightIds: ids,
+        clientWaiting: false,
+        clientAcked: false,
+        readValue: winner.value,
+        stale: false,
+      })
+    );
+    return frames;
+  }
+
+  const writeIds = writeQuorumIds(n, w);
   const intersects = quorumIntersects(n, w, r);
   const safe = quorumSafe(n, w, r);
 
   frames.push(
     frame(replicas, {
-      message: `Client read with R=${r} from ${ids.join(", ")} (write set was the first ${w}).`,
+      message: `Client read with R=${r} from ${ids.join(", ")} (last write was W=${w} to ${writeIds.join(", ")}).`,
       kind: "quorum-read",
       highlightIds: ids,
       clientWaiting: true,
@@ -511,8 +540,8 @@ export function buildQuorumReadFrames(
   frames.push(
     frame(replicas, {
       message: stale
-        ? `Highest version in the read set is ${winner.version} on ${winner.name} (${winner.value}). Missed version ${newest} — W+R ${safe ? ">" : "≤"} N, sets ${intersects ? "overlap" : "are disjoint"}.`
-        : `Read returns ${winner.value} from ${winner.name} (version ${winner.version}), matching the newest copy.`,
+        ? `Highest version in the read set is ${winner.version} on ${winner.name} (${winner.value}). Missed version ${newest} — last write W=${w} plus R=${r} is ${w + r} ${safe ? ">" : "≤"} N, sets ${intersects ? "overlap" : "are disjoint"}.`
+        : `Read returns ${winner.value} from ${winner.name} (version ${winner.version}), matching the newest copy. Last write W=${w} and R=${r} ${intersects ? "overlap" : "are disjoint"}.`,
       kind: stale ? "stale-read" : "quorum-read",
       fromId: winner.id,
       highlightIds: ids,

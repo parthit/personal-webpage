@@ -185,6 +185,16 @@ export function quorumSafe(n: number, w: number, r: number): boolean {
   return w + r > n;
 }
 
+/**
+ * Size of the last completed write in this demo: how many replicas hold
+ * the newest version. Null when nothing has been written yet (all v0).
+ */
+export function lastWriteQuorum(replicas: Replica[]): number | null {
+  const newest = maxVersion(replicas);
+  if (newest <= 0) return null;
+  return replicas.filter((r) => r.version === newest).length;
+}
+
 export function pickHighestVersion(replicas: Replica[], ids: string[]): Replica {
   const subset = ids.map((id) => replicaById(replicas, id));
   return subset.reduce((best, r) => (r.version > best.version ? r : best));

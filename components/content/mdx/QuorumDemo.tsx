@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   createPeerCluster,
+  lastWriteQuorum,
   quorumSafe,
   readQuorumIds,
   writeQuorumIds,
@@ -30,7 +31,8 @@ export function QuorumDemo() {
 
   const writeIds = useMemo(() => writeQuorumIds(N, w), [w]);
   const readIds = useMemo(() => readQuorumIds(N, r), [r]);
-  const safe = quorumSafe(N, w, r);
+  const committedW = lastWriteQuorum(view.replicas);
+  const nextSafe = quorumSafe(N, w, r);
 
   async function onWrite() {
     const next = value.trim() || "42";
@@ -38,7 +40,7 @@ export function QuorumDemo() {
   }
 
   async function onRead() {
-    await run(buildQuorumReadFrames(replicasRef.current, r, w));
+    await run(buildQuorumReadFrames(replicasRef.current, r));
   }
 
   const packet = packetCaption(view.fromId, view.toId, view.kind);
@@ -86,14 +88,19 @@ export function QuorumDemo() {
           </label>
         </div>
         <p className="text-xs text-gray-600 dark:text-gray-400" data-quorum-math>
-          W+R = {w + r} {safe ? ">" : "≤"} N={N}
-          {safe
-            ? " — any write set and read set must overlap, so a completed write cannot be missed."
+          Next write W+R = {w + r} {nextSafe ? ">" : "≤"} N={N}
+          {nextSafe
+            ? " — any write set of that W and read set of this R must overlap."
             : " — write set " +
               writeIds.join(", ") +
               " and read set " +
               readIds.join(", ") +
               " can be disjoint."}
+          {committedW != null && committedW !== w
+            ? ` Last completed write used W=${committedW}; a read compares against that write set, not the slider.`
+            : committedW != null
+              ? ` Last completed write used W=${committedW}.`
+              : ""}
         </p>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Button
