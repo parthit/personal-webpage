@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   BTREE_POST,
   DEMO_POST,
+  REPLICATION_POST,
   expectActiveNav,
   expectImageLoaded,
   expectNav,
@@ -243,5 +244,136 @@ test.describe("writing section", () => {
     const box = await indexDemo.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.width).toBeLessThanOrEqual(390);
+  });
+
+  test("renders the replication post with interactive demos", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    await page.goto("/writing");
+    await expect(
+      page.getByRole("link", { name: REPLICATION_POST.title })
+    ).toBeVisible();
+
+    await page.goto(REPLICATION_POST.path);
+    await expect(
+      page.getByRole("heading", { name: REPLICATION_POST.title })
+    ).toBeVisible();
+
+    const cover = page.locator(
+      'img[src="/content/images/writing/replication/cover.svg"]'
+    );
+    await expectImageLoaded(cover);
+
+    const leader = page.locator("[data-leader-follower-demo]");
+    await leader.scrollIntoViewIfNeeded();
+    await expect(
+      leader.getByRole("img", { name: "Leader and two follower replicas" })
+    ).toBeVisible();
+    const writeBtn = leader.getByRole("button", { name: "Write to leader" });
+    await writeBtn.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await writeBtn.click();
+    await expect(leader.locator("[data-replication-status]")).toContainText(
+      /Client sends SET likes=7|appends the write|acknowledged/i
+    );
+    await expect(leader.locator("[data-replication-status]")).toContainText(
+      /acknowledged/i,
+      { timeout: 40_000 }
+    );
+    await expect(writeBtn).toBeEnabled({ timeout: 5_000 });
+    await expect(leader.locator('[data-replica-id="lon"]')).toContainText("0");
+    await expect(leader.locator('[data-replica-id="nyc"]')).toContainText("7");
+
+    const readLondon = leader.getByRole("button", { name: "Read London" });
+    await expect(readLondon).toBeEnabled();
+    await readLondon.click();
+    await expect(leader.locator("[data-replication-status]")).toContainText(
+      /stale/i,
+      { timeout: 30_000 }
+    );
+
+    const stale = page.locator("[data-stale-read-demo]");
+    await stale.scrollIntoViewIfNeeded();
+    const writeThenFollower = stale.getByRole("button", {
+      name: "Write, then read London",
+    });
+    await writeThenFollower.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await writeThenFollower.click();
+    await expect(stale.locator("[data-replication-status]")).toContainText(
+      /stale/i,
+      { timeout: 50_000 }
+    );
+    await expect(stale.locator("[data-read-outcome]")).toContainText(/stale/i);
+
+    const multi = page.locator("[data-multi-leader-demo]");
+    await multi.scrollIntoViewIfNeeded();
+    await multi.getByRole("button", { name: "Partition and write both" }).click();
+    await expect(multi.locator("[data-replication-status]")).toContainText(
+      /eggs/i,
+      { timeout: 40_000 }
+    );
+    const healBtn = multi.getByRole("button", { name: "Heal and reconcile" });
+    await expect(healBtn).toBeEnabled({ timeout: 8_000 });
+    await healBtn.click();
+    await expect(multi.locator("[data-replication-status]")).toContainText(
+      /Last-write-wins|Dropped/i,
+      { timeout: 30_000 }
+    );
+
+    const quorum = page.locator("[data-quorum-demo]");
+    await quorum.scrollIntoViewIfNeeded();
+    await expect(quorum.locator("[data-quorum-math]")).toContainText(/W\+R = 4/);
+    await expect(quorum.locator("[data-quorum-math]")).toHaveAttribute(
+      "data-last-write-w",
+      "none"
+    );
+    await quorum.getByRole("button", { name: "Write" }).click();
+    await expect(quorum.locator("[data-replication-status]")).toContainText(
+      /Write succeeds/i,
+      { timeout: 40_000 }
+    );
+    const quorumRead = quorum.getByRole("button", { name: "Read" });
+    await expect(quorumRead).toBeEnabled({ timeout: 8_000 });
+    await expect(quorum.locator("[data-quorum-math]")).toHaveAttribute(
+      "data-last-write-w",
+      "2"
+    );
+    await expect(quorum.locator("[data-quorum-math]")).toContainText(
+      /Last completed write used W=2/
+    );
+    await quorumRead.click();
+    await expect(quorum.locator("[data-replication-status]")).toContainText(
+      /Missed version|stale|disjoint/i,
+      { timeout: 30_000 }
+    );
+  });
+
+  test("replication demos stay usable on a narrow viewport", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(REPLICATION_POST.path);
+
+    const leader = page.locator("[data-leader-follower-demo]");
+    await leader.scrollIntoViewIfNeeded();
+    await expect(leader).toBeVisible();
+    await expect(
+      leader.getByRole("button", { name: "Write to leader" })
+    ).toBeVisible();
+    const leaderBox = await leader.boundingBox();
+    expect(leaderBox).not.toBeNull();
+    expect(leaderBox!.width).toBeLessThanOrEqual(390);
+
+    const quorum = page.locator("[data-quorum-demo]");
+    await quorum.scrollIntoViewIfNeeded();
+    await expect(quorum.getByRole("button", { name: "Write" })).toBeVisible();
+    await expect(quorum.getByRole("button", { name: "Read" })).toBeVisible();
+    const quorumBox = await quorum.boundingBox();
+    expect(quorumBox).not.toBeNull();
+    expect(quorumBox!.width).toBeLessThanOrEqual(390);
   });
 });

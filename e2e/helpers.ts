@@ -12,6 +12,12 @@ export const BTREE_POST = {
   path: "/writing/b-trees",
 } as const;
 
+export const REPLICATION_POST = {
+  slug: "replication",
+  title: "Replication: Keeping Copies in Sync",
+  path: "/writing/replication",
+} as const;
+
 export const DEMO_VIDEO = {
   slug: "demo-system-design-intro",
   title: "Demo: Intro to Architecture and Systems Design Interviews",

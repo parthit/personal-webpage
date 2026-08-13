@@ -141,7 +141,7 @@ export default async function WritingPostPage({ params }: PageProps) {
             alt=""
             width={1200}
             height={630}
-            className="h-auto w-full rounded-lg"
+            className="pointer-events-none h-auto w-full max-w-full rounded-lg"
             priority
             unoptimized={post.cover.toLowerCase().endsWith(".svg")}
           />

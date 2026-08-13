@@ -1,0 +1,101 @@
+---
+title: "Replication: Keeping Copies in Sync"
+summary: "Notes from DDIA chapter 5 — leaders, lag, multi-leader conflicts, and quorums — with interactive walkthroughs you can step through."
+date: "2026-08-13"
+tags: ["system-design", "databases", "distributed-systems"]
+cover: "/content/images/writing/replication/cover.svg"
+draft: false
+---
+
+These are study notes from chapter 5 of *Designing Data-Intensive Applications* by Martin Kleppmann. The wording here is mine; the ideas are the ones that chapter makes unavoidable: **copies drift**, and every replication design is a choice about *when* they are allowed to disagree.
+
+Replication means keeping the same data on more than one node. People reach for it for three practical reasons:
+
+- **Latency** — put a copy near the reader.
+- **Availability** — if one node dies, another still answers.
+- **Throughput** — spread reads (and sometimes writes) across machines.
+
+The hard part is not making the first copy. The hard part is the next write.
+
+## Single leader: one writer, many readers
+
+The default design is boring on purpose. One replica is the **leader**. Clients send all writes there. The leader appends the change to its log, then **followers** pull (or are pushed) those log records and apply them in the same order.
+
+Reads can go to the leader or to a follower. Writes cannot, unless you change the architecture.
+
+<LeaderFollowerDemo />
+
+**Synchronous** replication waits until a follower has the write before the client is told “ok.” You pay in latency; you gain a second durable copy. **Asynchronous** replication returns as soon as the leader has it. Followers catch up in the background. That is how most production leader-based systems feel fast — and how they lose the newest writes if the leader dies first.
+
+Hit **Crash leader** after an async write in the playground. The new leader is elected from what followers actually have. Anything that lived only on the dead node is gone.
+
+Failover is the rest of the single-leader story: detect the dead leader, choose a successor, make clients (and leftover followers) follow it, and hope you did not promote a replica that was too far behind. Split-brain — two nodes both believing they are leader — is how you get two histories that cannot be replayed as one.
+
+## What actually gets shipped
+
+Followers do not magically “have the same tables.” They replay a **replication stream**. Three common shapes:
+
+| Stream | What travels | Typical snag |
+|---|---|---|
+| Statement-based | The original SQL (`UPDATE likes SET n = n + 1`) | Non-determinism: `NOW()`, `RAND()`, triggers |
+| Write-ahead log (WAL) | The leader’s disk-level bytes | Tied to storage version; painful for online upgrades |
+| Logical / row-based | A sequence of row changes | More work to decode; much easier to reason about |
+
+Logical logging is the compromise most systems converge on: enough information to apply the same *effect*, without coupling followers to the leader’s exact storage engine build.
+
+## Replication lag is a consistency model
+
+Once followers are allowed to trail the leader, “read a replica” is no longer the same as “read the database.” A few client-visible glitches show up immediately:
+
+- **Read-your-writes** — you post a like, refresh, and the follower still shows the old count.
+- **Monotonic reads** — first you see the new count, then a stickier replica shows the old one. Time appears to go backwards.
+- **Consistent prefix** — you see a reply before the message it replies to, because those writes hit different replicas in different orders (more of a multi-leader problem).
+
+<StaleReadDemo />
+
+Common mitigations, none free:
+
+- Send reads that must see the write **to the leader** (or to a replica that has passed the write’s log offset).
+- Remember “I wrote at position 84” in the session and refuse replicas that have not gotten that far.
+- Run **synchronous** replication to at least one follower if losing the write is worse than the extra wait.
+
+## Multi-leader: writes in more than one place
+
+A single leader is awkward across datacenters: every write from London hairpins to Virginia. **Multi-leader** (and the extreme case, a leader in each region) lets each site accept writes locally and replicate asynchronously to the others.
+
+The cost is **write conflicts**. Two leaders can update the same record without seeing each other. Last-write-wins looks tidy and silently drops work. A merge that understands the datatype (a set union for a shopping cart, a CRDT for a counter) keeps both sides.
+
+<MultiLeaderDemo />
+
+Use multi-leader when clients are partitioned by region or are sometimes offline (calendar apps, retailer POS). Avoid it when a single-leader plus a nearby read replica would have been enough — conflict handling is the product.
+
+## Leaderless: quorums instead of a throne
+
+Dynamo-style systems skip the leader. A write is sent to several replicas; a read is sent to several replicas; the client (or a coordinator) waits for a **quorum**.
+
+If there are *N* replicas, a write waits for *W* acks and a read waits for *R* responses and takes the highest version it sees. The useful inequality is:
+
+**W + R > N**
+
+Then every read quorum overlaps every write quorum, so a completed write cannot hide from a later read — at least in the “one write at a time, no sloppy quorums” cartoon. The playground writes the first *W* nodes and reads the last *R*, so the sets are disjoint exactly when the inequality fails.
+
+<QuorumDemo />
+
+Real systems add **sloppy quorums** (write to whoever is reachable, even if they are not the “home” replicas) and **hinted handoff** / anti-entropy to repair. Those keep the cluster available during a partition and postpone the hard part: making the home copies catch up.
+
+Quorums also do not automatically give you transactions or unique constraints. They give you a tunable knob between latency, durability, and the chance of a stale read.
+
+## A compact decision table
+
+| Setup | Writes | Conflicts | Failure story |
+|---|---|---|---|
+| Single leader, sync replica | One node | None | Leader wait; durable spare copy |
+| Single leader, async replicas | One node | None (until failover) | Fast; newest writes can vanish |
+| Multi-leader | Many regions | Yes — you must merge | Each site stays writable |
+| Leaderless quorum | Any *W* nodes | Concurrent writes need version merge | No failover dance; tune *W*/*R* |
+
+## What to try
+
+In the first playground, write **async**, read **London**, then **crash the leader**. That sequence is the whole chapter in thirty seconds: a copy that is allowed to lag is a copy that can lie, and a copy that has not caught up cannot be promoted without losing data.
+
+Synchronous replication, session pinning, and *W + R > N* are three different answers to the same question: **which writes is this read allowed not to see?**

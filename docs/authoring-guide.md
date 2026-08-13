@@ -96,6 +96,10 @@ Registered in `components/content/mdx/components.tsx`:
 | `YouTube` | `<YouTube id="..." title="..." />` |
 | `BTreeVisualizer` | `<BTreeVisualizer />` — interactive B-tree with animated insert/search/delete |
 | `BTreeIndexDemo` | `<BTreeIndexDemo />` — animated table-scan vs B-tree index I/O comparison |
+| `LeaderFollowerDemo` | `<LeaderFollowerDemo />` — single-leader sync/async replication, reads, failover |
+| `StaleReadDemo` | `<StaleReadDemo />` — write then read leader vs follower (replication lag) |
+| `MultiLeaderDemo` | `<MultiLeaderDemo />` — partitioned cart writes, LWW vs union merge |
+| `QuorumDemo` | `<QuorumDemo />` — leaderless N/W/R quorums |
 
 ### Before you publish
 
