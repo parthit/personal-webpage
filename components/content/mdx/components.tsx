@@ -4,6 +4,10 @@ import { MDXImage } from "./MDXImage";
 import { YouTube } from "../YouTube";
 import { BTreeVisualizer } from "./BTreeVisualizer";
 import { BTreeIndexDemo } from "./BTreeIndexDemo";
+import { LeaderFollowerDemo } from "./LeaderFollowerDemo";
+import { StaleReadDemo } from "./StaleReadDemo";
+import { MultiLeaderDemo } from "./MultiLeaderDemo";
+import { QuorumDemo } from "./QuorumDemo";
 
 export const mdxComponents: MDXComponents = {
   h1: (props) => (
@@ -97,4 +101,8 @@ export const mdxComponents: MDXComponents = {
   YouTube,
   BTreeVisualizer,
   BTreeIndexDemo,
+  LeaderFollowerDemo,
+  StaleReadDemo,
+  MultiLeaderDemo,
+  QuorumDemo,
 };
