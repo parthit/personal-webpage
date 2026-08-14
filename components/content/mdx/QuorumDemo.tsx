@@ -12,7 +12,8 @@ import {
   buildQuorumReadFrames,
   buildQuorumWriteFrames,
 } from "@/lib/replication/frames";
-import { figureShell, packetCaption, ReplicaCard } from "./replication/ReplicaCard";
+import { figureShell, packetCaption } from "./replication/ReplicaCard";
+import { ReplicaGraph } from "./replication/ReplicaGraph";
 import { useSimPlayback } from "./replication/useSimPlayback";
 
 const N = 5;
@@ -157,21 +158,17 @@ export function QuorumDemo() {
         ) : null}
       </div>
 
-      <div
-        className="flex flex-wrap gap-3 p-3 sm:p-4"
-        role="img"
-        aria-label="Five leaderless replicas"
-      >
-        {view.replicas.map((replica) => (
-          <ReplicaCard
-            key={replica.id}
-            replica={replica}
-            highlight={view.highlightIds.includes(replica.id)}
-            packetLabel={
-              view.highlightIds.includes(replica.id) ? packet : undefined
-            }
-          />
-        ))}
+      <div className="p-3 sm:p-4">
+        <ReplicaGraph
+          replicas={view.replicas}
+          highlightIds={view.highlightIds}
+          kind={view.kind}
+          fromId={view.fromId}
+          toId={view.toId}
+          packetLabel={packet}
+          topology="quorum"
+          ariaLabel="Five leaderless replicas"
+        />
       </div>
 
       <p

@@ -270,6 +270,11 @@ test.describe("writing section", () => {
     await expect(
       leader.getByRole("img", { name: "Leader and two follower replicas" })
     ).toBeVisible();
+    await expect(leader.locator('[data-repl-graph="leader-tree"]')).toBeVisible();
+    await expect(
+      leader.locator('[data-repl-edge="replication"]')
+    ).toHaveCount(2);
+    await expect(leader.locator('[data-repl-edge="client"]')).toHaveCount(1);
     const writeBtn = leader.getByRole("button", { name: "Write to leader" });
     await writeBtn.evaluate((el) =>
       el.scrollIntoView({ block: "center", inline: "nearest" })
@@ -311,10 +316,19 @@ test.describe("writing section", () => {
 
     const multi = page.locator("[data-multi-leader-demo]");
     await multi.scrollIntoViewIfNeeded();
+    await expect(multi.locator('[data-repl-graph="multi-leader"]')).toBeVisible();
+    await expect(multi.locator('[data-repl-edge="peer"]')).toHaveAttribute(
+      "data-repl-edge-broken",
+      "false"
+    );
     await multi.getByRole("button", { name: "Partition and write both" }).click();
     await expect(multi.locator("[data-replication-status]")).toContainText(
       /eggs/i,
       { timeout: 40_000 }
+    );
+    await expect(multi.locator('[data-repl-edge="peer"]')).toHaveAttribute(
+      "data-repl-edge-broken",
+      "true"
     );
     const healBtn = multi.getByRole("button", { name: "Heal and reconcile" });
     await expect(healBtn).toBeEnabled({ timeout: 8_000 });
@@ -326,6 +340,8 @@ test.describe("writing section", () => {
 
     const quorum = page.locator("[data-quorum-demo]");
     await quorum.scrollIntoViewIfNeeded();
+    await expect(quorum.locator('[data-repl-graph="quorum"]')).toBeVisible();
+    await expect(quorum.locator('[data-repl-edge="peer"]')).toHaveCount(5);
     await expect(quorum.locator("[data-quorum-math]")).toContainText(/W\+R = 4/);
     await expect(quorum.locator("[data-quorum-math]")).toHaveAttribute(
       "data-last-write-w",
@@ -367,6 +383,10 @@ test.describe("writing section", () => {
     const leaderBox = await leader.boundingBox();
     expect(leaderBox).not.toBeNull();
     expect(leaderBox!.width).toBeLessThanOrEqual(390);
+    await expect(
+      leader.locator('[data-repl-graph="leader-tree"]')
+    ).toBeVisible();
+    await expect(leader.locator('[data-repl-edge="replication"]')).toHaveCount(2);
 
     const quorum = page.locator("[data-quorum-demo]");
     await quorum.scrollIntoViewIfNeeded();
@@ -375,5 +395,14 @@ test.describe("writing section", () => {
     const quorumBox = await quorum.boundingBox();
     expect(quorumBox).not.toBeNull();
     expect(quorumBox!.width).toBeLessThanOrEqual(390);
+    await expect(quorum.locator('[data-repl-graph="quorum"]')).toBeVisible();
+    const quorumGraph = quorum.locator('[data-repl-graph="quorum"]');
+    const sizes = await quorumGraph.evaluate((el) => ({
+      client: el.clientWidth,
+      scroll: el.scrollWidth,
+    }));
+    expect(sizes.scroll).toBeGreaterThan(sizes.client);
+    const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(pageWidth).toBeLessThanOrEqual(400);
   });
 });

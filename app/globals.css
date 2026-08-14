@@ -161,3 +161,34 @@ body {
   transform-origin: left center;
   transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+@keyframes repl-packet {
+  from {
+    offset-distance: 0%;
+  }
+  to {
+    offset-distance: 100%;
+  }
+}
+
+.repl-packet {
+  offset-rotate: 0deg;
+  animation: repl-packet 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.repl-edge {
+  transition:
+    stroke 0.25s ease,
+    stroke-width 0.25s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .repl-packet {
+    animation: none !important;
+    offset-distance: 70%;
+  }
+
+  .repl-edge {
+    transition: none !important;
+  }
+}

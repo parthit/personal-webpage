@@ -10,7 +10,8 @@ import {
   buildPartitionWrites,
   buildReconcileFrames,
 } from "@/lib/replication/frames";
-import { figureShell, packetCaption, ReplicaCard } from "./replication/ReplicaCard";
+import { figureShell, packetCaption } from "./replication/ReplicaCard";
+import { ReplicaGraph } from "./replication/ReplicaGraph";
 import { useSimPlayback } from "./replication/useSimPlayback";
 
 const IDLE =
@@ -22,13 +23,16 @@ export function MultiLeaderDemo() {
     IDLE
   );
   const [strategy, setStrategy] = useState<ConflictStrategy>("last-write-wins");
+  const [linkUp, setLinkUp] = useState(true);
 
   async function onPartition() {
+    setLinkUp(false);
     await run(buildPartitionWrites(replicasRef.current, "milk", "eggs"));
   }
 
   async function onHeal() {
-    await run(buildReconcileFrames(replicasRef.current, strategy, "nyc"));
+    const ok = await run(buildReconcileFrames(replicasRef.current, strategy, "nyc"));
+    if (ok) setLinkUp(true);
   }
 
   const packet = packetCaption(view.fromId, view.toId, view.kind);
@@ -92,6 +96,7 @@ export function MultiLeaderDemo() {
             className="col-span-2 w-full sm:col-span-1 sm:w-auto"
             onClick={() => {
               setStrategy("last-write-wins");
+              setLinkUp(true);
               reset(createMultiLeaderCluster(), IDLE);
             }}
           >
@@ -111,21 +116,18 @@ export function MultiLeaderDemo() {
         ) : null}
       </div>
 
-      <div
-        className="flex flex-wrap gap-3 p-3 sm:p-4"
-        role="img"
-        aria-label="Two multi-leader datacenters"
-      >
-        {view.replicas.map((replica) => (
-          <ReplicaCard
-            key={replica.id}
-            replica={replica}
-            highlight={view.highlightIds.includes(replica.id)}
-            packetLabel={
-              view.highlightIds.includes(replica.id) ? packet : undefined
-            }
-          />
-        ))}
+      <div className="p-3 sm:p-4">
+        <ReplicaGraph
+          replicas={view.replicas}
+          highlightIds={view.highlightIds}
+          kind={view.kind}
+          fromId={view.fromId}
+          toId={view.toId}
+          packetLabel={packet}
+          topology="multi-leader"
+          linkBroken={!linkUp}
+          ariaLabel="Two multi-leader datacenters"
+        />
       </div>
 
       <p

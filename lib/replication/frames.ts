@@ -371,6 +371,8 @@ export function buildReconcileFrames(
     frame(replicas, {
       message: "The partition heals. Both leaders exchange logs and must reconcile.",
       kind: "conflict",
+      fromId: nyc.id,
+      toId: lon.id,
       highlightIds: [nyc.id, lon.id],
       clientWaiting: true,
       clientAcked: false,
@@ -408,6 +410,7 @@ export function buildReconcileFrames(
           : `Last-write-wins keeps ${winner.name}'s cart (${winner.value}).`,
         kind: "conflict",
         fromId: winner.id,
+        toId: loser.id,
         highlightIds: [nyc.id, lon.id],
         clientWaiting: false,
         clientAcked: true,
@@ -424,6 +427,8 @@ export function buildReconcileFrames(
       frame(replicas, {
         message: `Union-merge keeps every item both sides added: ${merged}.`,
         kind: "conflict",
+        fromId: nyc.id,
+        toId: lon.id,
         highlightIds: [nyc.id, lon.id],
         clientWaiting: false,
         clientAcked: true,
