@@ -96,3 +96,19 @@ export function prefersReducedMotion(): boolean {
   if (typeof window === "undefined") return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
+
+export function reducedMotionSubscribe(onChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
+
+/** Client snapshot of prefers-reduced-motion without an effect/setState pair. */
+export function getReducedMotionSnapshot(): boolean {
+  return prefersReducedMotion();
+}
+
+export function getReducedMotionServerSnapshot(): boolean {
+  return false;
+}
