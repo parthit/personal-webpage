@@ -182,7 +182,9 @@ export function BTreeVisualizer() {
           },
         },
         label: message,
-        durationMs: VIZ_HOLD_MS,
+        // Completion text remains visible after playback, so no extra dwell is
+        // needed beyond the final teaching frame's hold.
+        durationMs: 0,
       },
     ]);
   }
