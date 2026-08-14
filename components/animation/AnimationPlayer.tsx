@@ -52,7 +52,7 @@ export function AnimationPlayer<T>({
           size="icon"
           className="h-8 w-8 shrink-0"
           onClick={playing ? player.pause : player.play}
-          disabled={!playing && atEnd}
+          disabled={!playing && atEnd && player.status !== "paused"}
           aria-label={playing ? "Pause animation" : "Play animation"}
         >
           {playing ? (

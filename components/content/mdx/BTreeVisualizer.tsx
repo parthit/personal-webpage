@@ -82,6 +82,9 @@ export function BTreeVisualizer() {
   const tree = playback.current.snapshot.tree;
   const frameView = playback.current.snapshot.frameView;
   const [input, setInput] = useState("");
+  const [validationMessage, setValidationMessage] = useState<string | null>(
+    null
+  );
   const [degree, setDegree] = useState(2);
   const busy = playback.isActive;
   const treeScrollRef = useRef<HTMLDivElement | null>(null);
@@ -192,13 +195,11 @@ export function BTreeVisualizer() {
   async function runInsert() {
     const keys = parseKeys(input);
     if (keys.length === 0) {
-      await showSummary(
-        playback.latest.snapshot.tree,
-        "Enter one or more numbers to insert."
-      );
+      setValidationMessage("Enter one or more numbers to insert.");
       return;
     }
 
+    setValidationMessage(null);
     setInput("");
     let working = playback.latest.snapshot.tree;
     const added: number[] = [];
@@ -229,12 +230,10 @@ export function BTreeVisualizer() {
   async function runSearch() {
     const keys = parseKeys(input);
     if (keys.length !== 1) {
-      await showSummary(
-        playback.latest.snapshot.tree,
-        "Enter a single number to search."
-      );
+      setValidationMessage("Enter a single number to search.");
       return;
     }
+    setValidationMessage(null);
     const key = keys[0];
     const latestTree = playback.latest.snapshot.tree;
     const result = search(latestTree.root, key);
@@ -252,13 +251,11 @@ export function BTreeVisualizer() {
   async function runDelete() {
     const keys = parseKeys(input);
     if (keys.length === 0) {
-      await showSummary(
-        playback.latest.snapshot.tree,
-        "Enter one or more numbers to delete."
-      );
+      setValidationMessage("Enter one or more numbers to delete.");
       return;
     }
 
+    setValidationMessage(null);
     setInput("");
     let working = playback.latest.snapshot.tree;
     const removed: number[] = [];
@@ -287,11 +284,13 @@ export function BTreeVisualizer() {
   }
 
   function runClear() {
+    setValidationMessage(null);
     const next = clear(playback.latest.snapshot.tree);
     resetView(next, "Tree cleared.");
   }
 
   function loadSample() {
+    setValidationMessage(null);
     resetView(
       sampleTree(degree),
       `Loaded sample keys: ${SAMPLE.join(", ")}.`
@@ -299,6 +298,7 @@ export function BTreeVisualizer() {
   }
 
   function changeDegree(nextDegree: number) {
+    setValidationMessage(null);
     setDegree(nextDegree);
     const next = withDegree(playback.latest.snapshot.tree, nextDegree);
     resetView(
@@ -322,7 +322,10 @@ export function BTreeVisualizer() {
           Key(s)
           <input
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              setValidationMessage(null);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !busy) void runInsert();
             }}
@@ -557,7 +560,7 @@ export function BTreeVisualizer() {
         aria-live="polite"
         data-btree-status
       >
-        {message}
+        {validationMessage ?? message}
       </p>
     </figure>
   );

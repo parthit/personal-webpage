@@ -123,6 +123,9 @@ export function BTreeIndexDemo() {
   );
   const frame = playback.current.snapshot;
   const busy = playback.isActive;
+  const [validationMessage, setValidationMessage] = useState<string | null>(
+    null
+  );
   const [lastCosts, setLastCosts] = useState<LastCosts>({
     key: 69,
     scanPages: null,
@@ -222,13 +225,11 @@ export function BTreeIndexDemo() {
   async function runScan() {
     const key = Number(query);
     if (!Number.isFinite(key)) {
-      playback.reset({
-        snapshot: null,
-        label: "Enter a numeric lookup id.",
-      });
+      setValidationMessage("Enter a numeric lookup id.");
       return;
     }
 
+    setValidationMessage(null);
     const frames = buildTableScanFrames(
       key,
       rows.map((r) => ({ id: r.id, page: r.page })),
@@ -248,13 +249,11 @@ export function BTreeIndexDemo() {
   async function runIndex() {
     const key = Number(query);
     if (!Number.isFinite(key)) {
-      playback.reset({
-        snapshot: null,
-        label: "Enter a numeric lookup id.",
-      });
+      setValidationMessage("Enter a numeric lookup id.");
       return;
     }
 
+    setValidationMessage(null);
     const path = search(index.root, key);
     const row = byId.get(key) ?? null;
     const frames = buildIndexLookupFrames(
@@ -442,7 +441,10 @@ export function BTreeIndexDemo() {
             Lookup id
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setValidationMessage(null);
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !busy) void runIndex();
               }}
@@ -538,7 +540,8 @@ export function BTreeIndexDemo() {
           aria-live="polite"
           data-index-status
         >
-          {frame?.explanation ??
+          {validationMessage ??
+            frame?.explanation ??
             "Pick a lookup id, then run Table scan or Use B-tree index to watch each page read."}
         </p>
         {matchedRow && (
