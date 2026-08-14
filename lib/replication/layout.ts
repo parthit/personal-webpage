@@ -52,8 +52,8 @@ function nodeBox(
   x: number,
   y: number,
   replicaId: string,
-  width = GRAPH.NODE_W,
-  height = GRAPH.NODE_H
+  width: number = GRAPH.NODE_W,
+  height: number = GRAPH.NODE_H
 ): GraphNode {
   return { id, x, y, kind: "replica", replicaId, width, height };
 }
