@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AnimationPlayer } from "@/components/animation/AnimationPlayer";
+import { useAnimationPlayer } from "@/components/animation/useAnimationPlayer";
 import { Button } from "@/components/ui/button";
 import {
   createBTree,
@@ -16,10 +18,8 @@ import {
   compareIoCost,
   DEMO_HOLD_MS,
   DEMO_STEP_MS,
-  effectiveStepMs,
   INDEX_HOLD_MS,
   INDEX_STEP_MS,
-  playFrames,
   type IndexDemoFrame,
 } from "@/lib/btree/demo-animation";
 
@@ -103,15 +103,6 @@ function buildDataset(): { rows: Row[]; index: BTreeSnapshot; pageCount: number 
   };
 }
 
-function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
-function isAbortError(err: unknown): boolean {
-  return err instanceof DOMException && err.name === "AbortError";
-}
-
 type LastCosts = {
   key: number;
   scanPages: number | null;
@@ -122,16 +113,22 @@ export function BTreeIndexDemo() {
   const [{ rows, index, pageCount }] = useState(buildDataset);
   // Prefer a late leaf key so table scan burns more heap pages than the index walk.
   const [query, setQuery] = useState("69");
-  const [frame, setFrame] = useState<IndexDemoFrame | null>(null);
-  const [busy, setBusy] = useState(false);
+  const playback = useAnimationPlayer<IndexDemoFrame | null>(
+    {
+      snapshot: null,
+      label:
+        "Pick a lookup id, then run Table scan or Use B-tree index to watch each page read.",
+    },
+    DEMO_STEP_MS
+  );
+  const frame = playback.current.snapshot;
+  const busy = playback.isActive;
   const [lastCosts, setLastCosts] = useState<LastCosts>({
     key: 69,
     scanPages: null,
     indexPages: null,
   });
   const [ioTick, setIoTick] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
-  const runIdRef = useRef(0);
   const tableBodyRef = useRef<HTMLTableSectionElement | null>(null);
   const treeScrollRef = useRef<HTMLDivElement | null>(null);
   const prevPagesRef = useRef(-1);
@@ -155,7 +152,6 @@ export function BTreeIndexDemo() {
 
   useEffect(() => {
     return () => {
-      abortRef.current?.abort();
       if (ioTickTimerRef.current) clearTimeout(ioTickTimerRef.current);
     };
   }, []);
@@ -190,13 +186,7 @@ export function BTreeIndexDemo() {
     }
   }, [frame?.focusNodeId, nodeById]);
 
-  function cancelAnimation() {
-    abortRef.current?.abort();
-    abortRef.current = null;
-    runIdRef.current += 1;
-  }
-
-  function pulseIo() {
+  const pulseIo = useCallback(() => {
     setIoTick(false);
     // Next frame: re-add class so the CSS animation restarts without remounting.
     requestAnimationFrame(() => {
@@ -204,59 +194,38 @@ export function BTreeIndexDemo() {
       if (ioTickTimerRef.current) clearTimeout(ioTickTimerRef.current);
       ioTickTimerRef.current = setTimeout(() => setIoTick(false), 320);
     });
-  }
+  }, []);
+
+  useEffect(() => {
+    if (!frame || frame.pagesRead === prevPagesRef.current) return;
+    prevPagesRef.current = frame.pagesRead;
+    pulseIo();
+  }, [frame, pulseIo]);
 
   async function playDemo(frames: IndexDemoFrame[]): Promise<boolean> {
-    cancelAnimation();
-    const controller = new AbortController();
-    const runId = runIdRef.current;
-    abortRef.current = controller;
-    setBusy(true);
     prevPagesRef.current = -1;
 
     // Index paths are short — long dwell per node. Scans have many frames.
     const indexMode = frames[0]?.mode === "index";
-    const reduced = prefersReducedMotion();
-    const stepMs = effectiveStepMs(
-      reduced,
-      indexMode ? INDEX_STEP_MS : DEMO_STEP_MS
+    const stepMs = indexMode ? INDEX_STEP_MS : DEMO_STEP_MS;
+    const holdMs = indexMode ? INDEX_HOLD_MS : DEMO_HOLD_MS;
+    return playback.run(
+      frames.map((next, frameIndex) => ({
+        snapshot: next,
+        label: next.explanation,
+        durationMs: frameIndex === frames.length - 1 ? holdMs : stepMs,
+        group: next.mode,
+      }))
     );
-    const holdMs = effectiveStepMs(
-      reduced,
-      indexMode ? INDEX_HOLD_MS : DEMO_HOLD_MS
-    );
-
-    try {
-      await playFrames(
-        frames,
-        async (next) => {
-          if (runId !== runIdRef.current || controller.signal.aborted) {
-            throw new DOMException("Aborted", "AbortError");
-          }
-          setFrame(next);
-          if (next.pagesRead !== prevPagesRef.current) {
-            prevPagesRef.current = next.pagesRead;
-            pulseIo();
-          }
-        },
-        { stepMs, holdMs, signal: controller.signal }
-      );
-      return runId === runIdRef.current;
-    } catch (err) {
-      if (isAbortError(err)) return false;
-      throw err;
-    } finally {
-      if (abortRef.current === controller && runId === runIdRef.current) {
-        abortRef.current = null;
-        setBusy(false);
-      }
-    }
   }
 
   async function runScan() {
     const key = Number(query);
     if (!Number.isFinite(key)) {
-      setFrame(null);
+      playback.reset({
+        snapshot: null,
+        label: "Enter a numeric lookup id.",
+      });
       return;
     }
 
@@ -279,7 +248,10 @@ export function BTreeIndexDemo() {
   async function runIndex() {
     const key = Number(query);
     if (!Number.isFinite(key)) {
-      setFrame(null);
+      playback.reset({
+        snapshot: null,
+        label: "Enter a numeric lookup id.",
+      });
       return;
     }
 
@@ -514,6 +486,8 @@ export function BTreeIndexDemo() {
           </p>
         )}
       </div>
+
+      <AnimationPlayer player={playback} />
 
       <div className="border-t border-gray-200 px-3 py-3 sm:px-4 dark:border-gray-700">
         <div className="mb-2 flex items-end justify-between gap-3">

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { AnimationPlayer } from "@/components/animation/AnimationPlayer";
+import { useAnimationPlayer } from "@/components/animation/useAnimationPlayer";
 import { Button } from "@/components/ui/button";
 import {
   clear,
@@ -19,8 +21,6 @@ import {
   buildDeleteFrames,
   buildInsertFrames,
   buildSearchFrames,
-  effectiveStepMs,
-  playFrames,
   VIZ_HOLD_MS,
   VIZ_STEP_MS,
   type VizAccent,
@@ -38,15 +38,6 @@ function parseKeys(raw: string): number[] {
     .filter((n) => Number.isFinite(n));
 }
 
-function prefersReducedMotion(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
-function isAbortError(err: unknown): boolean {
-  return err instanceof DOMException && err.name === "AbortError";
-}
-
 /** Wider than the writing column on desktop; full width on mobile. */
 const figureShell =
   "not-prose relative my-8 w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50 lg:left-1/2 lg:w-[min(56rem,calc(100vw-2.5rem))] lg:max-w-none lg:-translate-x-1/2";
@@ -61,36 +52,39 @@ type FrameView = {
 const INITIAL_MESSAGE =
   "Try insert, search, or delete — each walk animates the path so nodes don't just pop in.";
 
+function sampleTree(degree = 2): BTreeSnapshot {
+  let tree = createBTree(degree);
+  for (const key of SAMPLE) tree = insert(tree, key);
+  return tree;
+}
+
+type BTreeAnimationSnapshot = {
+  tree: BTreeSnapshot;
+  frameView: FrameView;
+};
+
 export function BTreeVisualizer() {
-  const [tree, setTree] = useState<BTreeSnapshot>(() => {
-    let t = createBTree(2);
-    for (const key of SAMPLE) t = insert(t, key);
-    return t;
-  });
+  const playback = useAnimationPlayer<BTreeAnimationSnapshot>(
+    {
+      snapshot: {
+        tree: sampleTree(),
+        frameView: {
+          highlight: [],
+          accent: null,
+          message: INITIAL_MESSAGE,
+          stepInfo: null,
+        },
+      },
+      label: INITIAL_MESSAGE,
+    },
+    VIZ_STEP_MS
+  );
+  const tree = playback.current.snapshot.tree;
+  const frameView = playback.current.snapshot.frameView;
   const [input, setInput] = useState("");
-  const [frameView, setFrameView] = useState<FrameView>({
-    highlight: [],
-    accent: null,
-    message: INITIAL_MESSAGE,
-    stepInfo: null,
-  });
   const [degree, setDegree] = useState(2);
-  const [busy, setBusy] = useState(false);
-  const treeRef = useRef(tree);
-  const abortRef = useRef<AbortController | null>(null);
-  /** Bumps on cancel so in-flight frame callbacks cannot commit after Clear/Sample. */
-  const runIdRef = useRef(0);
+  const busy = playback.isActive;
   const treeScrollRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    treeRef.current = tree;
-  }, [tree]);
-
-  useEffect(() => {
-    return () => {
-      abortRef.current?.abort();
-    };
-  }, []);
 
   const layout = useMemo(() => layoutTree(tree.root), [tree]);
 
@@ -131,108 +125,80 @@ export function BTreeVisualizer() {
     }
   }, [focusNodeId, nodeById]);
 
-  function cancelAnimation() {
-    abortRef.current?.abort();
-    abortRef.current = null;
-    runIdRef.current += 1;
-  }
-
-  function resetView(message: string) {
-    setBusy(false);
-    setFrameView({
-      highlight: [],
-      accent: null,
-      message,
-      stepInfo: null,
+  function resetView(nextTree: BTreeSnapshot, message: string) {
+    playback.reset({
+      snapshot: {
+        tree: nextTree,
+        frameView: {
+          highlight: [],
+          accent: null,
+          message,
+          stepInfo: null,
+        },
+      },
+      label: message,
     });
   }
 
   async function runFrames(
     frames: VizFrame[],
-    onCommit?: () => BTreeSnapshot | void
+    startTree: BTreeSnapshot,
+    mutate?: (tree: BTreeSnapshot) => BTreeSnapshot
   ): Promise<boolean> {
-    cancelAnimation();
-    const controller = new AbortController();
-    const runId = runIdRef.current;
-    abortRef.current = controller;
-    setBusy(true);
-    setFrameView((prev) => ({
-      ...prev,
-      stepInfo: { index: 0, total: frames.length },
-    }));
-
-    const reduced = prefersReducedMotion();
-    const stepMs = effectiveStepMs(reduced, VIZ_STEP_MS);
-    const holdMs = effectiveStepMs(reduced, VIZ_HOLD_MS);
-    let latestTree = treeRef.current;
-
-    try {
-      await playFrames(
-        frames,
-        async (frame, index) => {
-          if (runId !== runIdRef.current || controller.signal.aborted) {
-            throw new DOMException("Aborted", "AbortError");
-          }
-
-          let nextHighlight = frame.highlight;
-
-          if (frame.commitMutation) {
-            if (runId !== runIdRef.current || controller.signal.aborted) {
-              throw new DOMException("Aborted", "AbortError");
-            }
-            const next = onCommit?.();
-            if (next) {
-              latestTree = next;
-            }
-          }
-
-          if (frame.relocateAfterCommit != null) {
-            const relocated = search(
-              latestTree.root,
-              frame.relocateAfterCommit
-            );
-            nextHighlight = relocated.steps;
-          }
-
-          if (runId !== runIdRef.current || controller.signal.aborted) {
-            throw new DOMException("Aborted", "AbortError");
-          }
-
-          // Single state update per frame → one React render.
-          setFrameView({
+    let nextTree = startTree;
+    const steps = frames.map((frame, index) => {
+      if (frame.commitMutation && mutate) nextTree = mutate(nextTree);
+      const nextHighlight =
+        frame.relocateAfterCommit != null
+          ? search(nextTree.root, frame.relocateAfterCommit).steps
+          : frame.highlight;
+      return {
+        snapshot: {
+          tree: nextTree,
+          frameView: {
             highlight: nextHighlight,
             accent: frame.accent,
             message: frame.message,
             stepInfo: { index: index + 1, total: frames.length },
-          });
+          },
         },
-        { stepMs, holdMs, signal: controller.signal }
-      );
-      return runId === runIdRef.current;
-    } catch (err) {
-      if (isAbortError(err)) return false;
-      throw err;
-    } finally {
-      if (abortRef.current === controller && runId === runIdRef.current) {
-        abortRef.current = null;
-        setBusy(false);
-        setFrameView((prev) => ({ ...prev, stepInfo: null }));
-      }
-    }
+        label: frame.message,
+        durationMs: index === frames.length - 1 ? VIZ_HOLD_MS : VIZ_STEP_MS,
+      };
+    });
+    return playback.run(steps);
+  }
+
+  async function showSummary(tree: BTreeSnapshot, message: string) {
+    return playback.run([
+      {
+        snapshot: {
+          tree,
+          frameView: {
+            highlight: [],
+            accent: null,
+            message,
+            stepInfo: null,
+          },
+        },
+        label: message,
+        durationMs: VIZ_HOLD_MS,
+      },
+    ]);
   }
 
   async function runInsert() {
     const keys = parseKeys(input);
     if (keys.length === 0) {
-      setFrameView((prev) => ({
-        ...prev,
-        message: "Enter one or more numbers to insert.",
-      }));
+      await showSummary(
+        playback.latest.snapshot.tree,
+        "Enter one or more numbers to insert."
+      );
       return;
     }
 
     setInput("");
-    let working = treeRef.current;
+    let working = playback.latest.snapshot.tree;
     const added: number[] = [];
 
     for (const key of keys) {
@@ -241,59 +207,58 @@ export function BTreeVisualizer() {
       const path = search(before.root, key);
       const frames = buildInsertFrames(key, path.steps, willInsert);
 
-      const ok = await runFrames(frames, () => {
-        const next = insert(before, key);
+      const ok = await runFrames(frames, before, (current) => {
+        const next = insert(current, key);
         working = next;
-        treeRef.current = next;
-        setTree(next);
         if (next.size > before.size) added.push(key);
         return next;
       });
       if (!ok) return;
     }
 
-    setFrameView((prev) => ({
-      ...prev,
-      message: added.length
+    await showSummary(
+      working,
+      added.length
         ? `Inserted ${added.join(", ")}. Size ${working.size}, height ${working.height}.`
-        : "No new keys inserted (duplicates are ignored).",
-    }));
+        : "No new keys inserted (duplicates are ignored)."
+    );
   }
 
   async function runSearch() {
     const keys = parseKeys(input);
     if (keys.length !== 1) {
-      setFrameView((prev) => ({
-        ...prev,
-        message: "Enter a single number to search.",
-      }));
+      await showSummary(
+        playback.latest.snapshot.tree,
+        "Enter a single number to search."
+      );
       return;
     }
     const key = keys[0];
-    const result = search(treeRef.current.root, key);
+    const latestTree = playback.latest.snapshot.tree;
+    const result = search(latestTree.root, key);
     const frames = buildSearchFrames(key, result.steps, result.found);
-    const ok = await runFrames(frames);
+    const ok = await runFrames(frames, latestTree);
     if (!ok) return;
-    setFrameView((prev) => ({
-      ...prev,
-      message: result.found
+    await showSummary(
+      latestTree,
+      result.found
         ? `Found ${key} after visiting ${result.steps.length} node(s).`
-        : `${key} not found. Path length ${result.steps.length}.`,
-    }));
+        : `${key} not found. Path length ${result.steps.length}.`
+    );
   }
 
   async function runDelete() {
     const keys = parseKeys(input);
     if (keys.length === 0) {
-      setFrameView((prev) => ({
-        ...prev,
-        message: "Enter one or more numbers to delete.",
-      }));
+      await showSummary(
+        playback.latest.snapshot.tree,
+        "Enter one or more numbers to delete."
+      );
       return;
     }
 
     setInput("");
-    let working = treeRef.current;
+    let working = playback.latest.snapshot.tree;
     const removed: number[] = [];
 
     for (const key of keys) {
@@ -302,44 +267,40 @@ export function BTreeVisualizer() {
       const path = search(before.root, key);
       const frames = buildDeleteFrames(key, path.steps, willDelete);
 
-      const ok = await runFrames(frames, () => {
-        const next = remove(before, key);
+      const ok = await runFrames(frames, before, (current) => {
+        const next = remove(current, key);
         working = next;
-        treeRef.current = next;
-        setTree(next);
         if (next.size < before.size) removed.push(key);
         return next;
       });
       if (!ok) return;
     }
 
-    setFrameView((prev) => ({
-      ...prev,
-      message: removed.length
+    await showSummary(
+      working,
+      removed.length
         ? `Deleted ${removed.join(", ")}. Size ${working.size}, height ${working.height}.`
-        : "No matching keys to delete.",
-    }));
+        : "No matching keys to delete."
+    );
   }
 
   function runClear() {
-    cancelAnimation();
-    setTree(clear(treeRef.current));
-    resetView("Tree cleared.");
+    const next = clear(playback.latest.snapshot.tree);
+    resetView(next, "Tree cleared.");
   }
 
   function loadSample() {
-    cancelAnimation();
-    let next = createBTree(degree);
-    for (const key of SAMPLE) next = insert(next, key);
-    setTree(next);
-    resetView(`Loaded sample keys: ${SAMPLE.join(", ")}.`);
+    resetView(
+      sampleTree(degree),
+      `Loaded sample keys: ${SAMPLE.join(", ")}.`
+    );
   }
 
   function changeDegree(nextDegree: number) {
-    cancelAnimation();
     setDegree(nextDegree);
-    setTree((prev) => withDegree(prev, nextDegree));
+    const next = withDegree(playback.latest.snapshot.tree, nextDegree);
     resetView(
+      next,
       `Minimum degree t = ${nextDegree} (max ${2 * nextDegree - 1} keys per node).`
     );
   }
@@ -586,6 +547,8 @@ export function BTreeVisualizer() {
           </p>
         )}
       </div>
+
+      <AnimationPlayer player={playback} />
 
       <p
         className="border-t border-gray-200 px-3 py-3 text-sm leading-relaxed text-gray-700 sm:px-4 dark:border-gray-700 dark:text-gray-300"

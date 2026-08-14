@@ -143,6 +143,28 @@ test.describe("writing section", () => {
     );
     await expect(insertBtn).toBeEnabled({ timeout: 5_000 });
 
+    const player = visualizer.locator("[data-animation-player]");
+    const timeline = player.getByRole("slider", { name: "Animation step" });
+    await expect(timeline).toBeVisible();
+    await expect(player.locator("[data-animation-history] li")).not.toHaveCount(1);
+    const completedIndex = Number(
+      (await player.getAttribute("data-playback-index")) ?? "0"
+    );
+    await timeline.focus();
+    await timeline.press("ArrowLeft");
+    await expect(player).toHaveAttribute(
+      "data-playback-index",
+      String(completedIndex - 1)
+    );
+    await expect(
+      player.getByRole("button", { name: "Next step" })
+    ).toBeEnabled();
+    await timeline.press("End");
+    await expect(player).toHaveAttribute(
+      "data-playback-index",
+      String(completedIndex)
+    );
+
     await visualizer.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
     await searchBtn.evaluate((el) =>
       el.scrollIntoView({ block: "center", inline: "nearest" })

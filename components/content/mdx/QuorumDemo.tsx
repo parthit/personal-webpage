@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { AnimationPlayer } from "@/components/animation/AnimationPlayer";
 import { Button } from "@/components/ui/button";
 import {
   createPeerCluster,
@@ -21,7 +22,7 @@ const IDLE =
   "Writes go to the first W nodes; reads come from the last R. Sets overlap only when W+R > N.";
 
 export function QuorumDemo() {
-  const { view, busy, replicasRef, run, reset } = useSimPlayback(
+  const { view, busy, replicasRef, run, reset, playback } = useSimPlayback(
     createPeerCluster(N),
     IDLE
   );
@@ -170,6 +171,8 @@ export function QuorumDemo() {
           ariaLabel="Five leaderless replicas"
         />
       </div>
+
+      <AnimationPlayer player={playback} />
 
       <p
         className="border-t border-gray-200 px-3 py-3 text-sm leading-relaxed text-gray-800 sm:px-4 dark:border-gray-700 dark:text-gray-200"

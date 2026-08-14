@@ -114,6 +114,26 @@ To add a new custom block (callout, quiz, etc.):
 2. Register it in `components.tsx`
 3. Document it here
 
+### Add a step-based animation
+
+Blog animations use the shared engine in `lib/animation/` with the React adapter
+in `components/animation/`. Keep animation scripts outside MDX: the post should
+only embed a registered demo component.
+
+1. Define a serializable snapshot containing everything the renderer needs.
+2. Build an ordered array of `AnimationStep<T>` values. Each step has a full
+   `snapshot`, a human-readable `label`, and optional `durationMs` / `group`.
+3. Pass the initial snapshot to `useAnimationPlayer`.
+4. Render `player.current.snapshot` and add
+   `<AnimationPlayer player={player} />` for play, pause, forward/back, slider,
+   and step history.
+5. Use `player.run(steps)` to append and play an operation. Use `player.reset`
+   only when the demo itself resets; reset intentionally clears history.
+
+Snapshots must be complete and side-effect free. Precompute mutations while
+building steps instead of mutating application state when a frame plays. That
+contract makes every animation reversible and directly seekable.
+
 ## Local preview
 
 ```bash

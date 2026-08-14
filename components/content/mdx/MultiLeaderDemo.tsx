@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AnimationPlayer } from "@/components/animation/AnimationPlayer";
 import { Button } from "@/components/ui/button";
 import {
   createMultiLeaderCluster,
@@ -18,21 +19,24 @@ const IDLE =
   "Both datacenters start with bread. Partition them, add milk in NYC and eggs in London, then heal the link.";
 
 export function MultiLeaderDemo() {
-  const { view, busy, replicasRef, run, reset } = useSimPlayback(
+  const { view, busy, replicasRef, run, reset, playback } = useSimPlayback(
     createMultiLeaderCluster(),
     IDLE
   );
   const [strategy, setStrategy] = useState<ConflictStrategy>("last-write-wins");
-  const [linkUp, setLinkUp] = useState(true);
 
   async function onPartition() {
-    setLinkUp(false);
-    await run(buildPartitionWrites(replicasRef.current, "milk", "eggs"));
+    await run(
+      buildPartitionWrites(replicasRef.current, "milk", "eggs"),
+      () => ({ linkBroken: true })
+    );
   }
 
   async function onHeal() {
-    setLinkUp(true);
-    await run(buildReconcileFrames(replicasRef.current, strategy, "nyc"));
+    await run(
+      buildReconcileFrames(replicasRef.current, strategy, "nyc"),
+      () => ({ linkBroken: false })
+    );
   }
 
   const packet = packetCaption(view.fromId, view.toId, view.kind);
@@ -96,7 +100,6 @@ export function MultiLeaderDemo() {
             className="col-span-2 w-full sm:col-span-1 sm:w-auto"
             onClick={() => {
               setStrategy("last-write-wins");
-              setLinkUp(true);
               reset(createMultiLeaderCluster(), IDLE);
             }}
           >
@@ -125,10 +128,12 @@ export function MultiLeaderDemo() {
           toId={view.toId}
           packetLabel={packet}
           topology="multi-leader"
-          linkBroken={!linkUp}
+          linkBroken={view.linkBroken ?? false}
           ariaLabel="Two multi-leader datacenters"
         />
       </div>
+
+      <AnimationPlayer player={playback} />
 
       <p
         className="border-t border-gray-200 px-3 py-3 text-sm leading-relaxed text-gray-800 sm:px-4 dark:border-gray-700 dark:text-gray-200"
