@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useAnimationPlayer } from "@/components/animation/useAnimationPlayer";
 import { REPL_HOLD_MS, REPL_STEP_MS } from "@/lib/replication/animation";
 import type { Replica } from "@/lib/replication/model";
@@ -46,7 +46,10 @@ export function useSimPlayback(initial: Replica[], idleMessage: string) {
     REPL_STEP_MS
   );
   const replicasRef = useRef(initial);
-  replicasRef.current = player.latest.snapshot.replicas;
+
+  useEffect(() => {
+    replicasRef.current = player.latest.snapshot.replicas;
+  }, [player.latest.snapshot.replicas]);
 
   function reset(replicas: Replica[], message: string) {
     replicasRef.current = replicas;
