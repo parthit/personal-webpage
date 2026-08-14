@@ -28,8 +28,8 @@ export function ReplicaCard({
       data-replica-alive={replica.alive ? "true" : "false"}
       data-replica-role={replica.role}
       className={cn(
-        "relative h-full w-full rounded-lg border bg-white shadow-sm transition-shadow dark:bg-gray-950",
-        compact ? "p-2" : "min-w-[8.5rem] flex-1 basis-[9rem] p-3",
+        "relative h-full w-full rounded-2xl border bg-white shadow-sm transition-shadow dark:bg-gray-950",
+        compact ? "flex flex-col justify-center p-2.5" : "min-w-[8.5rem] flex-1 basis-[9rem] p-3",
         replica.alive
           ? "border-gray-200 dark:border-gray-700"
           : "border-red-300 bg-red-50 opacity-80 dark:border-red-800 dark:bg-red-950/40",
@@ -38,13 +38,13 @@ export function ReplicaCard({
           "ring-2 ring-amber-400 ring-offset-2 ring-offset-gray-50 motion-safe:animate-pulse dark:ring-offset-gray-900"
       )}
     >
-      <div className="mb-1 flex items-center justify-between gap-1">
-        <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
+      <div className={cn("flex flex-col", compact ? "gap-0.5" : "mb-1")}>
+        <p className="text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100">
           {replica.name}
         </p>
         <span
           className={cn(
-            "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+            "w-fit rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
             !replica.alive
               ? "bg-red-200 text-red-900 dark:bg-red-900 dark:text-red-100"
               : replica.role === "leader"
@@ -55,10 +55,10 @@ export function ReplicaCard({
           {replica.alive ? roleLabel : "down"}
         </span>
       </div>
-      <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
+      <p className="mt-1 text-[11px] leading-tight text-gray-500 dark:text-gray-400">
         {replica.region}
       </p>
-      <p className="mt-1 truncate font-mono text-sm text-gray-900 dark:text-gray-100">
+      <p className="mt-1 break-words font-mono text-sm leading-tight text-gray-900 dark:text-gray-100">
         {replica.value || "(empty)"}
       </p>
       <p className="font-mono text-[11px] text-gray-500 dark:text-gray-400">

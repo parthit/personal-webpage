@@ -65,6 +65,14 @@ export function ReplicaGraph({
     return map;
   }, [replicas]);
 
+  const replicaNodes = layout.nodes.filter((n) => n.kind === "replica");
+  const centroid = replicaNodes.length
+    ? {
+        x: replicaNodes.reduce((s, n) => s + n.x, 0) / replicaNodes.length,
+        y: replicaNodes.reduce((s, n) => s + n.y, 0) / replicaNodes.length,
+      }
+    : { x: layout.width / 2, y: layout.height / 2 };
+
   return (
     <div
       className="min-w-0 w-full overflow-x-auto overscroll-x-contain touch-pan-x"
@@ -121,19 +129,17 @@ export function ReplicaGraph({
             const from = nodeById.get(edge.from);
             const to = nodeById.get(edge.to);
             if (!from || !to) return null;
-            const pts = edgeEndpoints(from, to);
+            const d = edgePath(from, to, edge.kind, centroid);
             const active = hops.some(
               (h) =>
                 (h.fromId === edge.from && h.toId === edge.to) ||
                 (h.fromId === edge.to && h.toId === edge.from)
             );
             return (
-              <line
+              <path
                 key={edge.id}
-                x1={pts.x1}
-                y1={pts.y1}
-                x2={pts.x2}
-                y2={pts.y2}
+                d={d}
+                fill="none"
                 data-repl-edge={edge.kind}
                 data-repl-edge-from={edge.from}
                 data-repl-edge-to={edge.to}
@@ -142,14 +148,16 @@ export function ReplicaGraph({
                 className={cn(
                   "repl-edge",
                   edge.broken
-                    ? "stroke-red-400 dark:stroke-red-500"
+                    ? "stroke-red-500 dark:stroke-red-400"
                     : active
                       ? "stroke-amber-500 dark:stroke-amber-400"
-                      : "stroke-gray-300 dark:stroke-gray-600"
+                      : edge.kind === "peer"
+                        ? "stroke-gray-500 dark:stroke-gray-400"
+                        : "stroke-gray-400 dark:stroke-gray-500"
                 )}
-                strokeWidth={active ? 2.4 : edge.kind === "peer" ? 1.6 : 1.8}
+                strokeWidth={active ? 2.6 : edge.kind === "peer" ? 2.2 : 1.8}
                 strokeDasharray={
-                  edge.broken ? "6 5" : edge.kind === "peer" ? "4 6" : undefined
+                  edge.broken ? "7 5" : edge.kind === "peer" ? "5 5" : undefined
                 }
                 markerEnd={
                   edge.kind === "replication" || edge.kind === "client"
@@ -163,10 +171,15 @@ export function ReplicaGraph({
             const from = nodeById.get(hop.fromId);
             const to = nodeById.get(hop.toId);
             if (!from || !to) return null;
+            const kind =
+              layout.edges.find(
+                (e) =>
+                  (e.from === hop.fromId && e.to === hop.toId) ||
+                  (e.from === hop.toId && e.to === hop.fromId)
+              )?.kind ?? "client";
+            const d = edgePath(from, to, kind, centroid);
             const pts = edgeEndpoints(from, to);
-            const d = `M ${pts.x1} ${pts.y1} L ${pts.x2} ${pts.y2}`;
-            const midX = (pts.x1 + pts.x2) / 2;
-            const midY = (pts.y1 + pts.y2) / 2;
+            const ctrl = controlPoint(from, to, kind, centroid);
             const reduced = reducedMotion;
             const restX = pts.x1 + (pts.x2 - pts.x1) * 0.72;
             const restY = pts.y1 + (pts.y2 - pts.y1) * 0.72;
@@ -191,8 +204,8 @@ export function ReplicaGraph({
                 )}
                 {hop.label ? (
                   <text
-                    x={midX}
-                    y={midY - 10}
+                    x={ctrl.x}
+                    y={ctrl.y - 8}
                     textAnchor="middle"
                     className="fill-amber-800 text-[10px] font-medium dark:fill-amber-200"
                     data-packet-label
@@ -247,6 +260,40 @@ export function ReplicaGraph({
       </div>
     </div>
   );
+}
+
+function edgePath(
+  from: GraphNode,
+  to: GraphNode,
+  kind: "client" | "replication" | "peer",
+  centroid: { x: number; y: number }
+): string {
+  const pts = edgeEndpoints(from, to);
+  if (kind !== "peer") {
+    return `M ${pts.x1} ${pts.y1} L ${pts.x2} ${pts.y2}`;
+  }
+  const ctrl = controlPoint(from, to, kind, centroid);
+  return `M ${pts.x1} ${pts.y1} Q ${ctrl.x} ${ctrl.y} ${pts.x2} ${pts.y2}`;
+}
+
+function controlPoint(
+  from: GraphNode,
+  to: GraphNode,
+  kind: "client" | "replication" | "peer",
+  centroid: { x: number; y: number }
+): { x: number; y: number } {
+  const mx = (from.x + to.x) / 2;
+  const my = (from.y + to.y) / 2;
+  if (kind !== "peer") return { x: mx, y: my };
+
+  const dx = mx - centroid.x;
+  const dy = my - centroid.y;
+  const len = Math.hypot(dx, dy);
+  if (len < 4) {
+    return { x: mx, y: my + Math.max(from.height, to.height) / 2 + 18 };
+  }
+  const bump = 28;
+  return { x: mx + (dx / len) * bump, y: my + (dy / len) * bump };
 }
 
 function edgeEndpoints(from: GraphNode, to: GraphNode) {

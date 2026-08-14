@@ -1,16 +1,16 @@
 import type { Replica, SimKind } from "./model";
 
 export const GRAPH = {
-  PAD: 24,
-  NODE_W: 120,
-  NODE_H: 94,
-  CLIENT_W: 78,
+  PAD: 28,
+  NODE_W: 140,
+  NODE_H: 100,
+  CLIENT_W: 86,
   CLIENT_H: 32,
-  H_GAP: 22,
-  V_GAP: 52,
-  QUORUM_NODE_W: 104,
-  QUORUM_NODE_H: 86,
-  QUORUM_RADIUS: 148,
+  H_GAP: 48,
+  V_GAP: 64,
+  QUORUM_NODE_W: 118,
+  QUORUM_NODE_H: 88,
+  QUORUM_RADIUS: 168,
 } as const;
 
 export type GraphTopology = "leader-tree" | "multi-leader" | "quorum";
@@ -146,12 +146,12 @@ export function layoutMultiLeader(
   const ordered = [...replicas].sort((a, b) => a.id.localeCompare(b.id));
   const count = Math.max(ordered.length, 1);
   const rowWidth =
-    count * GRAPH.NODE_W + Math.max(0, count - 1) * (GRAPH.H_GAP + 28);
+    count * GRAPH.NODE_W + Math.max(0, count - 1) * (GRAPH.H_GAP + 40);
   const width = rowWidth + GRAPH.PAD * 2;
 
   const clientY = GRAPH.PAD + GRAPH.CLIENT_H / 2;
   const replicaY = clientY + GRAPH.CLIENT_H / 2 + GRAPH.V_GAP + GRAPH.NODE_H / 2;
-  const height = replicaY + GRAPH.NODE_H / 2 + GRAPH.PAD;
+  const height = replicaY + GRAPH.NODE_H / 2 + 36 + GRAPH.PAD;
   const xs = rowXs(count, width, GRAPH.PAD, GRAPH.NODE_W);
 
   const nodes: GraphNode[] = [];
