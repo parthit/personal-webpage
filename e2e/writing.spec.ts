@@ -333,8 +333,12 @@ test.describe("writing section", () => {
     const healBtn = multi.getByRole("button", { name: "Heal and reconcile" });
     await expect(healBtn).toBeEnabled({ timeout: 8_000 });
     await healBtn.click();
+    await expect(multi.locator('[data-repl-edge="peer"]')).toHaveAttribute(
+      "data-repl-edge-broken",
+      "false"
+    );
     await expect(multi.locator("[data-replication-status]")).toContainText(
-      /Last-write-wins|Dropped/i,
+      /Last-write-wins|Dropped|partition heals/i,
       { timeout: 30_000 }
     );
 

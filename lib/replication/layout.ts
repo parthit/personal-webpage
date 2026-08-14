@@ -280,8 +280,8 @@ export function packetHops(
 
   switch (kind) {
     case "client-send":
-    case "read":
     case "quorum-write":
+    case "leader-apply":
       if (toId) {
         push(clientFor(toId), replicaNodeId(toId));
       } else {
@@ -290,8 +290,20 @@ export function packetHops(
         }
       }
       break;
-    case "client-ack":
+    case "read":
+      if (fromId) {
+        push(replicaNodeId(fromId), clientFor(fromId));
+      } else if (toId) {
+        push(clientFor(toId), replicaNodeId(toId));
+      }
+      break;
     case "stale-read":
+      if (fromId) {
+        push(replicaNodeId(fromId), clientFor(fromId));
+      } else if (toId) {
+        push(clientFor(toId), replicaNodeId(toId));
+      }
+      break;
     case "quorum-read":
       if (fromId) {
         push(replicaNodeId(fromId), clientFor(fromId));
@@ -303,6 +315,15 @@ export function packetHops(
         }
       }
       break;
+    case "client-ack":
+      if (fromId) {
+        push(replicaNodeId(fromId), clientFor(fromId));
+      } else {
+        for (const id of highlightIds) {
+          push(replicaNodeId(id), clientFor(id));
+        }
+      }
+      break;
     case "replicate":
     case "follower-apply":
     case "follower-ack":
@@ -311,11 +332,6 @@ export function packetHops(
         push(replicaNodeId(fromId), replicaNodeId(toId));
       } else if (fromId && !toId) {
         push(replicaNodeId(fromId), clientFor(fromId));
-      }
-      break;
-    case "leader-apply":
-      if (toId) {
-        push(clientFor(toId), replicaNodeId(toId));
       }
       break;
     default:

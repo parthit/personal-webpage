@@ -31,8 +31,8 @@ export function MultiLeaderDemo() {
   }
 
   async function onHeal() {
-    const ok = await run(buildReconcileFrames(replicasRef.current, strategy, "nyc"));
-    if (ok) setLinkUp(true);
+    setLinkUp(true);
+    await run(buildReconcileFrames(replicasRef.current, strategy, "nyc"));
   }
 
   const packet = packetCaption(view.fromId, view.toId, view.kind);

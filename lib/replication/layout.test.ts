@@ -115,4 +115,42 @@ describe("replica graph layout", () => {
       { fromId: "replica:nyc", toId: "replica:lon", label: undefined },
     ]);
   });
+
+  it("routes a read request toward the replica and the response back to the client", () => {
+    const layout = layoutLeaderTree(createLeaderCluster());
+    const request = packetHops(layout, {
+      kind: "read",
+      toId: "lon",
+      highlightIds: ["lon"],
+      label: "read request",
+    });
+    assert.deepEqual(request, [
+      { fromId: "client", toId: "replica:lon", label: "read request" },
+    ]);
+    const response = packetHops(layout, {
+      kind: "read",
+      fromId: "lon",
+      highlightIds: ["lon"],
+      label: "read response",
+    });
+    assert.deepEqual(response, [
+      { fromId: "replica:lon", toId: "client", label: "read response" },
+    ]);
+  });
+
+  it("routes a quorum write ack from replicas back to the client", () => {
+    const layout = layoutQuorum(createPeerCluster(5));
+    const hops = packetHops(layout, {
+      kind: "client-ack",
+      highlightIds: ["n1", "n2"],
+      label: "client ack",
+    });
+    assert.deepEqual(
+      hops.map((h) => [h.fromId, h.toId]),
+      [
+        ["replica:n1", "client"],
+        ["replica:n2", "client"],
+      ]
+    );
+  });
 });
