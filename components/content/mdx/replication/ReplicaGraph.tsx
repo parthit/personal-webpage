@@ -1,8 +1,12 @@
 "use client";
 
-import { useId, useMemo, useState, useEffect } from "react";
+import { useId, useMemo, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
-import { prefersReducedMotion } from "@/lib/replication/animation";
+import {
+  getReducedMotionServerSnapshot,
+  getReducedMotionSnapshot,
+  reducedMotionSubscribe,
+} from "@/lib/replication/animation";
 import type { Replica, SimKind } from "@/lib/replication/model";
 import {
   layoutReplicas,
@@ -34,10 +38,11 @@ export function ReplicaGraph({
   ariaLabel: string;
 }) {
   const markerId = useId().replace(/:/g, "");
-  const [reducedMotion, setReducedMotion] = useState(false);
-  useEffect(() => {
-    setReducedMotion(prefersReducedMotion());
-  }, []);
+  const reducedMotion = useSyncExternalStore(
+    reducedMotionSubscribe,
+    getReducedMotionSnapshot,
+    getReducedMotionServerSnapshot
+  );
   const layout = useMemo(
     () => layoutReplicas(replicas, topology, { linkBroken }),
     [replicas, topology, linkBroken]
