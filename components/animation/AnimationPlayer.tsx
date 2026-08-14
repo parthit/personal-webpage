@@ -120,6 +120,7 @@ export function AnimationPlayer<T>({
                         : "text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-800"
                   )}
                   onClick={() => player.seek(index)}
+                  aria-label={`Go to animation step ${index + 1}`}
                   aria-current={active ? "step" : undefined}
                   data-history-step={index}
                 >
