@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AnimationPlayer } from "@/components/animation/AnimationPlayer";
 import { Button } from "@/components/ui/button";
 import { createLeaderCluster, type WriteMode } from "@/lib/replication/model";
 import {
@@ -16,7 +17,7 @@ const IDLE =
   "Write, then immediately read a follower. Async replication makes read-your-writes fail unless you pin the session to the leader.";
 
 export function StaleReadDemo() {
-  const { view, busy, replicasRef, run, reset } = useSimPlayback(
+  const { view, busy, replicasRef, run, reset, playback } = useSimPlayback(
     createLeaderCluster(),
     IDLE
   );
@@ -153,6 +154,8 @@ export function StaleReadDemo() {
           ariaLabel="Replicas used for a stale-read walkthrough"
         />
       </div>
+
+      <AnimationPlayer player={playback} />
 
       <p
         className="border-t border-gray-200 px-3 py-3 text-sm leading-relaxed text-gray-800 sm:px-4 dark:border-gray-700 dark:text-gray-200"

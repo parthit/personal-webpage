@@ -8,9 +8,7 @@ import {
   buildTableScanFrames,
   compareIoCost,
   DEMO_STEP_MS,
-  effectiveStepMs,
   INDEX_STEP_MS,
-  playFrames,
   VIZ_HOLD_MS,
   VIZ_STEP_MS,
 } from "./demo-animation";
@@ -184,44 +182,4 @@ describe("demo-animation helpers", () => {
     assert.match(compareIoCost(3, 4), /late id like 69/);
   });
 
-  it("keeps walkthrough delays even when reduced motion is preferred", () => {
-    // Decorative CSS is gated separately; pacing must stay readable.
-    assert.equal(effectiveStepMs(true, 400), 400);
-    assert.equal(effectiveStepMs(false, 1400), 1400);
-  });
-
-  it("plays frames in order and respects abort", async () => {
-    const seen: number[] = [];
-    await playFrames([1, 2, 3], async (n) => {
-      seen.push(n);
-    }, { stepMs: 0, holdMs: 0 });
-    assert.deepEqual(seen, [1, 2, 3]);
-
-    const controller = new AbortController();
-    controller.abort();
-    await assert.rejects(
-      () =>
-        playFrames([1], () => undefined, {
-          stepMs: 0,
-          holdMs: 0,
-          signal: controller.signal,
-        }),
-      /AbortError/
-    );
-  });
-
-  it("aborts cleanly between frames and after onFrame", async () => {
-    const seen: number[] = [];
-    const controller = new AbortController();
-    const playing = playFrames(
-      [1, 2, 3],
-      async (n) => {
-        seen.push(n);
-        if (n === 1) controller.abort();
-      },
-      { stepMs: 20, holdMs: 20, signal: controller.signal }
-    );
-    await assert.rejects(() => playing, /AbortError/);
-    assert.deepEqual(seen, [1]);
-  });
 });

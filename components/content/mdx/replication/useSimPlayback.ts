@@ -1,14 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import {
-  effectiveStepMs,
-  isAbortError,
-  playFrames,
-  prefersReducedMotion,
-  REPL_HOLD_MS,
-  REPL_STEP_MS,
-} from "@/lib/replication/animation";
+import { useEffect, useRef } from "react";
+import { useAnimationPlayer } from "@/components/animation/useAnimationPlayer";
+import { REPL_HOLD_MS, REPL_STEP_MS } from "@/lib/replication/animation";
 import type { Replica } from "@/lib/replication/model";
 import type { SimFrame } from "@/lib/replication/model";
 
@@ -23,6 +17,7 @@ export type FrameView = {
   clientAcked: boolean;
   readValue?: string;
   stale?: boolean;
+  linkBroken?: boolean;
   stepInfo: { index: number; total: number } | null;
 };
 
@@ -42,54 +37,37 @@ export function viewFromReplicas(
 }
 
 export function useSimPlayback(initial: Replica[], idleMessage: string) {
-  const [view, setView] = useState<FrameView>(() =>
-    viewFromReplicas(initial, idleMessage)
+  const player = useAnimationPlayer(
+    {
+      snapshot: viewFromReplicas(initial, idleMessage),
+      label: idleMessage,
+      durationMs: REPL_STEP_MS,
+    },
+    REPL_STEP_MS
   );
-  const [busy, setBusy] = useState(false);
   const replicasRef = useRef(initial);
-  const abortRef = useRef<AbortController | null>(null);
-  const runIdRef = useRef(0);
 
   useEffect(() => {
-    return () => {
-      abortRef.current?.abort();
-    };
-  }, []);
-
-  function cancel() {
-    abortRef.current?.abort();
-    abortRef.current = null;
-    runIdRef.current += 1;
-  }
+    replicasRef.current = player.latest.snapshot.replicas;
+  }, [player.latest.snapshot.replicas]);
 
   function reset(replicas: Replica[], message: string) {
-    cancel();
     replicasRef.current = replicas;
-    setBusy(false);
-    setView(viewFromReplicas(replicas, message));
+    player.reset({
+      snapshot: viewFromReplicas(replicas, message),
+      label: message,
+      durationMs: REPL_STEP_MS,
+    });
   }
 
-  async function run(frames: SimFrame[]): Promise<boolean> {
+  async function run(
+    frames: SimFrame[],
+    decorate?: (frame: SimFrame, index: number) => Partial<FrameView>
+  ): Promise<boolean> {
     if (frames.length === 0) return false;
-    cancel();
-    const controller = new AbortController();
-    const runId = runIdRef.current;
-    abortRef.current = controller;
-    setBusy(true);
-
-    const reduced = prefersReducedMotion();
-    const stepMs = effectiveStepMs(reduced, REPL_STEP_MS);
-    const holdMs = effectiveStepMs(reduced, REPL_HOLD_MS);
-
-    try {
-      await playFrames(
-        frames,
-        (frame, index) => {
-          if (runId !== runIdRef.current || controller.signal.aborted) {
-            throw new DOMException("Aborted", "AbortError");
-          }
-          replicasRef.current = frame.replicas;
-          setView({
+    return player.run(
+      frames.map((frame, index) => ({
+        snapshot: {
             replicas: frame.replicas,
             message: frame.message,
             highlightIds: frame.highlightIds,
@@ -100,23 +78,24 @@ export function useSimPlayback(initial: Replica[], idleMessage: string) {
             clientAcked: frame.clientAcked,
             readValue: frame.readValue,
             stale: frame.stale,
+            ...decorate?.(frame, index),
             stepInfo: { index: index + 1, total: frames.length },
-          });
-        },
-        { stepMs, holdMs, signal: controller.signal }
-      );
-      return runId === runIdRef.current;
-    } catch (err) {
-      if (isAbortError(err)) return false;
-      throw err;
-    } finally {
-      if (abortRef.current === controller && runId === runIdRef.current) {
-        abortRef.current = null;
-        setBusy(false);
-        setView((prev) => ({ ...prev, stepInfo: null }));
-      }
-    }
+          },
+        label: frame.message,
+        durationMs:
+          index === frames.length - 1 ? REPL_HOLD_MS : REPL_STEP_MS,
+        group: frame.kind,
+      }))
+    );
   }
 
-  return { view, busy, replicasRef, run, reset, cancel };
+  return {
+    view: player.current.snapshot,
+    busy: player.isActive,
+    replicasRef,
+    run,
+    reset,
+    cancel: player.pause,
+    playback: player,
+  };
 }

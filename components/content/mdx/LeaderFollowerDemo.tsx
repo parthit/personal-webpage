@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AnimationPlayer } from "@/components/animation/AnimationPlayer";
 import { Button } from "@/components/ui/button";
 import {
   createLeaderCluster,
@@ -20,7 +21,7 @@ const IDLE =
   "Write a likes count to the leader. Sync waits for followers; async acks first and replicas lag.";
 
 export function LeaderFollowerDemo() {
-  const { view, busy, replicasRef, run, reset } = useSimPlayback(
+  const { view, busy, replicasRef, run, reset, playback } = useSimPlayback(
     createLeaderCluster(),
     IDLE
   );
@@ -176,6 +177,8 @@ export function LeaderFollowerDemo() {
           ariaLabel="Leader and two follower replicas"
         />
       </div>
+
+      <AnimationPlayer player={playback} />
 
       <p
         className="border-t border-gray-200 px-3 py-3 text-sm leading-relaxed text-gray-800 sm:px-4 dark:border-gray-700 dark:text-gray-200"

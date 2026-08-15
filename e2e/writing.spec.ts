@@ -128,12 +128,23 @@ test.describe("writing section", () => {
     await expect(insertBtn).toBeVisible();
     await expect(searchBtn).toBeVisible();
     await expect(deleteBtn).toBeVisible();
+    const player = visualizer.locator("[data-animation-player]");
+    const timeline = player.getByRole("slider", { name: "Animation step" });
 
     await visualizer.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
     await insertBtn.evaluate((el) =>
       el.scrollIntoView({ block: "center", inline: "nearest" })
     );
     await insertBtn.click();
+    await expect(player).toHaveAttribute("data-playback-status", "playing");
+    await timeline.focus();
+    await timeline.press("End");
+    await expect(player).toHaveAttribute("data-playback-status", "paused");
+    const resumeButton = player.getByRole("button", {
+      name: "Play animation",
+    });
+    await expect(resumeButton).toBeEnabled();
+    await resumeButton.click();
     await expect(visualizer.locator("[data-btree-status]")).toContainText(
       /Insert 99|Descending|Placing 99|Inserted 99/i
     );
@@ -142,6 +153,35 @@ test.describe("writing section", () => {
       { timeout: 50_000 }
     );
     await expect(insertBtn).toBeEnabled({ timeout: 5_000 });
+
+    await expect(timeline).toBeVisible();
+    await expect(player.locator("[data-animation-history] li")).not.toHaveCount(1);
+    const completedIndex = Number(
+      (await player.getAttribute("data-playback-index")) ?? "0"
+    );
+    await timeline.focus();
+    await timeline.press("ArrowLeft");
+    await expect(player).toHaveAttribute(
+      "data-playback-index",
+      String(completedIndex - 1)
+    );
+    await expect(
+      player.getByRole("button", { name: "Next step" })
+    ).toBeEnabled();
+    await timeline.press("End");
+    await expect(player).toHaveAttribute(
+      "data-playback-index",
+      String(completedIndex)
+    );
+    const historyCount = await player.locator("[data-animation-history] li").count();
+    await visualizer.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("");
+    await insertBtn.click();
+    await expect(visualizer.locator("[data-btree-status]")).toContainText(
+      "Enter one or more numbers to insert."
+    );
+    await expect(player.locator("[data-animation-history] li")).toHaveCount(
+      historyCount
+    );
 
     await visualizer.getByPlaceholder("e.g. 15 or 1, 8, 22").fill("99");
     await searchBtn.evaluate((el) =>
@@ -206,6 +246,18 @@ test.describe("writing section", () => {
       /fewer page reads with the B-tree|scan .+ I\/O vs index/i,
       { timeout: 5_000 }
     );
+    const indexPlayer = indexDemo.locator("[data-animation-player]");
+    const indexHistoryCount = await indexPlayer
+      .locator("[data-animation-history] li")
+      .count();
+    await indexDemo.getByLabel("Lookup id").fill("not-a-number");
+    await scanBtn.click();
+    await expect(indexDemo.locator("[data-index-status]")).toContainText(
+      "Enter a numeric lookup id."
+    );
+    await expect(
+      indexPlayer.locator("[data-animation-history] li")
+    ).toHaveCount(indexHistoryCount);
 
     await expect(
       page.getByRole("heading", { name: "Complexity cheatsheet" })
