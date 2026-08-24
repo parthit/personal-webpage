@@ -90,6 +90,9 @@ function PdfPage({ snapshot }: { snapshot: FieldMatchingSnapshot }) {
               matchedField?.decision === "auto" && !isActive
                 ? "ring-2 ring-emerald-400/70"
                 : null,
+              matchedField?.decision === "review" && !isActive
+                ? "ring-2 ring-amber-400/70"
+                : null,
               matchedField?.decision === "ask" && !isActive
                 ? "ring-2 ring-rose-400/70"
                 : null

@@ -499,6 +499,11 @@ test.describe("writing section", () => {
       { timeout: 60_000 }
     );
     await expect(demo.locator('[data-decision="auto"]').first()).toBeVisible();
+    const reviewField = demo.locator('[data-field-id="vendor"]');
+    await expect(reviewField.locator('[data-decision="review"]')).toBeVisible();
+    await expect(demo.locator('[data-ocr-span="s_vendor"]')).toHaveClass(
+      /ring-amber-400/
+    );
     const player = demo.locator("[data-animation-player]");
     await expect(player.locator("[data-animation-history] li")).not.toHaveCount(1);
   });
