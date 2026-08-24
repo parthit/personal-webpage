@@ -100,6 +100,8 @@ Registered in `components/content/mdx/components.tsx`:
 | `StaleReadDemo` | `<StaleReadDemo />` — write then read leader vs follower (replication lag) |
 | `MultiLeaderDemo` | `<MultiLeaderDemo />` — partitioned cart writes, LWW vs union merge |
 | `QuorumDemo` | `<QuorumDemo />` — leaderless N/W/R quorums |
+| `FieldMatchingDemo` | `<FieldMatchingDemo />` — OCR spans → schema matching with confidence thresholds |
+| `VisionVsVlmDemo` | `<VisionVsVlmDemo />` — specialized detector vs VLM latency/accuracy walkthrough |
 
 ### Before you publish
 

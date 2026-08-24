@@ -1,0 +1,105 @@
+---
+title: "When a specialized vision model beats a VLM"
+summary: "Custom detectors vs vision-language models: latency, synthetic data, accuracy tradeoffs, and when to distill — with a side-by-side animation."
+date: "2026-08-23"
+tags: ["computer-vision", "multimodal", "applied-ai", "systems"]
+cover: "/content/images/writing/specialized-vision-vs-vlm/cover.svg"
+draft: false
+---
+
+Vision-language models (VLMs) are wonderful when the question changes every day. They are a blunt instrument when the question is fixed and the camera never sleeps.
+
+This post is about that fork in the road: **open-vocabulary reasoning** versus a **specialized detector** (YOLO-class / custom head) trained for a closed set of scenarios. The interactive demo uses a toy warehouse frame and assumed timings so you can see the latency gap, not just read about it.
+
+## Assumptions (read these)
+
+Illustrative numbers for teaching — **not** vendor benchmarks, and **not** production Intuit Physical AI metrics.
+
+1. **Scenario:** user prompt = find `"forklift in aisle"` in a single camera frame.
+2. **Specialized detector latency:** **28ms** end-to-end (assumed).
+3. **VLM latency:** **840ms** end-to-end (assumed) → about **30×** slower on this fixture.
+4. **Accuracy:** specialized **84%**, VLM **86%** on this closed prompt (assumed) — close enough that latency dominates product choice.
+5. **Training story:** specialized model is bootstrapped with **synthetic data + teacher labels** (OWL-style / VLM-assisted annotation in the real world), then distilled to a fast detector.
+6. **Deployment constraint:** interactive or multi-camera loops need stable frame budgets; multi-second VLM calls do not fit.
+
+If your VLM is heavily optimized, quantized, or cached, your curve moves — the *shape* of the tradeoff usually does not.
+
+## Two jobs that look the same on a slide
+
+| Job | Best default tool |
+|---|---|
+| “What unusual thing is happening in this photo?” | VLM |
+| “Is there a forklift in aisle 3, every 100ms?” | Specialized detector |
+| Inventing new labels from natural language once | VLM (or open-vocab detector) |
+| Shipping a fixed vocabulary to edge devices | Specialized detector |
+
+Teams get hurt when they pick the slide-friendly tool for the camera-rate job.
+
+## Playground
+
+Hit **Run both paths**. The specialized stack lights up almost immediately; the VLM is still generating while the fast path is already done.
+
+<VisionVsVlmDemo />
+
+### What the animation is teaching
+
+1. **Same pixels, same prompt** — fairness matters; do not compare a cropped detector to a full-scene essay.
+2. **Latency is a product feature** — 30× is the difference between “live overlay” and “batch report.”
+3. **Extra VLM recall is not free** — narrating a pallet can be useful context or alert noise.
+4. **Closed vocabulary wins under load** — once the user-specified scenarios stabilize, distill.
+
+## The synthetic-data loop (why specialists catch up)
+
+A practical recipe many applied teams converge on:
+
+```
+1. Collect / generate scenes (sim + real)
+2. Use a slow teacher (VLM / open-vocab model) to propose boxes + labels
+3. Human-review the hard tail
+4. Train a fast detector on the cleaned set
+5. Keep an eval set the teacher never overfits into your dashboard
+6. Re-distill when the scenario list changes
+```
+
+The teacher is how you get coverage. The student is how you get **frame rate**. Accuracy parity on a fixed prompt is common; latency parity is not.
+
+## Accuracy tradeoffs (be honest)
+
+Specialized models lose when:
+
+- The user invents a brand-new scenario every session
+- Compositional language matters (“red forklift *behind* the spill”)
+- You lack enough targeted data and refuse to synthesize it
+
+VLMs lose when:
+
+- You need bounded latency and cost per camera
+- You must run offline / on-prem / on-device
+- Auditors want a frozen label ontology and calibrated scores
+
+A 2pp accuracy gap rarely justifies a 30× latency tax inside a real-time loop. A 2pp gap *does* matter if errors are safety-critical — then you combine: fast detector for proposals, occasional VLM verification, human escalation.
+
+## Deployment constraints checklist
+
+Before you “just call the VLM”:
+
+- [ ] Frames per second required after overlay?
+- [ ] Cameras × sites × hours = how many model calls/day?
+- [ ] Cold-start and queueing under burst?
+- [ ] Network dependency vs on-device?
+- [ ] Can you version the scenario list and retrain weekly?
+
+If you cannot answer those, you do not have a vision product yet — you have a demo.
+
+## Rule of thumb
+
+**Use a VLM to explore and to label. Use a specialized detector to live in the loop.**
+
+When the prompt vocabulary stabilizes, distill. Keep the VLM for open questions, teacher signals, and rare escalation — not for every frame.
+
+## Takeaways
+
+- Latency and accuracy are different axes; real-time products optimize them separately.
+- Synthetic data + teacher models are how specialized detectors reach “good enough” fast.
+- Measure on *your* scenarios, not COCO nostalgia.
+- Prefer a boring fast model with an escalation path over a clever slow model with a dashboard gif.

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
-  REPLICATION_POST,
+  DOCUMENT_AI_POST,
   DEMO_VIDEO,
   expectActiveNav,
   expectNav,
@@ -35,9 +35,9 @@ test.describe("home page", () => {
     await expect(
       page.getByRole("heading", { name: "Latest writing" })
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: REPLICATION_POST.title })).toHaveAttribute(
+    await expect(page.getByRole("link", { name: DOCUMENT_AI_POST.title })).toHaveAttribute(
       "href",
-      REPLICATION_POST.path
+      DOCUMENT_AI_POST.path
     );
 
     await expect(page.getByRole("heading", { name: "Watch" })).toBeVisible();

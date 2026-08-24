@@ -1,0 +1,103 @@
+---
+title: "Document AI: matching fields without trusting OCR"
+summary: "Confidence thresholds, fuzzy/semantic scoring, and when to ask the user — with an interactive invoice playground."
+date: "2026-08-24"
+tags: ["document-ai", "applied-ai", "evals", "product"]
+cover: "/content/images/writing/document-ai-field-matching/cover.svg"
+draft: false
+---
+
+OCR gets you text. It does **not** get you a trustworthy database row.
+
+If you build Document AI for finance ops — invoices, receipts, expense PDFs — the hard part is rarely “can the model read the page?” It is “can we map noisy spans onto a schema without inventing numbers?” This post walks through a matching pipeline I have used in spirit on reconciliation-style products, then lets you step through a playground.
+
+## Assumptions (read these)
+
+These are **illustrative**. They are not Intuit production metrics, vendor benchmarks, or a claim about any specific OCR/LLM API.
+
+1. **Fixture:** one synthetic invoice PDF with deliberate OCR typos (`Vend0r`, `2O26`, `Supp1ies`).
+2. **Scores:** lexical and semantic scores are hand-authored for the demo so the animation is deterministic.
+3. **Combine rule:** `combined = 0.45·lexical + 0.55·semantic` (assumed weights).
+4. **Default threshold:** auto-accept at **82%** combined; soft-confirm in a **12pp** band below that; otherwise ask the user.
+5. **Goal metric people care about:** field-level precision on money-moving fields beats “overall OCR accuracy.”
+
+If your domain is medical IDs or wire instructions, raise the threshold. If it is a draft memo field, you can automate more aggressively.
+
+## The pipeline
+
+```
+PDF page
+  → OCR / layout spans (untrusted)
+  → candidate generation per schema field
+  → lexical + semantic scoring
+  → threshold policy (auto | review | ask)
+  → write-back + audit log
+```
+
+Three failure modes show up constantly:
+
+- **Wrong box, confident text** — OCR is sure; the span is the wrong field.
+- **Right box, mangled text** — `INV-1042` survives; `08/12/2O26` needs normalization.
+- **No good box** — the model should **refuse**, not guess a GL account.
+
+## Playground
+
+Set the threshold, then run the matcher. Watch spans light up, scores fill, and each schema field land on **auto**, **review**, or **ask user**.
+
+<FieldMatchingDemo />
+
+### What to notice
+
+| Field | Typical outcome at 82% | Why |
+|---|---|---|
+| Invoice # | Auto | Strong lexical pattern (`INV-####`) |
+| Amount | Auto | Currency shape + high OCR confidence |
+| Vendor | Review | OCR typo; semantic match saves it |
+| Date | Review | `O` vs `0`; normalize then confirm |
+| GL account | Ask | Weak lexical + messy label — do not invent books |
+
+Raise the slider toward 95% and more fields flip to review/ask. That is the product dial: **automate what you can measure, escalate what you cannot**.
+
+## Fuzzy vs semantic (without the mystique)
+
+**Lexical / fuzzy** covers edit distance, regexes, and field-specific normalizers (strip `$`, fix `O/0` in dates, canonicalize vendor suffixes). It is cheap and debuggable.
+
+**Semantic** covers “Office Supp1ies” ↔ GL description embeddings, or “Total due” ↔ `amount`. It recovers meaning when characters lie.
+
+Neither is enough alone:
+
+- Fuzzy without semantics misses paraphrases.
+- Semantics without fuzzy can map the wrong dollar amount to the right *idea*.
+
+Production systems keep a **per-field policy**: amounts and account numbers lean lexical; free-text descriptions lean semantic; everything money-touching has a hard refusal path.
+
+## When to ask the user
+
+Ask when any of these are true:
+
+1. Best combined score &lt; threshold − band
+2. Two candidates are within a few points (ambiguity)
+3. Downstream effect is irreversible (posting a journal entry)
+4. OCR span confidence itself is low **and** the field is high severity
+
+Soft-confirm (“is this the vendor?”) is not the same as ask. Soft-confirm is one tap. Ask is a blank with suggestions. Mixing them up either burns trust or burns time.
+
+## Evals that actually move the product
+
+Track, at minimum:
+
+- **Field precision / recall** by schema key (not a single micro-F1)
+- **Automation rate** at a fixed precision target
+- **User override rate** on auto-accepted fields (silent failures)
+- **Time-to-complete** for review vs ask queues
+
+A system at “93% accurate” can still be unsafe if the 7% errors concentrate on `amount` and `account`.
+
+## Takeaways
+
+- Treat OCR as a noisy proposal generator, not a source of truth.
+- Separate **candidate finding** from **trust policy**.
+- Put the threshold in the product, not only in a notebook.
+- Prefer asking over confident wrong write-backs — especially in finance.
+
+Next up in this series: when a specialized vision detector should replace a general vision-language model for real-time camera loops.

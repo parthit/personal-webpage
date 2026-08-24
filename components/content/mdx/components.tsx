@@ -8,6 +8,8 @@ import { LeaderFollowerDemo } from "./LeaderFollowerDemo";
 import { StaleReadDemo } from "./StaleReadDemo";
 import { MultiLeaderDemo } from "./MultiLeaderDemo";
 import { QuorumDemo } from "./QuorumDemo";
+import { FieldMatchingDemo } from "./FieldMatchingDemo";
+import { VisionVsVlmDemo } from "./VisionVsVlmDemo";
 
 export const mdxComponents: MDXComponents = {
   h1: (props) => (
@@ -105,4 +107,6 @@ export const mdxComponents: MDXComponents = {
   StaleReadDemo,
   MultiLeaderDemo,
   QuorumDemo,
+  FieldMatchingDemo,
+  VisionVsVlmDemo,
 };

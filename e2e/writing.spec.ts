@@ -2,7 +2,9 @@ import { expect, test } from "@playwright/test";
 import {
   BTREE_POST,
   DEMO_POST,
+  DOCUMENT_AI_POST,
   REPLICATION_POST,
+  VISION_VLM_POST,
   expectActiveNav,
   expectImageLoaded,
   expectNav,
@@ -458,6 +460,99 @@ test.describe("writing section", () => {
       scroll: el.scrollWidth,
     }));
     expect(sizes.scroll).toBeGreaterThan(sizes.client);
+    const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(pageWidth).toBeLessThanOrEqual(400);
+  });
+
+  test("renders Document AI post with field-matching playground", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.goto("/writing");
+    await expect(
+      page.getByRole("link", { name: DOCUMENT_AI_POST.title })
+    ).toBeVisible();
+
+    await page.goto(DOCUMENT_AI_POST.path);
+    await expect(
+      page.getByRole("heading", { name: DOCUMENT_AI_POST.title })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Assumptions (read these)" })
+    ).toBeVisible();
+
+    const cover = page.locator(
+      'img[src="/content/images/writing/document-ai-field-matching/cover.svg"]'
+    );
+    await expectImageLoaded(cover);
+
+    const demo = page.locator("[data-field-matching-demo]");
+    await demo.scrollIntoViewIfNeeded();
+    await expect(demo.getByRole("button", { name: "Run matcher" })).toBeVisible();
+    await demo.getByRole("button", { name: "Run matcher" }).click();
+    await expect(demo.locator("[data-field-matching-status]")).toContainText(
+      /OCR|threshold|auto|ask/i,
+      { timeout: 60_000 }
+    );
+    await expect(demo.locator("[data-field-matching-status]")).toContainText(
+      /Done —/i,
+      { timeout: 60_000 }
+    );
+    await expect(demo.locator('[data-decision="auto"]').first()).toBeVisible();
+    const player = demo.locator("[data-animation-player]");
+    await expect(player.locator("[data-animation-history] li")).not.toHaveCount(1);
+  });
+
+  test("renders specialized vision vs VLM post with comparison playground", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.goto(VISION_VLM_POST.path);
+    await expect(
+      page.getByRole("heading", { name: VISION_VLM_POST.title })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Assumptions (read these)" })
+    ).toBeVisible();
+
+    const cover = page.locator(
+      'img[src="/content/images/writing/specialized-vision-vs-vlm/cover.svg"]'
+    );
+    await expectImageLoaded(cover);
+
+    const demo = page.locator("[data-vision-vs-vlm-demo]");
+    await demo.scrollIntoViewIfNeeded();
+    await expect(demo.getByRole("button", { name: "Run both paths" })).toBeVisible();
+    await expect(demo.locator("[data-speedup-callout]")).toContainText(/30×/);
+    await demo.getByRole("button", { name: "Run both paths" }).click();
+    await expect(demo.locator("[data-vision-compare-status]")).toContainText(
+      /forklift|Specialized|VLM|distill/i,
+      { timeout: 60_000 }
+    );
+    await expect(demo.locator("[data-vision-compare-status]")).toContainText(
+      /Open vocabulary|specialized detector/i,
+      { timeout: 60_000 }
+    );
+    await expect(
+      demo.locator('[data-camera-pane="Specialized detector"] [data-detected="true"]')
+    ).toHaveCount(1, { timeout: 60_000 });
+  });
+
+  test("new AI posts stay usable on a narrow viewport", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(DOCUMENT_AI_POST.path);
+    const fieldDemo = page.locator("[data-field-matching-demo]");
+    await fieldDemo.scrollIntoViewIfNeeded();
+    const fieldBox = await fieldDemo.boundingBox();
+    expect(fieldBox).not.toBeNull();
+    expect(fieldBox!.width).toBeLessThanOrEqual(390);
+
+    await page.goto(VISION_VLM_POST.path);
+    const visionDemo = page.locator("[data-vision-vs-vlm-demo]");
+    await visionDemo.scrollIntoViewIfNeeded();
+    const visionBox = await visionDemo.boundingBox();
+    expect(visionBox).not.toBeNull();
+    expect(visionBox!.width).toBeLessThanOrEqual(390);
     const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
     expect(pageWidth).toBeLessThanOrEqual(400);
   });
