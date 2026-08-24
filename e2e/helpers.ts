@@ -18,6 +18,18 @@ export const REPLICATION_POST = {
   path: "/writing/replication",
 } as const;
 
+export const DOCUMENT_AI_POST = {
+  slug: "document-ai-field-matching",
+  title: "Document AI: matching fields without trusting OCR",
+  path: "/writing/document-ai-field-matching",
+} as const;
+
+export const VISION_VLM_POST = {
+  slug: "specialized-vision-vs-vlm",
+  title: "When a specialized vision model beats a VLM",
+  path: "/writing/specialized-vision-vs-vlm",
+} as const;
+
 export const DEMO_VIDEO = {
   slug: "demo-system-design-intro",
   title: "Demo: Intro to Architecture and Systems Design Interviews",
