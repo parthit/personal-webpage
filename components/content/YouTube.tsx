@@ -46,7 +46,7 @@ export function YouTube({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={facadeSrc}
-              alt=""
+              alt={`Video thumbnail: ${title}`}
               className="h-full w-full object-cover"
             />
             <span className="absolute inset-0 flex items-center justify-center bg-black/30 transition group-hover:bg-black/40">

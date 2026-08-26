@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-label="Architecture and system design interviews">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#115e59"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <circle cx="640" cy="300" r="70" fill="#f8fafc"/>
+  <polygon points="620,260 690,300 620,340" fill="#0f172a"/>
+  <text x="640" y="450" text-anchor="middle" fill="#ecfdf5" font-family="ui-sans-serif, system-ui, sans-serif" font-size="40">Architecture &amp; System Design Interviews</text>
+  <text x="640" y="510" text-anchor="middle" fill="#99f6e4" font-family="ui-sans-serif, system-ui, sans-serif" font-size="26">Recommended viewing</text>
+</svg>

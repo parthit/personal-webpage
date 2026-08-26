@@ -5,6 +5,7 @@ Personal site built with [Next.js](https://nextjs.org/) (App Router), TypeScript
 ## Features
 
 - Home / about page
+- Selected projects at `/projects`
 - Cal.com booking at `/chat`
 - **Writing** — MDX posts at `/writing`
 - **Videos** — curated YouTube system-design catalog at `/videos`
@@ -29,12 +30,7 @@ Content is git-versioned and loaded through `lib/content/*`.
 |---|---|
 | A blog/system-design post | `content/writing/<slug>.mdx` |
 | Post images | `public/content/images/writing/<slug>/` |
-| A YouTube explainer | `content/videos.ts` |
-
-Demo content is included:
-
-- Post: [/writing/demo-url-shortener](http://localhost:3000/writing/demo-url-shortener)
-- Videos: [/videos](http://localhost:3000/videos)
+| A recommended YouTube video | `content/videos.ts` |
 
 ### Docs
 

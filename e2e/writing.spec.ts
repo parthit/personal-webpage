@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
   BTREE_POST,
-  DEMO_POST,
   DOCUMENT_AI_POST,
   REPLICATION_POST,
   VISION_VLM_POST,
@@ -11,52 +10,17 @@ import {
 } from "./helpers";
 
 test.describe("writing section", () => {
-  test("lists the demo post with metadata", async ({ page }) => {
+  test("lists published writing with useful metadata", async ({ page }) => {
     await page.goto("/writing");
     await expectNav(page);
-    await expectActiveNav(page, "writing");
+    await expectActiveNav(page, "Writing");
 
     await expect(page.getByRole("heading", { name: "Writing" })).toBeVisible();
-    await expect(page.getByRole("link", { name: DEMO_POST.title })).toBeVisible();
     await expect(
-      page.getByText(/sample system-design post that shows how MDX/i)
+      page.getByRole("link", { name: DOCUMENT_AI_POST.title })
     ).toBeVisible();
-    await expect(page.getByText("system-design").first()).toBeVisible();
-    await expect(page.getByText("demo").first()).toBeVisible();
-    await expect(page.getByText(/Jan 15, 2025/i)).toBeVisible();
-  });
-
-  test("renders the MDX post with cover, diagram, and YouTube embed", async ({
-    page,
-  }) => {
-    await page.goto(DEMO_POST.path);
-
-    await expect(
-      page.getByRole("heading", { name: DEMO_POST.title })
-    ).toBeVisible();
-    await expect(page.getByText(/January 15, 2025/i)).toBeVisible();
-    await expect(page.getByText(/min read/i)).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "High-level design" })
-    ).toBeVisible();
-
-    const cover = page.locator(
-      'img[src="/content/images/writing/demo-url-shortener/cover.svg"]'
-    );
-    const diagram = page.locator(
-      'img[src="/content/images/writing/demo-url-shortener/diagram.svg"]'
-    );
-    await expectImageLoaded(cover);
-    await expectImageLoaded(diagram);
-
-    const youtube = page.locator(
-      'iframe[src*="youtube-nocookie.com/embed/ZgdS0EUmn70"]'
-    );
-    await expect(youtube).toBeVisible();
-    await expect(youtube).toHaveAttribute(
-      "title",
-      /Intro to Architecture and Systems Design Interviews/i
-    );
+    await expect(page.getByText("applied-ai").first()).toBeVisible();
+    await expect(page.getByText(/Aug 24, 2026/i)).toBeVisible();
   });
 
   test("returns a useful not-found page for unknown slugs", async ({ page }) => {
@@ -70,34 +34,14 @@ test.describe("writing section", () => {
     await expect(page).toHaveURL(/\/writing$/);
   });
 
-  test("lists external posts but 404s their local slug with matching metadata", async ({
-    page,
-  }) => {
-    await page.goto("/writing");
-    const externalLink = page.getByRole("link", {
-      name: /Demo: External System Design Notes/,
-    });
-    await expect(externalLink).toHaveAttribute(
-      "href",
-      "https://example.com/demo-external-system-design"
-    );
-
-    const response = await page.goto("/writing/demo-external");
-    expect(response?.status()).toBe(404);
-    await expect(page).toHaveTitle(/Post not found/i);
-    await expect(
-      page.getByRole("heading", { name: "Post not found" })
-    ).toBeVisible();
-  });
-
   test("keeps document metadata useful for SEO", async ({ page }) => {
-    await page.goto(DEMO_POST.path);
-    await expect(page).toHaveTitle(new RegExp(DEMO_POST.title));
+    await page.goto(DOCUMENT_AI_POST.path);
+    await expect(page).toHaveTitle(new RegExp(DOCUMENT_AI_POST.title));
 
     const description = page.locator('meta[name="description"]');
     await expect(description).toHaveAttribute(
       "content",
-      /sample system-design post/i
+      /confidence thresholds/i
     );
 
     // SVG covers are fine in-page but not for social previews.
@@ -478,7 +422,7 @@ test.describe("writing section", () => {
       page.getByRole("heading", { name: DOCUMENT_AI_POST.title })
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Assumptions (read these)" })
+      page.getByRole("heading", { name: "Scope and assumptions" })
     ).toBeVisible();
 
     const cover = page.locator(
@@ -517,7 +461,7 @@ test.describe("writing section", () => {
       page.getByRole("heading", { name: VISION_VLM_POST.title })
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Assumptions (read these)" })
+      page.getByRole("heading", { name: "Scope and assumptions" })
     ).toBeVisible();
 
     const cover = page.locator(

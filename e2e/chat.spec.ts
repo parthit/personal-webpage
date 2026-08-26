@@ -5,10 +5,13 @@ test.describe("chat / booking page", () => {
   test("loads the booking page shell with navigation", async ({ page }) => {
     await page.goto("/chat");
     await expectNav(page);
-    await expectActiveNav(page, "chat");
+    await expectActiveNav(page, "Contact");
 
     // Cal.com is a third-party embed; assert the host page mounts it without
     // depending on their remote UI remaining pixel-identical.
+    await expect(
+      page.getByRole("heading", { name: "Let’s connect" })
+    ).toBeVisible();
     await expect(page.locator("div.max-w-2xl")).toBeVisible();
   });
 });

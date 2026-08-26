@@ -138,7 +138,7 @@ export default async function WritingPostPage({ params }: PageProps) {
         {post.cover ? (
           <Image
             src={post.cover}
-            alt=""
+            alt={`Cover illustration for ${post.title}`}
             width={1200}
             height={630}
             className="pointer-events-none h-auto w-full max-w-full rounded-lg"

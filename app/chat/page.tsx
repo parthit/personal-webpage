@@ -4,7 +4,14 @@ import Cal from "@calcom/embed-react";
 
 export default function Home() {
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="mx-auto max-w-2xl">
+      <header className="mb-8">
+        <h1 className="mb-3 text-3xl font-semibold">Let’s connect</h1>
+        <p className="text-gray-700 dark:text-gray-300">
+          Book a conversation about software engineering, system design,
+          applied AI, or building products for small businesses.
+        </p>
+      </header>
       <Cal calLink="parthit-patel"></Cal>
     </div>
   );

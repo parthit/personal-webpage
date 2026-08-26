@@ -9,17 +9,17 @@ draft: false
 
 OCR gets you text. It does **not** get you a trustworthy database row.
 
-If you build Document AI for finance ops — invoices, receipts, expense PDFs — the hard part is rarely “can the model read the page?” It is “can we map noisy spans onto a schema without inventing numbers?” This post walks through a matching pipeline I have used in spirit on reconciliation-style products, then lets you step through a playground.
+If you build Document AI for finance operations—invoices, receipts, or expense PDFs—the hard part is rarely “can the model read the page?” It is “can we map noisy spans onto a schema without inventing numbers?” This post develops a production-oriented matching pipeline and lets you explore each decision in an interactive playground.
 
-## Assumptions (read these)
+## Scope and assumptions
 
-These are **illustrative**. They are not Intuit production metrics, vendor benchmarks, or a claim about any specific OCR/LLM API.
+The figures below are **illustrative**. They are not Intuit production metrics, vendor benchmarks, or claims about a specific OCR or language-model API.
 
 1. **Fixture:** one synthetic invoice PDF with deliberate OCR typos (`Vend0r`, `2O26`, `Supp1ies`).
 2. **Scores:** lexical and semantic scores are hand-authored for the demo so the animation is deterministic.
-3. **Combine rule:** `combined = 0.45·lexical + 0.55·semantic` (assumed weights).
+3. **Combination rule:** `combined = 0.45·lexical + 0.55·semantic` (assumed weights).
 4. **Default threshold:** auto-accept at **82%** combined; soft-confirm in a **12pp** band below that; otherwise ask the user.
-5. **Goal metric people care about:** field-level precision on money-moving fields beats “overall OCR accuracy.”
+5. **Primary metric:** field-level precision on money-moving fields matters more than aggregate OCR accuracy.
 
 If your domain is medical IDs or wire instructions, raise the threshold. If it is a draft memo field, you can automate more aggressively.
 

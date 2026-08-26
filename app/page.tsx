@@ -60,14 +60,13 @@ export default function Home() {
           href="https://www.linkedin.com/in/parthit/"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-600 mx-4 hover:text-blue-500"
+          className="mx-4 text-gray-600 hover:text-blue-500 dark:text-gray-300"
         >
           LinkedIn
         </a>
         <a
           href="mailto:parthitpatel@gmail.com"
-          target="_blank"
-          className="text-600 mx-4 hover:text-blue-500"
+          className="mx-4 text-gray-600 hover:text-blue-500 dark:text-gray-300"
         >
           Email
         </a>
@@ -75,9 +74,9 @@ export default function Home() {
           href="https://x.com/parthitp"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-600 mx-4 hover:text-blue-500"
+          className="mx-4 text-gray-600 hover:text-blue-500 dark:text-gray-300"
         >
-          Twitter
+          X
         </a>
       </div>
 

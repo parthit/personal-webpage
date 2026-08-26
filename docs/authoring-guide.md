@@ -81,7 +81,7 @@ Edit `content/videos.ts` and append:
 - [ ] `title`, `summary`, `date` present
 - [ ] Slug is lowercase kebab-case and stable
 - [ ] Tags are short and reusable (`system-design`, not `System Design!!!`)
-- [ ] Demo content removed or clearly replaced when publishing real work
+- [ ] Examples, assumptions, and claims are accurate and clearly labeled
 - [ ] `npm run build` succeeds
 
 ## Available MDX extras
@@ -143,13 +143,4 @@ npm run dev
 ```
 
 - Writing index: http://localhost:3000/writing
-- Demo post: http://localhost:3000/writing/demo-url-shortener
 - Videos: http://localhost:3000/videos
-
-## Replacing demo content
-
-1. Delete or set `draft: true` on `content/writing/demo-url-shortener.mdx`
-2. Remove `public/content/images/writing/demo-url-shortener/` if unused
-3. Replace the demo object in `content/videos.ts` with your videos
-
-No route or loader changes needed.

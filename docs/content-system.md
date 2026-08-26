@@ -105,17 +105,7 @@ public/content/images/
 | `/robots.txt` | `app/robots.ts` |
 | `/sitemap.xml` | `app/sitemap.ts` from posts + static routes |
 
-Nav labels live in `app/components/Header.tsx`: `home | writing | videos | chat`.
-
-## Demo content
-
-Shipped so the pipeline is obvious:
-
-- Post: `content/writing/demo-url-shortener.mdx`
-- Images: `public/content/images/writing/demo-url-shortener/`
-- Video: featured entry in `content/videos.ts`
-
-Replace or delete demos when real content is ready. No route changes required.
+Nav labels live in `app/components/Header.tsx`: `Home | Projects | Writing | Videos | Contact`.
 
 ## Future extensions
 
