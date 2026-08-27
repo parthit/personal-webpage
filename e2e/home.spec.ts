@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
+  CURATED_VIDEO,
   DOCUMENT_AI_POST,
-  DEMO_VIDEO,
   expectActiveNav,
   expectNav,
 } from "./helpers";
@@ -10,12 +10,12 @@ test.describe("home page", () => {
   test("renders about content and social links", async ({ page }) => {
     await page.goto("/");
     await expectNav(page);
-    await expectActiveNav(page, "home");
+    await expectActiveNav(page, "Home");
 
     await expect(
-      page.getByRole("heading", { name: /hey, I'm Parthit/i })
+      page.getByRole("heading", { name: /Hi, I’m Parthit/i })
     ).toBeVisible();
-    await expect(page.getByText(/Fullstack Engineer at Intuit/i)).toBeVisible();
+    await expect(page.getByText(/full-stack engineer at Intuit/i)).toBeVisible();
 
     await expect(
       page.getByRole("link", { name: "LinkedIn" })
@@ -25,7 +25,7 @@ test.describe("home page", () => {
       /^mailto:/
     );
     await expect(
-      page.getByRole("link", { name: "Twitter" })
+      page.getByRole("link", { name: "X" })
     ).toHaveAttribute("href", /x\.com|twitter\.com/);
   });
 
@@ -42,7 +42,7 @@ test.describe("home page", () => {
 
     await expect(page.getByRole("heading", { name: "Watch" })).toBeVisible();
     await expect(
-      page.getByRole("link", { name: DEMO_VIDEO.title })
+      page.getByRole("link", { name: CURATED_VIDEO.title })
     ).toBeVisible();
 
     await page.getByRole("link", { name: "All writing" }).click();

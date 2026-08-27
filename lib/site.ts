@@ -5,14 +5,14 @@ export const SITE_URL =
 
 export const SITE_NAME = "Parthit Patel";
 
-export const SITE_TITLE = "Parthit Patel — Fullstack Engineer";
+export const SITE_TITLE = "Parthit Patel — Full-Stack Engineer";
 
 export const SITE_DESCRIPTION =
-  "Portfolio of Parthit Patel, fullstack engineer at Intuit. Writing and videos on system design, scalable products, and building for small businesses.";
+  "Portfolio of Parthit Patel, a full-stack engineer at Intuit building for QuickBooks Online. Explore projects and writing on applied AI, system design, and dependable products.";
 
 export const SITE_KEYWORDS = [
   "Parthit Patel",
-  "fullstack engineer",
+  "full-stack engineer",
   "system design",
   "Intuit",
   "QuickBooks",

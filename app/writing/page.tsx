@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Writing · Parthit Patel",
     description:
-      "Essays and system-design notes on scalable systems, data structures, and software engineering.",
+      "Essays and system-design notes by Parthit Patel on scalable systems, data structures, and software engineering.",
     url: "/writing",
     type: "website",
   },
@@ -26,8 +26,8 @@ export default function WritingIndexPage() {
       <header className="mb-10">
         <h1 className="mb-3 text-3xl font-semibold">Writing</h1>
         <p className="text-gray-700 dark:text-gray-300">
-          Essays and system-design notes. The demo post below shows how MDX
-          content is rendered on this site.
+          Essays and interactive notes on system design, applied AI, data
+          structures, and the trade-offs behind dependable software.
         </p>
       </header>
       <PostList posts={posts} />

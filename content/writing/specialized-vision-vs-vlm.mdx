@@ -7,22 +7,22 @@ cover: "/content/images/writing/specialized-vision-vs-vlm/cover.svg"
 draft: false
 ---
 
-Vision-language models (VLMs) are wonderful when the question changes every day. They are a blunt instrument when the question is fixed and the camera never sleeps.
+Vision-language models (VLMs) are valuable when the question changes frequently. They are often inefficient when the question is fixed and the camera runs continuously.
 
 This post is about that fork in the road: **open-vocabulary reasoning** versus a **specialized detector** trained for a closed set of scenarios. A one-stage detector in the [YOLO](https://arxiv.org/abs/1506.02640) family predicts boxes and class scores in one network pass. Open-vocabulary systems such as [OWL-ViT](https://arxiv.org/abs/2205.06230) condition detection on text; a generative VLM may additionally decode a textual answer token by token. The interactive demo uses a toy warehouse frame and assumed timings so you can see the latency gap, not mistake it for a benchmark.
 
-## Assumptions (read these)
+## Scope and assumptions
 
-Illustrative numbers for teaching — **not** vendor benchmarks, and **not** production Intuit Physical AI metrics.
+These figures are illustrative—not vendor benchmarks or production Intuit Physical AI metrics.
 
 1. **Scenario:** user prompt = find `"forklift in aisle"` in a single camera frame.
 2. **Specialized detector latency:** **28ms** end-to-end (assumed).
 3. **VLM latency:** **840ms** end-to-end (assumed) → about **30×** slower on this fixture.
 4. **Accuracy:** specialized **84%**, VLM **86%** on this closed prompt (assumed) — close enough that latency dominates product choice.
-5. **Training story:** specialized model is bootstrapped with **synthetic data + teacher labels** (for example, OWL-ViT-assisted proposals), then distilled to a fast detector.
+5. **Training story:** the specialized model is bootstrapped with **synthetic data + teacher labels** (for example, OWL-ViT-assisted proposals), then used to train—or distill into—a smaller, faster detector.
 6. **Deployment constraint:** interactive or multi-camera loops need stable frame budgets; multi-second VLM calls do not fit.
 
-If your VLM is heavily optimized, quantized, or cached, your curve moves — the *shape* of the tradeoff usually does not.
+If your VLM is heavily optimized, quantized, or cached, the crossover point may move substantially, so benchmark the exact deployment stack.
 
 ## What actually runs at inference
 
@@ -61,7 +61,7 @@ Its strength is conditional reasoning over a natural-language instruction. Its l
 | Inventing new labels from natural language once | VLM (or open-vocab detector) |
 | Shipping a fixed vocabulary to edge devices | Specialized detector |
 
-Teams get hurt when they pick the slide-friendly tool for the camera-rate job.
+Problems arise when a flexible demonstration architecture is carried unchanged into a camera-rate workload.
 
 ## Playground
 
@@ -73,8 +73,8 @@ Hit **Run both paths**. The specialized stack lights up almost immediately; the 
 
 1. **Same pixels, same prompt** — fairness matters; do not compare a cropped detector to a full-scene essay.
 2. **Latency is a product feature** — 30× is the difference between “live overlay” and “batch report.”
-3. **Extra VLM recall is not free** — narrating a pallet can be useful context or alert noise.
-4. **Closed vocabulary wins under load** — once the user-specified scenarios stabilize, distill.
+3. **Additional VLM output is not free** — a richer description may provide useful context, but it can also add latency and alert noise.
+4. **Closed vocabularies favor specialization under load** — once the scenarios stabilize, a smaller task-specific model becomes easier to optimize and operate.
 
 ## Turn latency into a system budget
 
@@ -114,7 +114,7 @@ A practical recipe many applied teams converge on:
 
 The teacher is how you scale proposals. It does **not** create ground truth: teacher mistakes can be amplified by the student. Keep human-reviewed gold sets, preserve negative frames, and prevent near-duplicate video frames from crossing splits.
 
-[Domain randomization](https://arxiv.org/abs/1703.06907) varies simulator parameters so real images may look like another variation; [knowledge distillation](https://arxiv.org/abs/1503.02531) trains a smaller student from a larger teacher’s soft targets. They solve different problems and can be used together.
+[Domain randomization](https://arxiv.org/abs/1703.06907) varies simulator parameters widely enough that real-world inputs resemble another point in the training distribution; [knowledge distillation](https://arxiv.org/abs/1503.02531) transfers behavior from a larger teacher to a smaller student. They solve different problems and can be used together.
 
 ## Evaluate detection and events separately
 
@@ -137,13 +137,13 @@ A detector can have acceptable mAP and still create an unusable alert product be
 
 ## Accuracy tradeoffs (be honest)
 
-Specialized models lose when:
+Specialized models are weaker when:
 
 - The user invents a brand-new scenario every session
 - Compositional language matters (“red forklift *behind* the spill”)
-- You lack enough targeted data and refuse to synthesize it
+- You lack enough representative data and cannot generate reliable synthetic coverage
 
-VLMs lose when:
+VLMs are weaker when:
 
 - You need bounded latency and cost per camera
 - You must run offline / on-prem / on-device
@@ -162,7 +162,7 @@ Evaluate the cascade end-to-end. Verification reduces some false positives but a
 
 ## Deployment constraints checklist
 
-Before you “just call the VLM”:
+Before choosing a VLM for every frame:
 
 - [ ] Frames per second required after overlay?
 - [ ] Cameras × sites × hours = how many model calls/day?
@@ -173,13 +173,14 @@ Before you “just call the VLM”:
 - [ ] Can you version the ontology, dataset, preprocessing, and model together?
 - [ ] What happens during camera drift, occlusion, or VLM timeout?
 
-If you cannot answer those, you do not have a vision product yet — you have a demo.
+If you cannot answer those questions, the system is not yet ready for production use.
 
 For capacity and cost, start with:
 
 ```
 inferences/day = cameras × sampled_fps × 86,400
-GPU_seconds/day = inferences/day × latency_seconds / effective_batching
+batches/day ≈ inferences/day / measured_average_batch_size
+GPU_seconds/day ≈ batches/day × measured_seconds_per_batch
 ```
 
 At 100 cameras and 2 sampled FPS, that is 17.28 million inferences/day. Sampling, tracking, motion gates, and event-triggered escalation often matter more economically than shaving one layer from the model.
@@ -195,4 +196,4 @@ When the prompt vocabulary stabilizes, distill. Keep the VLM for open questions,
 - Latency and accuracy are different axes; real-time products optimize them separately.
 - Synthetic data, pseudo-labels, and hard-negative mining can accelerate a specialist, but untouched real-world evaluation decides whether it ships.
 - Measure p95/p99 pipeline latency, event quality, and drift on *your* cameras—not only benchmark mAP.
-- Prefer a boring fast model with an escalation path over a clever slow model with a dashboard gif.
+- Prefer a predictable, fast model with an escalation path over a sophisticated but slow model that is difficult to operate.

@@ -7,14 +7,15 @@ import type { Video } from "./types";
  */
 export const videos: Video[] = [
   {
-    slug: "demo-system-design-intro",
-    title: "Demo: Intro to Architecture and Systems Design Interviews",
+    slug: "architecture-system-design-interviews",
+    title: "Intro to Architecture and Systems Design Interviews",
     summary:
-      "A public intro to system-design interview thinking. Replace this demo entry with your own YouTube explainers.",
+      "Jackson Gabbard explains what architecture interviews evaluate and how to communicate trade-offs, constraints, and technical leadership.",
     youtubeId: "ZgdS0EUmn70",
-    topics: ["system-design", "demo"],
-    publishedAt: "2025-01-15",
+    topics: ["system-design", "interviews"],
+    publishedAt: "2016-07-31",
     featured: true,
-    thumbnail: "/content/images/videos/demo-system-design-intro/thumbnail.svg",
+    thumbnail:
+      "/content/images/videos/architecture-system-design-interviews/thumbnail.svg",
   },
 ];

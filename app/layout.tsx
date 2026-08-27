@@ -34,8 +34,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: absoluteUrl("/content/images/parthit.jpeg"),
-        width: 1200,
-        height: 630,
+        width: 800,
+        height: 800,
         alt: "Parthit Patel",
       },
     ],
@@ -79,7 +79,7 @@ const jsonLd = {
       name: SITE_NAME,
       url: SITE_URL,
       image: absoluteUrl("/content/images/parthit.jpeg"),
-      jobTitle: "Fullstack Engineer",
+      jobTitle: "Full-Stack Engineer",
       worksFor: {
         "@type": "Organization",
         name: "Intuit",
