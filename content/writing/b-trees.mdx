@@ -13,7 +13,7 @@ That property matters wherever a “node” is expensive to fetch — especially
 
 ## Why B-trees exist
 
-Binary trees of n keys can be Θ(n) deep in the worst case. Even balanced binary trees are Θ(log₂ n) deep. A B-tree of minimum degree t has height roughly Θ(logₜ n). Raise t (more keys per node) and the height drops fast.
+An unbalanced binary search tree with n keys can be Θ(n) deep; a balanced one is Θ(log₂ n). A B-tree of minimum degree t has height Θ(logₜ n), so increasing t keeps the tree shallow.
 
 Typical use cases:
 
@@ -63,7 +63,7 @@ B-TREE-SEARCH(x, k)
     return B-TREE-SEARCH(x.c[i], k)
 ```
 
-Each step discards whole ranges of keys. With large nodes, one comparison sequence jumps over thousands of records.
+Each step discards whole ranges of keys. With large nodes, one comparison sequence can rule out many key ranges before the next node fetch.
 
 ### Insert
 
@@ -124,7 +124,7 @@ Splitting eagerly on the way down keeps recursion simple: you never insert into 
 
 ### Delete
 
-Delete is the fiddly one. Guarantees still hold if, before descending into a child with only t − 1 keys, you either **borrow** a key from a sibling or **merge** with a sibling.
+Deletion is the most intricate operation. Guarantees still hold if, before descending into a child with only t − 1 keys, you either **borrow** a key from a sibling or **merge** with a sibling.
 
 ```
 B-TREE-DELETE(x, k)
@@ -160,12 +160,12 @@ Borrowing rotates a separator key down and a sibling key up. Merging glues two l
 
 ## In the wild: B-trees as memory / database indexes
 
-Imagine a `users` table stored on disk (or in memory pages). Rows live in a **heap** — unsorted pages of records. Finding `WHERE id = 36` with no index means a **table scan**: read page 1, page 2, … until you hit the row (or finish the table).
+Imagine a `users` table stored in heap pages—unsorted pages of records. Finding `WHERE id = 36` with no index means a **table scan**: read page 1, page 2, … until you hit the row (or finish the table).
 
-A B-tree **secondary index** on `id` stores keys in tree order. Each leaf entry points at the heap page (or row id) that holds the full record. Lookup becomes:
+A production **secondary index**—usually a B+tree—stores keys in order, with leaf entries pointing to the heap page or row identifier that holds the full record. Lookup becomes:
 
 1. Walk a handful of index nodes from the root (one I/O each, unless cached).
-2. Read exactly one heap page for the row.
+2. Read the referenced heap page for the row, unless the index already covers the query.
 
 On large tables that difference is enormous: O(n) page reads vs O(logₜ n) index reads + 1 heap read.
 
@@ -192,7 +192,7 @@ Still, the mental model in the demo is the one that matters: **the tree turns a 
 | Operation | I/O / node visits | Notes |
 |---|---|---|
 | Search | O(logₜ n) | One node per level |
-| Insert | O(logₜ n) | Splits are O(1) work per level |
+| Insert | O(logₜ n) | O(1) page operations per level for fixed-size pages; O(t) in-node copying |
 | Delete | O(logₜ n) | Borrow/merge along the path |
 | Range scan (B+tree) | O(logₜ n + k) | k leaf entries after the first |
 
@@ -205,7 +205,7 @@ Space is O(n). Constants hide page size, key width, and caching — which is why
 - You want **stable logarithmic** behavior without rehashing a whole table.
 - You are building an index that must stay balanced as keys churn.
 
-Prefer a hash index for pure equality when order does not matter and you can afford rebuilds. Prefer an LSM tree when write throughput dominates and you can pay for compaction. For the classic “read-heavy relational index” job, B-trees (and B+trees) remain the default for a reason.
+Prefer a hash index for equality-only workloads when ordered scans do not matter. Prefer an LSM tree when sustained write throughput matters more than read and compaction costs. For the classic “read-heavy relational index” job, B-trees (and B+trees) remain the default for a reason.
 
 ## Try it
 

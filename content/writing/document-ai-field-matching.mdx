@@ -58,7 +58,7 @@ Set the threshold, then run the matcher. Watch spans light up, scores fill, and 
 | Amount | Auto | Currency shape + high OCR confidence |
 | Vendor | Review | OCR typo; semantic match saves it |
 | Date | Review | `O` vs `0`; normalize then confirm |
-| GL account | Ask | Weak lexical + messy label — do not invent books |
+| GL account | Ask | Weak lexical and semantic evidence—do not invent an accounting code |
 
 Raise the slider toward 95% and more fields flip to review/ask. That is the product dial: **automate what you can measure, escalate what you cannot**.
 
@@ -103,12 +103,12 @@ The weights should be learned or tuned on a held-out set, not copied from this t
 
 **Type validity** is a deterministic parser: does the date exist, does the decimal parse under the expected locale, does the currency match the document, and does the GL code exist in the tenant’s chart of accounts?
 
-Neither is enough alone:
+Lexical and semantic evidence are complementary; neither is sufficient alone:
 
 - Fuzzy without semantics misses paraphrases.
 - Semantics without fuzzy can map the wrong dollar amount to the right *idea*.
 
-Production systems keep a **per-field policy**: amounts and account numbers lean lexical; free-text descriptions lean semantic; everything money-touching has a hard refusal path.
+Production systems keep a **per-field policy**: amounts and account numbers lean lexical; free-text descriptions lean semantic; every field that can affect a financial record has a hard refusal path.
 
 ## Calibrate confidence before thresholding
 
@@ -141,11 +141,11 @@ Ask when any of these are true:
 
 1. Calibrated top score is below the field threshold.
 2. The margin `s₁ − s₂` between the best two candidates is too small.
-3. Downstream effect is irreversible (posting a journal entry)
+3. Downstream effect is irreversible (posting a journal entry).
 4. A typed parser or cross-field constraint fails.
 5. The input is out-of-distribution: unseen template, language, currency, or scan quality.
 
-Soft-confirm (“is this the vendor?”) is not the same as ask. Soft-confirm is one tap. Ask is a blank with suggestions. Mixing them up either burns trust or burns time.
+Use soft confirmation when the system has a likely answer that needs one-tap approval. Use an open-ended request when no candidate is reliable enough to propose. Conflating the two either erodes trust or adds unnecessary work.
 
 Cross-field constraints catch mistakes no local score can see:
 
@@ -163,7 +163,7 @@ Track, at minimum:
 
 - **Field precision / recall** by schema key (not a single micro-F1)
 - **Automation rate** at a fixed precision target
-- **User override rate** on auto-accepted fields (silent failures)
+- **User override rate** on auto-accepted fields (observed bad accepts)
 - **Time-to-complete** for review vs ask queues
 - **Calibration error** and reliability plots per field and document cohort
 - **Top-two ambiguity rate** and parser/constraint failure rate
@@ -202,4 +202,4 @@ Do not log sensitive document text indiscriminately. Encrypt retained artifacts,
 - Validate types and cross-field invariants before write-back.
 - Prefer asking over confident wrong write-backs — especially in finance.
 
-Next up in this series: when a specialized vision detector should replace a general vision-language model for real-time camera loops.
+The operational standard is simple: if the system cannot explain, validate, and replay a field decision, it should not write that field automatically.

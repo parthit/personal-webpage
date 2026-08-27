@@ -25,11 +25,11 @@ Reads can go to the leader or to a follower. Writes cannot, unless you change th
 
 <LeaderFollowerDemo />
 
-**Synchronous** replication waits until a follower has the write before the client is told “ok.” You pay in latency; you gain a second durable copy. **Asynchronous** replication returns as soon as the leader has it. Followers catch up in the background. That is how most production leader-based systems feel fast — and how they lose the newest writes if the leader dies first.
+**Synchronous** replication waits until a follower has the write before the client is told “ok.” You pay in latency; you gain a second durable copy. **Asynchronous** replication returns as soon as the leader has it. Followers catch up in the background. This lowers write latency, but an acknowledged write that has not reached a follower can be lost if the leader fails before replication completes.
 
 Hit **Crash leader** after an async write in the playground. The new leader is elected from what followers actually have. Anything that lived only on the dead node is gone.
 
-Failover is the rest of the single-leader story: detect the dead leader, choose a successor, make clients (and leftover followers) follow it, and hope you did not promote a replica that was too far behind. Split-brain — two nodes both believing they are leader — is how you get two histories that cannot be replayed as one.
+Failover is the rest of the single-leader story: detect the dead leader, choose a successor, make clients (and remaining followers) follow it, and avoid promoting a replica that is too far behind. Split-brain—two nodes both believing they are leader—is how you get two histories that cannot be replayed as one.
 
 ## What actually gets shipped
 
@@ -41,15 +41,15 @@ Followers do not magically “have the same tables.” They replay a **replicati
 | Write-ahead log (WAL) | The leader’s disk-level bytes | Tied to storage version; painful for online upgrades |
 | Logical / row-based | A sequence of row changes | More work to decode; much easier to reason about |
 
-Logical logging is the compromise most systems converge on: enough information to apply the same *effect*, without coupling followers to the leader’s exact storage engine build.
+Logical logging offers a common compromise: enough information to apply the same *effect* without coupling followers to the leader’s exact storage-engine build.
 
 ## Replication lag is a consistency model
 
 Once followers are allowed to trail the leader, “read a replica” is no longer the same as “read the database.” A few client-visible glitches show up immediately:
 
 - **Read-your-writes** — you post a like, refresh, and the follower still shows the old count.
-- **Monotonic reads** — first you see the new count, then a stickier replica shows the old one. Time appears to go backwards.
-- **Consistent prefix** — you see a reply before the message it replies to, because those writes hit different replicas in different orders (more of a multi-leader problem).
+- **Monotonic reads** — first you see the new count, then a later request reaches a more lagging replica and shows the old one. Time appears to go backwards.
+- **Consistent prefix** — you observe causally related writes out of order, such as a reply appearing before its parent message. This is especially relevant when partitions or leaders replicate independently.
 
 <StaleReadDemo />
 
@@ -77,7 +77,7 @@ If there are *N* replicas, a write waits for *W* acks and a read waits for *R* r
 
 **W + R > N**
 
-Then every read quorum overlaps every write quorum, so a completed write cannot hide from a later read — at least in the “one write at a time, no sloppy quorums” cartoon. The playground writes the first *W* nodes and reads the last *R*, so the sets are disjoint exactly when the inequality fails.
+Under the simplified assumptions of one write at a time and fixed home replicas, every read quorum then overlaps every write quorum. The read can encounter a replica that acknowledged the completed write, but it still needs a sound versioning and conflict-resolution rule to select the right value. The playground writes the first *W* nodes and reads the last *R*, so the sets are disjoint exactly when the inequality fails.
 
 <QuorumDemo />
 
@@ -96,6 +96,6 @@ Quorums also do not automatically give you transactions or unique constraints. T
 
 ## What to try
 
-In the first playground, write **async**, read **London**, then **crash the leader**. That sequence is the whole chapter in thirty seconds: a copy that is allowed to lag is a copy that can lie, and a copy that has not caught up cannot be promoted without losing data.
+In the first playground, write **async**, read **London**, then **crash the leader**. That sequence captures the central trade-off: a replica that is allowed to lag can return stale data, and one that has not caught up cannot be promoted without losing acknowledged writes.
 
-Synchronous replication, session pinning, and *W + R > N* are three different answers to the same question: **which writes is this read allowed not to see?**
+Synchronous replication, session pinning, and *W + R > N* are three different answers to the same question: **which writes is a read allowed not to see?**
