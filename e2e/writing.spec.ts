@@ -157,7 +157,7 @@ test.describe("writing section", () => {
     await expect(deleteBtn).toBeEnabled({ timeout: 5_000 });
 
     await expect(
-      page.getByRole("heading", { name: "Interactive index demo" })
+      page.getByRole("heading", { name: "Watch the page reads" })
     ).toBeVisible();
 
     const indexDemo = page.locator("[data-btree-index-demo]");
@@ -206,7 +206,7 @@ test.describe("writing section", () => {
     ).toHaveCount(indexHistoryCount);
 
     await expect(
-      page.getByRole("heading", { name: "Complexity cheatsheet" })
+      page.getByRole("heading", { name: "Costs at a glance" })
     ).toBeVisible();
     const cheatsheet = page
       .getByRole("table")
