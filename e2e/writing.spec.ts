@@ -60,7 +60,7 @@ test.describe("writing section", () => {
       page.getByRole("heading", { name: BTREE_POST.title })
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Interactive B-tree" })
+      page.getByRole("heading", { name: "Break one yourself" })
     ).toBeVisible();
 
     const visualizer = page.locator("[data-btree-visualizer]");
