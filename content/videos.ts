@@ -10,7 +10,7 @@ export const videos: Video[] = [
     slug: "architecture-system-design-interviews",
     title: "Intro to Architecture and Systems Design Interviews",
     summary:
-      "Jackson Gabbard explains what architecture interviews evaluate and how to communicate trade-offs, constraints, and technical leadership.",
+      "A clear explanation from Jackson Gabbard of what these interviews are really testing—and how to talk through the trade-offs without hand-waving.",
     youtubeId: "ZgdS0EUmn70",
     topics: ["system-design", "interviews"],
     publishedAt: "2016-07-31",

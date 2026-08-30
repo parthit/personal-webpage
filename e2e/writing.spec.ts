@@ -41,7 +41,7 @@ test.describe("writing section", () => {
     const description = page.locator('meta[name="description"]');
     await expect(description).toHaveAttribute(
       "content",
-      /confidence thresholds/i
+      /messy document text/i
     );
 
     // SVG covers are fine in-page but not for social previews.
@@ -60,7 +60,7 @@ test.describe("writing section", () => {
       page.getByRole("heading", { name: BTREE_POST.title })
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Interactive B-tree" })
+      page.getByRole("heading", { name: "Break one yourself" })
     ).toBeVisible();
 
     const visualizer = page.locator("[data-btree-visualizer]");
@@ -157,7 +157,7 @@ test.describe("writing section", () => {
     await expect(deleteBtn).toBeEnabled({ timeout: 5_000 });
 
     await expect(
-      page.getByRole("heading", { name: "Interactive index demo" })
+      page.getByRole("heading", { name: "Watch the page reads" })
     ).toBeVisible();
 
     const indexDemo = page.locator("[data-btree-index-demo]");
@@ -206,7 +206,7 @@ test.describe("writing section", () => {
     ).toHaveCount(indexHistoryCount);
 
     await expect(
-      page.getByRole("heading", { name: "Complexity cheatsheet" })
+      page.getByRole("heading", { name: "Costs at a glance" })
     ).toBeVisible();
     const cheatsheet = page
       .getByRole("table")
@@ -422,7 +422,7 @@ test.describe("writing section", () => {
       page.getByRole("heading", { name: DOCUMENT_AI_POST.title })
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Scope and assumptions" })
+      page.getByRole("heading", { name: "From a page to a field" })
     ).toBeVisible();
 
     const cover = page.locator(
@@ -461,7 +461,7 @@ test.describe("writing section", () => {
       page.getByRole("heading", { name: VISION_VLM_POST.title })
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Scope and assumptions" })
+      page.getByRole("heading", { name: "Why the gap gets so large" })
     ).toBeVisible();
 
     const cover = page.locator(

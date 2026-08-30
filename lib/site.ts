@@ -8,7 +8,7 @@ export const SITE_NAME = "Parthit Patel";
 export const SITE_TITLE = "Parthit Patel — Full-Stack Engineer";
 
 export const SITE_DESCRIPTION =
-  "Portfolio of Parthit Patel, a full-stack engineer at Intuit building for QuickBooks Online. Explore projects and writing on applied AI, system design, and dependable products.";
+  "Parthit Patel is a full-stack engineer at Intuit. Notes and projects on applied AI, databases, and building software that holds up in practice.";
 
 export const SITE_KEYWORDS = [
   "Parthit Patel",
