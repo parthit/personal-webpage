@@ -75,101 +75,112 @@ export function AnimationPlayer<T>({
       data-playback-rate={player.rate}
       data-playback-at-end={player.atEnd ? "true" : "false"}
     >
-      <div className="flex items-center gap-2">
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          className="h-8 w-8 shrink-0"
-          onClick={() => player.seek(0)}
-          disabled={!player.canStepBackward}
-          aria-label="Go to beginning"
-        >
-          <SkipBack className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          className="h-8 w-8 shrink-0"
-          onClick={player.stepBackward}
-          disabled={!player.canStepBackward}
-          aria-label="Previous step"
-        >
-          <StepBack className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          type="button"
-          size="icon"
-          className="h-8 w-8 shrink-0"
-          onClick={playing ? player.pause : player.play}
-          disabled={!hasTimeline}
-          aria-label={
-            playing
-              ? "Pause animation"
-              : showReplay
-                ? "Replay animation"
-                : "Play animation"
-          }
-        >
-          {playing ? (
-            <Pause className="h-3.5 w-3.5" />
-          ) : showReplay ? (
-            <RotateCcw className="h-3.5 w-3.5" />
-          ) : (
-            <Play className="h-3.5 w-3.5" />
-          )}
-        </Button>
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          className="h-8 w-8 shrink-0"
-          onClick={player.stepForward}
-          disabled={!player.canStepForward}
-          aria-label="Next step"
-        >
-          <StepForward className="h-3.5 w-3.5" />
-        </Button>
-
-        <div className="min-w-0 flex-1 px-1">
-          <Slider
-            min={0}
-            max={Math.max(0, player.steps.length - 1)}
-            step={1}
-            value={[player.index]}
-            onValueChange={([index]) => player.seek(index)}
-            aria-label="Animation step"
-            disabled={player.steps.length <= 1}
-          />
-        </div>
-        <span
-          className="w-14 shrink-0 text-right text-xs tabular-nums text-gray-500 dark:text-gray-400"
-          data-animation-step-count
-        >
-          {player.index + 1} / {player.steps.length}
-        </span>
-      </div>
-
-      {/* Dwell meter: how much of the current step's hold time is left. */}
+      {/*
+       * Before the first run there is nothing to scrub: a seeded timeline of one
+       * step would show a dead slider, a "1 / 1" counter, and a history entry
+       * repeating the demo's own status line. Reveal the transport once a run
+       * gives it something to move through.
+       */}
       {hasTimeline ? (
-        <div
-          className="mt-2.5 h-0.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800"
-          aria-hidden="true"
-        >
+        <>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className="h-8 w-8 shrink-0"
+              onClick={() => player.seek(0)}
+              disabled={!player.canStepBackward}
+              aria-label="Go to beginning"
+            >
+              <SkipBack className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className="h-8 w-8 shrink-0"
+              onClick={player.stepBackward}
+              disabled={!player.canStepBackward}
+              aria-label="Previous step"
+            >
+              <StepBack className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={playing ? player.pause : player.play}
+              aria-label={
+                playing
+                  ? "Pause animation"
+                  : showReplay
+                    ? "Replay animation"
+                    : "Play animation"
+              }
+            >
+              {playing ? (
+                <Pause className="h-3.5 w-3.5" />
+              ) : showReplay ? (
+                <RotateCcw className="h-3.5 w-3.5" />
+              ) : (
+                <Play className="h-3.5 w-3.5" />
+              )}
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className="h-8 w-8 shrink-0"
+              onClick={player.stepForward}
+              disabled={!player.canStepForward}
+              aria-label="Next step"
+            >
+              <StepForward className="h-3.5 w-3.5" />
+            </Button>
+
+            <div className="min-w-0 flex-1 px-1">
+              <Slider
+                min={0}
+                max={Math.max(0, player.steps.length - 1)}
+                step={1}
+                value={[player.index]}
+                onValueChange={([index]) => player.seek(index)}
+                aria-label="Animation step"
+              />
+            </div>
+            <span
+              className="w-14 shrink-0 text-right text-xs tabular-nums text-gray-500 dark:text-gray-400"
+              data-animation-step-count
+            >
+              {player.index + 1} / {player.steps.length}
+            </span>
+          </div>
+
+          {/* Dwell meter: how much of the current step's hold time is left. */}
           <div
-            key={`${player.index}-${player.steps.length}-${player.rate}`}
-            data-animation-step-progress
-            className="anim-step-progress h-full w-full rounded-full bg-amber-500 dark:bg-amber-400"
-            style={{
-              animationDuration: `${Math.max(player.currentDurationMs, 1)}ms`,
-              animationPlayState: playing ? "running" : "paused",
-            }}
-          />
-        </div>
+            className="mt-2.5 h-0.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800"
+            aria-hidden="true"
+          >
+            <div
+              key={`${player.index}-${player.steps.length}-${player.rate}`}
+              data-animation-step-progress
+              className="anim-step-progress h-full w-full rounded-full bg-amber-500 dark:bg-amber-400"
+              style={{
+                animationDuration: `${Math.max(player.currentDurationMs, 1)}ms`,
+                animationPlayState: playing ? "running" : "paused",
+              }}
+            />
+          </div>
+        </>
       ) : null}
 
-      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <div
+        className={cn(
+          "flex flex-wrap items-center justify-between gap-x-4 gap-y-2",
+          hasTimeline && "mt-2.5"
+        )}
+      >
         {hasTimeline ? (
           <p
             className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-300"
@@ -201,48 +212,50 @@ export function AnimationPlayer<T>({
         />
       </div>
 
-      <details className="group mt-3" open>
-        <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium text-gray-600 marker:hidden dark:text-gray-300">
-          <History className="h-3.5 w-3.5" />
-          Step history
-          <span className="text-gray-400">({player.steps.length})</span>
-        </summary>
-        <ol
-          ref={historyRef}
-          className="mt-2 max-h-32 space-y-1 overflow-y-auto overscroll-contain pr-1 text-xs"
-          aria-label="Animation step history"
-          data-animation-history
-        >
-          {player.steps.map((step, index) => {
-            const active = index === player.index;
-            const past = index < player.index;
-            return (
-              <li key={`${index}-${step.label}`}>
-                <button
-                  type="button"
-                  className={cn(
-                    "flex w-full items-start gap-2 rounded px-2 py-1.5 text-left transition-colors",
-                    active
-                      ? "bg-amber-100 font-medium text-amber-950 dark:bg-amber-950 dark:text-amber-100"
-                      : past
-                        ? "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-                        : "text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-800"
-                  )}
-                  onClick={() => player.seek(index)}
-                  aria-label={`Go to animation step ${index + 1}`}
-                  aria-current={active ? "step" : undefined}
-                  data-history-step={index}
-                >
-                  <span className="w-5 shrink-0 text-right tabular-nums">
-                    {index + 1}.
-                  </span>
-                  <span>{step.label}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-      </details>
+      {hasTimeline ? (
+        <details className="group mt-3" open>
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium text-gray-600 marker:hidden dark:text-gray-300">
+            <History className="h-3.5 w-3.5" />
+            Step history
+            <span className="text-gray-400">({player.steps.length})</span>
+          </summary>
+          <ol
+            ref={historyRef}
+            className="mt-2 max-h-32 space-y-1 overflow-y-auto overscroll-contain pr-1 text-xs"
+            aria-label="Animation step history"
+            data-animation-history
+          >
+            {player.steps.map((step, index) => {
+              const active = index === player.index;
+              const past = index < player.index;
+              return (
+                <li key={`${index}-${step.label}`}>
+                  <button
+                    type="button"
+                    className={cn(
+                      "flex w-full items-start gap-2 rounded px-2 py-1.5 text-left transition-colors",
+                      active
+                        ? "bg-amber-100 font-medium text-amber-950 dark:bg-amber-950 dark:text-amber-100"
+                        : past
+                          ? "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                          : "text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-800"
+                    )}
+                    onClick={() => player.seek(index)}
+                    aria-label={`Go to animation step ${index + 1}`}
+                    aria-current={active ? "step" : undefined}
+                    data-history-step={index}
+                  >
+                    <span className="w-5 shrink-0 text-right tabular-nums">
+                      {index + 1}.
+                    </span>
+                    <span>{step.label}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </details>
+      ) : null}
     </section>
   );
 }

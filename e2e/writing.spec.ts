@@ -227,11 +227,16 @@ test.describe("writing section", () => {
     await demo.scrollIntoViewIfNeeded();
     const player = demo.locator("[data-animation-player]");
 
-    // Nothing has run yet, so there is no timeline to play.
+    // Nothing has run yet, so the transport stays out of the way.
     await expect(player).toHaveAttribute("data-playback-status", "idle");
     await expect(
       player.getByRole("button", { name: /Play animation/ })
-    ).toBeDisabled();
+    ).toHaveCount(0);
+    await expect(
+      player.getByRole("slider", { name: "Animation step" })
+    ).toHaveCount(0);
+    await expect(player.locator("[data-animation-history]")).toHaveCount(0);
+    await expect(player).toContainText(/Run an operation above/i);
 
     // A faster rate keeps this test honest about the animation still running.
     const speed = player.locator('[data-segmented-control="playback-rate"]');

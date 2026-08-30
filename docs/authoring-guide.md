@@ -130,7 +130,8 @@ only embed a registered demo component.
    `<AnimationPlayer player={player} />`. It owns play/pause, replay at the end
    of the timeline, step forward/back, the scrub slider, a 0.5×–2× speed
    selector, a dwell meter for the current step, the playback status line, and
-   the step history.
+   the step history. Before the first run it collapses to a speed selector and a
+   one-line hint, so seeding the player with a single idle step costs nothing.
 5. Use `player.run(steps)` to append and play an operation. Use `player.reset`
    only when the demo itself resets; reset intentionally clears history.
 
