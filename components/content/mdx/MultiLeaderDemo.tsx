@@ -4,6 +4,10 @@ import { useState } from "react";
 import { AnimationPlayer } from "@/components/animation/AnimationPlayer";
 import { Button } from "@/components/ui/button";
 import {
+  SegmentedControl,
+  type SegmentedOption,
+} from "@/components/ui/segmented-control";
+import {
   createMultiLeaderCluster,
   type ConflictStrategy,
 } from "@/lib/replication/model";
@@ -18,11 +22,25 @@ import { useSimPlayback } from "./replication/useSimPlayback";
 const IDLE =
   "Both datacenters start with bread. Partition them, add milk in NYC and eggs in London, then heal the link.";
 
+const CONFLICT_STRATEGY_OPTIONS: SegmentedOption<ConflictStrategy>[] = [
+  {
+    value: "last-write-wins",
+    label: "Last write wins",
+    hint: "Keep the newer timestamp and drop the other cart. Simple, and it silently loses one shopper's item.",
+  },
+  {
+    value: "union-merge",
+    label: "Union merge",
+    hint: "Keep both items. Nothing is lost, but the app has to define what merging means for this data.",
+  },
+];
+
 export function MultiLeaderDemo() {
-  const { view, busy, replicasRef, run, reset, playback } = useSimPlayback(
-    createMultiLeaderCluster(),
-    IDLE
-  );
+  const { view, busy, motion, replicasRef, run, reset, playback } =
+    useSimPlayback(
+      createMultiLeaderCluster(),
+      IDLE
+    );
   const [strategy, setStrategy] = useState<ConflictStrategy>("last-write-wins");
 
   async function onPartition() {
@@ -48,31 +66,15 @@ export function MultiLeaderDemo() {
       </figcaption>
 
       <div className="space-y-3 border-b border-gray-200 px-3 py-3 sm:px-4 dark:border-gray-700">
-        <fieldset className="flex flex-col gap-1 text-xs text-gray-600 dark:text-gray-400">
-          <legend>On heal</legend>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={strategy === "last-write-wins" ? "default" : "outline"}
-              disabled={busy}
-              aria-pressed={strategy === "last-write-wins"}
-              onClick={() => setStrategy("last-write-wins")}
-            >
-              Last-write-wins
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={strategy === "union-merge" ? "default" : "outline"}
-              disabled={busy}
-              aria-pressed={strategy === "union-merge"}
-              onClick={() => setStrategy("union-merge")}
-            >
-              Union merge
-            </Button>
-          </div>
-        </fieldset>
+        <SegmentedControl
+          label="What happens to the two carts when the link heals"
+          value={strategy}
+          options={CONFLICT_STRATEGY_OPTIONS}
+          onValueChange={setStrategy}
+          disabled={busy}
+          hint
+          data-testid="conflict-strategy"
+        />
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Button
             type="button"
@@ -106,17 +108,6 @@ export function MultiLeaderDemo() {
             Reset
           </Button>
         </div>
-        {busy ? (
-          <p
-            className="text-xs font-medium text-amber-700 dark:text-amber-300"
-            aria-live="polite"
-          >
-            Animating
-            {view.stepInfo
-              ? ` — step ${view.stepInfo.index} of ${view.stepInfo.total}`
-              : "…"}
-          </p>
-        ) : null}
       </div>
 
       <div className="p-3 sm:p-4">
@@ -127,6 +118,8 @@ export function MultiLeaderDemo() {
           fromId={view.fromId}
           toId={view.toId}
           packetLabel={packet}
+          playing={motion.playing}
+          stepDurationMs={motion.stepDurationMs}
           topology="multi-leader"
           linkBroken={view.linkBroken ?? false}
           ariaLabel="Two multi-leader datacenters"

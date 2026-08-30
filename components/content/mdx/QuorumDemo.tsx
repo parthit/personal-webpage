@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { AnimationPlayer } from "@/components/animation/AnimationPlayer";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import {
   createPeerCluster,
   quorumSafe,
@@ -21,11 +22,53 @@ const N = 5;
 const IDLE =
   "Writes go to the first W nodes; reads come from the last R. Sets overlap only when W+R > N.";
 
-export function QuorumDemo() {
-  const { view, busy, replicasRef, run, reset, playback } = useSimPlayback(
-    createPeerCluster(N),
-    IDLE
+function QuorumSlider({
+  label,
+  ariaLabel,
+  max,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  ariaLabel: string;
+  max: number;
+  value: number;
+  disabled: boolean;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+      <span>
+        {label} ={" "}
+        <span className="tabular-nums text-gray-900 dark:text-gray-100">
+          {value}
+        </span>
+      </span>
+      <div className="flex h-8 items-center gap-3">
+        <Slider
+          min={1}
+          max={max}
+          step={1}
+          value={[value]}
+          disabled={disabled}
+          onValueChange={([next]) => onChange(next)}
+          aria-label={ariaLabel}
+        />
+        <span className="shrink-0 text-[10px] font-normal text-gray-400 dark:text-gray-500">
+          1–{max}
+        </span>
+      </div>
+    </div>
   );
+}
+
+export function QuorumDemo() {
+  const { view, busy, motion, replicasRef, run, reset, playback } =
+    useSimPlayback(
+      createPeerCluster(N),
+      IDLE
+    );
   const [w, setW] = useState(2);
   const [r, setR] = useState(2);
   const [value, setValue] = useState("42");
@@ -56,40 +99,32 @@ export function QuorumDemo() {
       </figcaption>
 
       <div className="space-y-3 border-b border-gray-200 px-3 py-3 sm:px-4 dark:border-gray-700">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="flex flex-col gap-1 text-xs text-gray-600 dark:text-gray-400">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <label className="flex flex-col gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400">
             Value
             <input
               value={value}
               onChange={(e) => setValue(e.target.value)}
               disabled={busy}
-              className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-500 disabled:opacity-60 sm:h-9 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
+              className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-500 disabled:opacity-60 sm:h-8 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
             />
           </label>
-          <label className="flex flex-col gap-1 text-xs text-gray-600 dark:text-gray-400">
-            W (write quorum) = {w}
-            <input
-              type="range"
-              min={1}
-              max={N}
-              value={w}
-              disabled={busy}
-              onChange={(e) => setW(Number(e.target.value))}
-              aria-label="Write quorum W"
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-gray-600 dark:text-gray-400">
-            R (read quorum) = {r}
-            <input
-              type="range"
-              min={1}
-              max={N}
-              value={r}
-              disabled={busy}
-              onChange={(e) => setR(Number(e.target.value))}
-              aria-label="Read quorum R"
-            />
-          </label>
+          <QuorumSlider
+            label="W (write quorum)"
+            ariaLabel="Write quorum W"
+            max={N}
+            value={w}
+            disabled={busy}
+            onChange={setW}
+          />
+          <QuorumSlider
+            label="R (read quorum)"
+            ariaLabel="Read quorum R"
+            max={N}
+            value={r}
+            disabled={busy}
+            onChange={setR}
+          />
         </div>
         <p
           className="text-xs text-gray-600 dark:text-gray-400"
@@ -146,17 +181,6 @@ export function QuorumDemo() {
             Reset
           </Button>
         </div>
-        {busy ? (
-          <p
-            className="text-xs font-medium text-amber-700 dark:text-amber-300"
-            aria-live="polite"
-          >
-            Animating
-            {view.stepInfo
-              ? ` — step ${view.stepInfo.index} of ${view.stepInfo.total}`
-              : "…"}
-          </p>
-        ) : null}
       </div>
 
       <div className="p-3 sm:p-4">
@@ -167,6 +191,8 @@ export function QuorumDemo() {
           fromId={view.fromId}
           toId={view.toId}
           packetLabel={packet}
+          playing={motion.playing}
+          stepDurationMs={motion.stepDurationMs}
           topology="quorum"
           ariaLabel="Five leaderless replicas"
         />

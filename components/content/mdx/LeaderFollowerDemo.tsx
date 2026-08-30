@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { AnimationPlayer } from "@/components/animation/AnimationPlayer";
 import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   createLeaderCluster,
   type WriteMode,
 } from "@/lib/replication/model";
+import { WRITE_MODE_OPTIONS } from "./replication/writeMode";
 import {
   buildCatchupFrames,
   buildFailoverFrames,
@@ -18,13 +20,14 @@ import { ReplicaGraph } from "./replication/ReplicaGraph";
 import { useSimPlayback } from "./replication/useSimPlayback";
 
 const IDLE =
-  "Write a likes count to the leader. Sync waits for followers; async acks first and replicas lag.";
+  "Pick how the leader acknowledges, write a likes count, then read each replica to see who has caught up.";
 
 export function LeaderFollowerDemo() {
-  const { view, busy, replicasRef, run, reset, playback } = useSimPlayback(
-    createLeaderCluster(),
-    IDLE
-  );
+  const { view, busy, motion, replicasRef, run, reset, playback } =
+    useSimPlayback(
+      createLeaderCluster(),
+      IDLE
+    );
   const [mode, setMode] = useState<WriteMode>("asynchronous");
   const [value, setValue] = useState("7");
 
@@ -56,42 +59,27 @@ export function LeaderFollowerDemo() {
       </figcaption>
 
       <div className="space-y-3 border-b border-gray-200 px-3 py-3 sm:px-4 dark:border-gray-700">
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-          <label className="flex min-w-[8rem] flex-1 flex-col gap-1 text-xs text-gray-600 dark:text-gray-400">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start">
+          <label className="flex w-full flex-col gap-1.5 text-xs font-medium text-gray-600 sm:w-40 dark:text-gray-400">
             New likes value
             <input
               value={value}
               onChange={(e) => setValue(e.target.value)}
               disabled={busy}
               inputMode="numeric"
-              className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-500 disabled:opacity-60 sm:h-9 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
+              className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-500 disabled:opacity-60 sm:h-8 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
             />
           </label>
-          <fieldset className="flex flex-col gap-1 text-xs text-gray-600 dark:text-gray-400">
-            <legend>Durability</legend>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={mode === "asynchronous" ? "default" : "outline"}
-                disabled={busy}
-                aria-pressed={mode === "asynchronous"}
-                onClick={() => setMode("asynchronous")}
-              >
-                Async
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={mode === "synchronous" ? "default" : "outline"}
-                disabled={busy}
-                aria-pressed={mode === "synchronous"}
-                onClick={() => setMode("synchronous")}
-              >
-                Sync
-              </Button>
-            </div>
-          </fieldset>
+          <SegmentedControl
+            label="How the leader acknowledges the write"
+            value={mode}
+            options={WRITE_MODE_OPTIONS}
+            onValueChange={setMode}
+            disabled={busy}
+            hint
+            className="w-full sm:min-w-0 sm:flex-1 sm:basis-64"
+            data-testid="write-mode"
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
@@ -151,18 +139,6 @@ export function LeaderFollowerDemo() {
             Reset
           </Button>
         </div>
-
-        {busy ? (
-          <p
-            className="text-xs font-medium text-amber-700 dark:text-amber-300"
-            aria-live="polite"
-          >
-            Animating
-            {view.stepInfo
-              ? ` — step ${view.stepInfo.index} of ${view.stepInfo.total}`
-              : "…"}
-          </p>
-        ) : null}
       </div>
 
       <div className="p-3 sm:p-4">
@@ -173,6 +149,8 @@ export function LeaderFollowerDemo() {
           fromId={view.fromId}
           toId={view.toId}
           packetLabel={packet}
+          playing={motion.playing}
+          stepDurationMs={motion.stepDurationMs}
           topology="leader-tree"
           ariaLabel="Leader and two follower replicas"
         />

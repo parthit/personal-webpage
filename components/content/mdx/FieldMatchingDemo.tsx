@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AnimationPlayer } from "@/components/animation/AnimationPlayer";
 import { useAnimationPlayer } from "@/components/animation/useAnimationPlayer";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_THRESHOLD,
@@ -185,19 +186,28 @@ export function FieldMatchingDemo() {
       </figcaption>
 
       <div className="space-y-3 border-b border-gray-200 px-3 py-3 sm:px-4 dark:border-gray-700">
-        <label className="flex flex-col gap-1 text-xs text-gray-600 dark:text-gray-400">
-          Auto-accept threshold = {(threshold * 100).toFixed(0)}%
-          <input
-            type="range"
-            min={70}
-            max={95}
-            step={1}
-            value={Math.round(threshold * 100)}
-            disabled={busy}
-            aria-label="Auto-accept confidence threshold"
-            onChange={(e) => setThreshold(Number(e.target.value) / 100)}
-          />
-        </label>
+        <div className="flex max-w-sm flex-col gap-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+          <span>
+            Auto-accept threshold ={" "}
+            <span className="tabular-nums text-gray-900 dark:text-gray-100">
+              {(threshold * 100).toFixed(0)}%
+            </span>
+          </span>
+          <div className="flex h-8 items-center gap-3">
+            <Slider
+              min={70}
+              max={95}
+              step={1}
+              value={[Math.round(threshold * 100)]}
+              disabled={busy}
+              aria-label="Auto-accept confidence threshold"
+              onValueChange={([next]) => setThreshold(next / 100)}
+            />
+            <span className="shrink-0 text-[10px] font-normal text-gray-400 dark:text-gray-500">
+              70–95%
+            </span>
+          </div>
+        </div>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Button
             type="button"
@@ -218,14 +228,6 @@ export function FieldMatchingDemo() {
             Reset
           </Button>
         </div>
-        {busy ? (
-          <p
-            className="text-xs font-medium text-amber-700 dark:text-amber-300"
-            aria-live="polite"
-          >
-            Animating — step {playback.index + 1} of {playback.steps.length}
-          </p>
-        ) : null}
       </div>
 
       <div className="grid gap-4 p-3 sm:p-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">

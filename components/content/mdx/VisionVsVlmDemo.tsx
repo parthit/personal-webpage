@@ -187,14 +187,6 @@ export function VisionVsVlmDemo() {
           )}
           pp.
         </p>
-        {busy ? (
-          <p
-            className="text-xs font-medium text-amber-700 dark:text-amber-300"
-            aria-live="polite"
-          >
-            Animating — step {playback.index + 1} of {playback.steps.length}
-          </p>
-        ) : null}
       </div>
 
       <div className="grid gap-4 p-3 sm:p-4 lg:grid-cols-2">
