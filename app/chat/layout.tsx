@@ -3,14 +3,14 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Contact",
   description:
-    "Book a conversation with Parthit Patel to talk about engineering, system design, or building products.",
+    "Find a time to chat with Parthit Patel about software, AI, or small-business products.",
   alternates: {
     canonical: "/chat",
   },
   openGraph: {
     title: "Contact · Parthit Patel",
     description:
-      "Book a conversation with Parthit Patel to talk about engineering, system design, or building products.",
+      "Find a time to chat with Parthit Patel about software, AI, or small-business products.",
     url: "/chat",
     type: "website",
   },
