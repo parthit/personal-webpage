@@ -16,6 +16,10 @@ import {
 } from "@/lib/replication/layout";
 import { ReplicaCard } from "./ReplicaCard";
 
+/** Packets should land a little before the next step swaps the frame. */
+const PACKET_FLIGHT_FRACTION = 0.72;
+const PACKET_MIN_MS = 280;
+
 export function ReplicaGraph({
   replicas,
   highlightIds,
@@ -26,6 +30,8 @@ export function ReplicaGraph({
   topology,
   linkBroken = false,
   ariaLabel,
+  playing = false,
+  stepDurationMs,
 }: {
   replicas: Replica[];
   highlightIds: string[];
@@ -36,6 +42,10 @@ export function ReplicaGraph({
   topology: GraphTopology;
   linkBroken?: boolean;
   ariaLabel: string;
+  /** Packets only fly while the timeline is running. */
+  playing?: boolean;
+  /** Dwell of the current step, already scaled by playback speed. */
+  stepDurationMs?: number;
 }) {
   const markerId = useId().replace(/:/g, "");
   const reducedMotion = useSyncExternalStore(
@@ -183,30 +193,34 @@ export function ReplicaGraph({
                   (e.from === hop.toId && e.to === hop.fromId)
               )?.kind ?? "client";
             const d = edgePath(from, to, kind, centroid);
-            const pts = edgeEndpoints(from, to);
             const ctrl = controlPoint(from, to, kind, centroid);
-            const reduced = reducedMotion;
-            const restX = pts.x1 + (pts.x2 - pts.x1) * 0.72;
-            const restY = pts.y1 + (pts.y2 - pts.y1) * 0.72;
+            const inFlight = playing && !reducedMotion;
             return (
               <g key={`${hop.fromId}-${hop.toId}-${hopKey}`}>
-                {reduced ? (
-                  <circle
-                    cx={restX}
-                    cy={restY}
-                    r={5.5}
-                    data-repl-packet
-                    className="fill-amber-500 dark:fill-amber-400"
-                  />
-                ) : (
-                  <circle
-                    r={5.5}
-                    data-repl-packet
-                    className="fill-amber-500 dark:fill-amber-400"
-                  >
-                    <animateMotion dur="1.2s" fill="freeze" path={d} />
-                  </circle>
-                )}
+                {/* Ringed so the token stays readable on top of the amber wire. */}
+                <circle
+                  cx={0}
+                  cy={0}
+                  r={6}
+                  strokeWidth={2.5}
+                  data-repl-packet
+                  data-repl-packet-flying={inFlight ? "true" : "false"}
+                  className={cn(
+                    "fill-amber-500 stroke-white dark:fill-amber-300 dark:stroke-gray-950",
+                    inFlight && "repl-packet"
+                  )}
+                  style={{
+                    offsetPath: `path("${d}")`,
+                    offsetRotate: "0deg",
+                    ...(inFlight
+                      ? {
+                          ["--repl-packet-duration" as string]: `${packetFlightMs(
+                            stepDurationMs
+                          )}ms`,
+                        }
+                      : { offsetDistance: "100%" }),
+                  }}
+                />
                 {hop.label ? (
                   <text
                     x={ctrl.x}
@@ -224,18 +238,25 @@ export function ReplicaGraph({
         </svg>
 
         {layout.nodes.map((node) => {
+          // Positioned by transform so a failover reshuffle glides between
+          // layouts instead of teleporting the cards.
+          const placement = {
+            left: 0,
+            top: 0,
+            width: node.width,
+            height: node.height,
+            transform: `translate(${node.x - node.width / 2}px, ${
+              node.y - node.height / 2
+            }px)`,
+          };
+
           if (node.kind === "client") {
             return (
               <div
                 key={node.id}
                 data-repl-client={node.id}
-                className="pointer-events-none absolute flex items-center justify-center rounded-full border border-gray-300 bg-white px-2 text-[10px] font-semibold uppercase tracking-wide text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-950 dark:text-gray-300"
-                style={{
-                  left: node.x - node.width / 2,
-                  top: node.y - node.height / 2,
-                  width: node.width,
-                  height: node.height,
-                }}
+                className="repl-node pointer-events-none absolute flex items-center justify-center rounded-full border border-gray-300 bg-white px-2 text-[10px] font-semibold uppercase tracking-wide text-gray-600 shadow-sm dark:border-gray-600 dark:bg-gray-950 dark:text-gray-300"
+                style={placement}
               >
                 {node.label}
               </div>
@@ -244,16 +265,7 @@ export function ReplicaGraph({
           const replica = replicaById.get(node.replicaId ?? "");
           if (!replica) return null;
           return (
-            <div
-              key={node.id}
-              className="absolute"
-              style={{
-                left: node.x - node.width / 2,
-                top: node.y - node.height / 2,
-                width: node.width,
-                height: node.height,
-              }}
-            >
+            <div key={node.id} className="repl-node absolute" style={placement}>
               <ReplicaCard
                 replica={replica}
                 highlight={highlightIds.includes(replica.id)}
@@ -265,6 +277,11 @@ export function ReplicaGraph({
       </div>
     </div>
   );
+}
+
+function packetFlightMs(stepDurationMs?: number): number {
+  if (!stepDurationMs || stepDurationMs <= 0) return 1200;
+  return Math.max(PACKET_MIN_MS, Math.round(stepDurationMs * PACKET_FLIGHT_FRACTION));
 }
 
 function edgePath(

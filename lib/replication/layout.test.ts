@@ -103,6 +103,17 @@ describe("replica graph layout", () => {
     ]);
   });
 
+  it("draws no packet for a purely local append", () => {
+    const layout = layoutLeaderTree(createLeaderCluster());
+    const hops = packetHops(layout, {
+      kind: "leader-apply",
+      toId: "nyc",
+      highlightIds: ["nyc"],
+      label: "apply locally",
+    });
+    assert.deepEqual(hops, [], "writing to your own log crosses no edge");
+  });
+
   it("routes replication packets along the leader→follower edge", () => {
     const layout = layoutLeaderTree(createLeaderCluster());
     const hops = packetHops(layout, {

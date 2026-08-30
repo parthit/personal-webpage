@@ -27,15 +27,16 @@ export function ReplicaCard({
       data-replica-id={replica.id}
       data-replica-alive={replica.alive ? "true" : "false"}
       data-replica-role={replica.role}
+      data-replica-highlight={highlight && replica.alive ? "true" : "false"}
       className={cn(
-        "relative h-full w-full rounded-2xl border bg-white shadow-sm transition-shadow dark:bg-gray-950",
+        "relative h-full w-full rounded-2xl border bg-white shadow-sm transition-colors dark:bg-gray-950",
         compact ? "flex flex-col justify-center p-2.5" : "min-w-[8.5rem] flex-1 basis-[9rem] p-3",
         replica.alive
           ? "border-gray-200 dark:border-gray-700"
           : "border-red-300 bg-red-50 opacity-80 dark:border-red-800 dark:bg-red-950/40",
-        highlight &&
-          replica.alive &&
-          "ring-2 ring-amber-400 ring-offset-2 ring-offset-gray-50 motion-safe:animate-pulse dark:ring-offset-gray-900"
+        // A glowing ring, not animate-pulse: pulsing opacity dims the values
+        // the reader is trying to compare.
+        highlight && replica.alive && "repl-focus border-amber-400 dark:border-amber-400"
       )}
     >
       <div className={cn("flex flex-col", compact ? "gap-0.5" : "mb-1")}>
@@ -58,7 +59,11 @@ export function ReplicaCard({
       <p className="mt-1 text-[11px] leading-tight text-gray-500 dark:text-gray-400">
         {replica.region}
       </p>
-      <p className="mt-1 break-words font-mono text-sm leading-tight text-gray-900 dark:text-gray-100">
+      {/* Re-keyed on version so a local apply reads as a change, not a swap. */}
+      <p
+        key={`value-${replica.version}`}
+        className="repl-value mt-1 break-words font-mono text-sm leading-tight text-gray-900 dark:text-gray-100"
+      >
         {replica.value || "(empty)"}
       </p>
       <p className="font-mono text-[11px] text-gray-500 dark:text-gray-400">
