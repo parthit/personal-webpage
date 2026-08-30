@@ -1,205 +1,127 @@
 ---
-title: "Document AI: matching fields without trusting OCR"
-summary: "Confidence thresholds, fuzzy/semantic scoring, and when to ask the user — with an interactive invoice playground."
+title: "OCR read the invoice. Now what?"
+summary: "Turning messy document text into fields you can trust, and knowing when the software should stop and ask."
 date: "2026-08-24"
 tags: ["document-ai", "applied-ai", "evals", "product"]
 cover: "/content/images/writing/document-ai-field-matching/cover.svg"
 draft: false
 ---
 
-OCR gets you text. It does **not** get you a trustworthy database row.
+OCR can read an invoice surprisingly well and still put the wrong number in the wrong field. That’s the uncomfortable part of document automation: recognizing text is only the beginning.
 
-If you build Document AI for finance operations—invoices, receipts, or expense PDFs—the hard part is rarely “can the model read the page?” It is “can we map noisy spans onto a schema without inventing numbers?” This post develops a production-oriented matching pipeline and lets you explore each decision in an interactive playground.
+An invoice parser has to decide that `$1,284.50` is the total rather than the subtotal, that `08/12/2O26` is probably a date, and that a blurry description is not enough evidence to invent a GL account. Those decisions are where trust is won or lost.
 
-## Scope and assumptions
-
-The figures below are **illustrative**. They are not Intuit production metrics, vendor benchmarks, or claims about a specific OCR or language-model API.
-
-1. **Fixture:** one synthetic invoice PDF with deliberate OCR typos (`Vend0r`, `2O26`, `Supp1ies`).
-2. **Scores:** lexical and semantic scores are hand-authored for the demo so the animation is deterministic.
-3. **Combination rule:** `combined = 0.45·lexical + 0.55·semantic` (assumed weights).
-4. **Default threshold:** auto-accept at **82%** combined; soft-confirm in a **12pp** band below that; otherwise ask the user.
-5. **Primary metric:** field-level precision on money-moving fields matters more than aggregate OCR accuracy.
-
-If your domain is medical IDs or wire instructions, raise the threshold. If it is a draft memo field, you can automate more aggressively.
-
-## The pipeline
-
-```
-PDF page
-  → rasterize + deskew
-  → OCR tokens: (text, bounding box, confidence)
-  → candidate generation per schema field
-  → typed normalization + multi-signal ranking
-  → calibrated policy (auto | review | ask)
-  → cross-field validation
-  → write-back + immutable audit record
-```
-
-There are two broad architectures. An OCR-first system keeps text and layout explicit; models such as [LayoutLMv3](https://arxiv.org/abs/2204.08387) jointly encode text, image patches, and 2-D position. OCR-free models such as [Donut](https://arxiv.org/abs/2111.15664) decode structured text directly from document pixels. OCR-free does not mean error-free: either architecture still needs schema validation and a refusal policy before it can write financial data.
-
-Three failure modes show up constantly:
-
-- **Wrong box, confident text** — OCR is sure; the span is the wrong field.
-- **Right box, mangled text** — `INV-1042` survives; `08/12/2O26` needs normalization.
-- **No good box** — the model should **refuse**, not guess a GL account.
-
-## Playground
-
-Set the threshold, then run the matcher. Watch spans light up, scores fill, and each schema field land on **auto**, **review**, or **ask user**.
+I built the playground below around one fake invoice with deliberate OCR mistakes. The scores are hand-authored so the animation is repeatable; they are not vendor benchmarks or Intuit production numbers. At the default setting, a match above 82% is accepted, a nearby score is sent for review, and a weak match asks the user.
 
 <FieldMatchingDemo />
 
-### What to notice
+Move the threshold toward 95%. Invoice number and amount hold up, while the messier fields start asking for help. That is exactly what I want a threshold to do: change how often the system acts on its own, not make uncertainty disappear.
 
-| Field | Typical outcome at 82% | Why |
-|---|---|---|
-| Invoice # | Auto | Strong lexical pattern (`INV-####`) |
-| Amount | Auto | Currency shape + high OCR confidence |
-| Vendor | Review | OCR typo; semantic match saves it |
-| Date | Review | `O` vs `0`; normalize then confirm |
-| GL account | Ask | Weak lexical and semantic evidence—do not invent an accounting code |
+## From a page to a field
 
-Raise the slider toward 95% and more fields flip to review/ask. That is the product dial: **automate what you can measure, escalate what you cannot**.
+I think about the pipeline in seven steps:
 
-## Candidate generation before ranking
+```
+page image
+  → OCR text and boxes
+  → a few candidates for each field
+  → normalization
+  → ranking
+  → accept, review, or ask
+  → validation and write-back
+```
 
-Do not compare every field against every OCR span. Generate a small candidate set first:
+An OCR-first model keeps the words and their positions explicit. Models such as [LayoutLMv3](https://arxiv.org/abs/2204.08387) combine those with visual features. OCR-free models such as [Donut](https://arxiv.org/abs/2111.15664) go straight from pixels to structured text. Either way, the output can be wrong. “OCR-free” is an architecture choice, not a trust guarantee.
 
-1. **Anchor search:** find labels such as `Total`, `Invoice #`, or `Bill to`.
-2. **Geometry:** inspect right/below neighbors, same-row tokens, and table cells.
-3. **Type filters:** keep currency-shaped strings for `amount`, date-shaped strings for `invoice_date`, and known chart codes for `gl_account`.
-4. **Normalization:** Unicode normalize, collapse whitespace, canonicalize punctuation, and apply field-safe substitutions. Correcting `O → 0` is reasonable inside a validated date; doing it globally corrupts vendor names.
-5. **Composition:** join adjacent tokens when a value spans boxes, but retain the source boxes for provenance.
+The failures usually fall into a few familiar buckets:
 
-This reduces false matches and computation. It also gives an auditor a useful answer to “why did this candidate enter the ranking set?”
+- The text is readable, but it came from the wrong box.
+- The box is right, but a character is wrong: `O` instead of `0`, for example.
+- Nothing on the page is convincing enough.
 
-## Ranking: fuzzy, semantic, layout, and type
+That last case matters. “I don’t know” is a feature when the alternative is silently posting bad financial data.
 
-The demo intentionally shows only:
+## Don’t score every scrap of text
+
+Before ranking, I narrow the search. If I’m looking for `invoice_total`, I start near labels such as “Total due,” favor currency-shaped values, and pay attention to where totals usually sit on a page. For a date, I keep strings a date parser can actually understand.
+
+Normalization needs to be field-aware. Replacing `O` with `0` can make sense inside an otherwise valid date. Applying that replacement to every vendor name would create new errors while fixing old ones. I also keep the original text and bounding boxes, even after joining or cleaning tokens, because someone will eventually need to explain where a value came from.
+
+The demo uses a deliberately simple score:
 
 ```
 score = 0.45 × lexical + 0.55 × semantic
 ```
 
-A production ranker normally uses more evidence:
+I wouldn’t copy those weights into a real system. A useful ranker would also consider page layout, OCR confidence, and whether the value passes a type-specific parser:
 
 ```
-s(f, c) =
-    w_lex  × lexical(field_label, candidate_text)
-  + w_sem  × cosine(field_embedding, candidate_embedding)
-  + w_geo  × layout_prior(anchor_box, candidate_box)
-  + w_ocr  × calibrated_ocr_confidence
-  + w_type × parser_validity(candidate_text)
+s(field, candidate) =
+    w_lex  × text_similarity
+  + w_sem  × semantic_similarity
+  + w_geo  × layout_prior
+  + w_ocr  × ocr_confidence
+  + w_type × parser_validity
 ```
 
-The weights should be learned or tuned on a held-out set, not copied from this toy. More importantly, each feature means something different:
+Each signal catches something different. Fuzzy text matching helps with typos and stable patterns such as `INV-####`. Semantic similarity connects “Total due” with `amount`, but it should never be trusted to validate an account number. Layout gives useful context without hard-coding one vendor’s pixel coordinates. A deterministic parser can reject February 31 or a GL code that does not exist.
 
-**Lexical / fuzzy** covers edit distance, regexes, and field-specific normalizers (strip `$`, fix `O/0` in dates, canonicalize vendor suffixes). It is cheap and debuggable.
+The mix should change by field. Amounts and IDs need stronger lexical and type checks. Free-text descriptions can lean more on meaning. There is no good reason for every field to share one global trust policy.
 
-**Semantic** uses embedding cosine similarity for “Office Supp1ies” ↔ GL description or “Total due” ↔ `amount`. It recovers meaning when characters lie, but it should not validate an account number.
+## A score is not a probability
 
-**Layout** captures document grammar: totals tend to be near the lower-right, while an invoice number is often near its label. Learn this as a soft feature rather than a brittle pixel coordinate.
+A model returning `0.93` does not mean it is right 93% of the time. To make that number useful, I’d take a held-out set, group predictions by score, compare confidence with actual accuracy, and fit a calibration map. [This paper on neural-network calibration](https://arxiv.org/abs/1706.04599) is a good place to start.
 
-**Type validity** is a deterministic parser: does the date exist, does the decimal parse under the expected locale, does the currency match the document, and does the GL code exist in the tenant’s chart of accounts?
-
-Lexical and semantic evidence are complementary; neither is sufficient alone:
-
-- Fuzzy without semantics misses paraphrases.
-- Semantics without fuzzy can map the wrong dollar amount to the right *idea*.
-
-Production systems keep a **per-field policy**: amounts and account numbers lean lexical; free-text descriptions lean semantic; every field that can affect a financial record has a hard refusal path.
-
-## Calibrate confidence before thresholding
-
-A ranker score is not automatically a probability. Neural networks can be overconfident; [On Calibration of Modern Neural Networks](https://arxiv.org/abs/1706.04599) describes reliability diagrams, expected calibration error (ECE), and temperature scaling.
-
-On a held-out calibration split:
-
-1. Bucket predictions by score.
-2. Compare mean confidence with empirical accuracy in each bucket.
-3. Fit a calibration map (temperature, isotonic regression, or Platt-style logistic scaling).
-4. Choose a threshold from the **precision target for that field**, not from a global accuracy target.
-
-For example, choose the smallest threshold `t_amount` such that:
+Then I’d choose thresholds from the cost of a mistake. For an amount field, the requirement might be:
 
 ```
-precision(amount | calibrated_score ≥ t_amount) ≥ 99.5%
+precision(amount | score ≥ threshold) ≥ 99.5%
 ```
 
-Then report **coverage** alongside precision:
+Precision alone can hide a useless system, though. If that target is reached by accepting only 12% of invoices, the model is safe but not doing much work. Always put coverage beside precision:
 
 ```
-coverage(t) = auto_accepted_predictions_at_t / all_predictions
+coverage = automatically accepted fields / all predicted fields
 ```
 
-The useful curve is risk versus coverage. A model that reaches 99.5% precision at 12% coverage is safe but not yet operationally valuable.
+The real product choice is where to sit on that risk-versus-coverage curve.
 
-## When to ask the user
+## Review and “I have no idea” are different states
 
-Ask when any of these are true:
+If two candidates are close, or the top score lands just below the threshold, showing the likely answer for one-click confirmation is reasonable. If every candidate is weak, asking an open question is more honest. A prefilled guess in that situation only nudges the reviewer toward the model’s mistake.
 
-1. Calibrated top score is below the field threshold.
-2. The margin `s₁ − s₂` between the best two candidates is too small.
-3. Downstream effect is irreversible (posting a journal entry).
-4. A typed parser or cross-field constraint fails.
-5. The input is out-of-distribution: unseen template, language, currency, or scan quality.
+I would also stop automatic write-back when:
 
-Use soft confirmation when the system has a likely answer that needs one-tap approval. Use an open-ended request when no candidate is reliable enough to propose. Conflating the two either erodes trust or adds unnecessary work.
+- a high-impact action is hard to reverse
+- a type check fails
+- the document uses an unseen template, language, or currency
+- fields disagree with one another
 
-Cross-field constraints catch mistakes no local score can see:
+Cross-field checks catch errors that no individual score can. Does subtotal plus tax minus discount equal the total? Is the invoice date before the due date? Do the vendor and remittance details agree? Has the same vendor, invoice number, and amount already been recorded?
 
-- `subtotal + tax − discount ≈ total` within a currency tolerance
-- invoice date ≤ due date
-- vendor ID agrees with remittance details
-- detected currency agrees across symbols and ISO codes
-- duplicate key `(vendor, invoice_number, amount)` does not already exist
+A failed check should send the document to review. It should not quietly “fix” the value and bury what happened.
 
-Failures should route to review; they should not silently rewrite the extracted value.
+## Measure the fields people care about
 
-## Evals that actually move the product
+“The model is 93% accurate” is almost meaningless if the misses are concentrated in amount and account fields. I’d report precision and recall by field, automation rate at a fixed precision target, user overrides, review time, and calibration error. I’d also slice by vendor, template, scan quality, and time.
 
-Track, at minimum:
+Random page-level splits are especially misleading here. Two invoices from the same vendor can be nearly identical, so one ends up teaching the model how to pass the other. Splitting by vendor or template gives a more honest picture of how the system handles something new.
 
-- **Field precision / recall** by schema key (not a single micro-F1)
-- **Automation rate** at a fixed precision target
-- **User override rate** on auto-accepted fields (observed bad accepts)
-- **Time-to-complete** for review vs ask queues
-- **Calibration error** and reliability plots per field and document cohort
-- **Top-two ambiguity rate** and parser/constraint failure rate
-- **Template/site/time slices** so one dominant vendor does not hide the long tail
-
-A system at “93% accurate” can still be unsafe if the 7% errors concentrate on `amount` and `account`.
-
-Split data by vendor/template and time where possible. Random page-level splits can leak nearly identical templates into train and test. Evaluate exact value match *after* canonicalization, localization-aware numeric error, and end-to-end document success (“all required fields correct”), not only token OCR accuracy.
-
-## Make every decision reproducible
-
-Store enough provenance to replay a write:
+For every write, keep enough information to reconstruct the decision:
 
 ```json
 {
-  "document_sha256": "…",
   "field": "invoice_total",
   "raw_text": "$1,284.5O",
   "normalized_value": { "currency": "USD", "minor_units": 128450 },
   "source_boxes": [[0.48, 0.72, 0.44, 0.07]],
   "model_version": "field-ranker-2026-08-24",
-  "calibrated_score": 0.993,
+  "score": 0.993,
   "threshold": 0.995,
-  "decision": "review",
-  "rules": ["currency_parser_ok", "subtotal_check_ok"]
+  "decision": "review"
 }
 ```
 
-Do not log sensitive document text indiscriminately. Encrypt retained artifacts, apply tenant-aware access controls, and define deletion windows; provenance is useful only if it does not become a second data leak.
+That history is useful only if it is handled carefully. Documents may contain names, addresses, bank details, and other sensitive data. Encrypt retained artifacts, restrict access by tenant, and delete them on a defined schedule.
 
-## Takeaways
-
-- Treat OCR as a noisy proposal generator, not a source of truth.
-- Separate **candidate generation**, **ranking**, **calibration**, and **trust policy**.
-- Choose per-field thresholds from precision/coverage curves, not intuition.
-- Validate types and cross-field invariants before write-back.
-- Prefer asking over confident wrong write-backs — especially in finance.
-
-The operational standard is simple: if the system cannot explain, validate, and replay a field decision, it should not write that field automatically.
+The standard I’d use is straightforward: if the software can’t show where a field came from, validate its type, and replay the decision later, it shouldn’t write that field without help.

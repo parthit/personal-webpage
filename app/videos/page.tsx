@@ -5,14 +5,14 @@ import { getAllVideos, getFeaturedVideos } from "@/lib/content/videos";
 export const metadata: Metadata = {
   title: "Videos",
   description:
-    "A curated collection of system design and software architecture videos recommended by Parthit Patel.",
+    "Software talks and explainers worth watching, collected by Parthit Patel.",
   alternates: {
     canonical: "/videos",
   },
   openGraph: {
     title: "Videos · Parthit Patel",
     description:
-      "A curated collection of system design and software architecture videos recommended by Parthit Patel.",
+      "Software talks and explainers worth watching, collected by Parthit Patel.",
     url: "/videos",
     type: "website",
   },
@@ -28,8 +28,8 @@ export default function VideosPage() {
       <header className="mb-10">
         <h1 className="mb-3 text-3xl font-semibold">Videos</h1>
         <p className="text-gray-700 dark:text-gray-300">
-          Talks and explainers I recommend for learning system design,
-          architecture, and technical decision-making.
+          Talks and explainers I’ve found useful. This is a short list on
+          purpose.
         </p>
       </header>
 
@@ -57,8 +57,7 @@ export default function VideosPage() {
 
       {featured.length === 0 && rest.length === 0 && (
         <p className="text-gray-600 dark:text-gray-400">
-          I’m updating this collection. In the meantime, you can explore my
-          interactive notes in the writing section.
+          Nothing here yet. My interactive notes are over in Writing.
         </p>
       )}
     </div>

@@ -5,7 +5,7 @@ const projects = [
   {
     title: "AugmentED",
     description:
-      "An education technology startup developed at Cornell Tech. The experience covered product discovery, user feedback, and building an interactive learning product from an early-stage idea.",
+      "An edtech startup I helped build at Cornell Tech. We started with a rough idea, tested it with students, and learned a lot about the distance between a promising prototype and a useful product.",
     href: "https://augmentedcornell.github.io/UnityWebApp/",
     linkLabel: "Visit AugmentED",
     external: true,
@@ -13,7 +13,7 @@ const projects = [
   {
     title: "Applied AI Playgrounds",
     description:
-      "Interactive explainers for document field matching and real-time computer vision, with explicit assumptions, evaluation strategies, and production trade-offs.",
+      "Two interactive experiments: one matches messy invoice text to fields, and the other compares a small vision detector with a VLM.",
     href: "/writing/document-ai-field-matching",
     linkLabel: "Explore the Document AI playground",
     external: false,
@@ -21,7 +21,7 @@ const projects = [
   {
     title: "Systems Visualizations",
     description:
-      "Hands-on visualizations of replication, consistency, quorums, and B-tree indexes designed to make distributed-systems and database concepts easier to reason about.",
+      "Small visualizations I built while learning replication, quorums, and B-tree indexes. Clicking through them helped the ideas stick better than another page of notes.",
     href: "/writing/replication",
     linkLabel: "Explore the replication walkthrough",
     external: false,
@@ -31,14 +31,14 @@ const projects = [
 export const metadata: Metadata = {
   title: "Projects",
   description:
-    "Selected projects and experiments by Parthit Patel across software engineering and product building.",
+    "Projects and small software experiments by Parthit Patel.",
   alternates: {
     canonical: "/projects",
   },
   openGraph: {
     title: "Projects · Parthit Patel",
     description:
-      "Selected projects and experiments by Parthit Patel across software engineering and product building.",
+      "Projects and small software experiments by Parthit Patel.",
     url: "/projects",
     type: "website",
   },
@@ -50,8 +50,7 @@ export default function ProjectsPage() {
       <header className="mb-10">
         <h1 className="mb-3 text-3xl font-semibold">Projects</h1>
         <p className="text-gray-700 dark:text-gray-300">
-          Selected work across product engineering, applied AI, and systems
-          education.
+          A few things I’ve built, at work, at school, and out of curiosity.
         </p>
       </header>
 

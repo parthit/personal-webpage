@@ -1,32 +1,21 @@
 ---
-title: "B-Trees: Balanced Search for Memory and Disk"
-summary: "How B-trees stay shallow, the insert/delete algorithms in pseudocode, plus interactive demos for the tree itself and a database-style memory index."
+title: "Why database indexes use wide, short trees"
+summary: "A hands-on tour of B-trees: how they split, merge, and turn a table scan into a short walk."
 date: "2026-08-11"
 tags: ["data-structures", "databases", "indexing"]
 cover: "/content/images/writing/b-trees/cover.svg"
 draft: false
 ---
 
-A **B-tree** is a self-balancing multiway search tree. Unlike a binary search tree (two children per node), each B-tree node can hold many sorted keys and many children. That fat shape is the point: the tree stays **short**, so lookups touch fewer nodes.
+A binary search tree is a lovely idea until each node lives on disk. If finding a key means fetching one tiny node after another, the algorithm spends most of its time waiting on I/O.
 
-That property matters wherever a “node” is expensive to fetch — especially **disk pages** and **database indexes**, but also in-memory maps when you want predictable fanout and cache-friendly blocks.
+B-trees solve that problem by getting wide. Each node holds many sorted keys and can point to many children. A lookup does more work inside the page it already has and needs far fewer page reads on the way down.
 
-## Why B-trees exist
+That shape is why B-tree variants show up in PostgreSQL, MySQL, SQLite, filesystems, and embedded stores. Most databases actually use a **B+tree**, with records in the leaves and separator keys above them. I’m using the classic B-tree here because the balancing operations are easier to see.
 
-An unbalanced binary search tree with n keys can be Θ(n) deep; a balanced one is Θ(log₂ n). A B-tree of minimum degree t has height Θ(logₜ n), so increasing t keeps the tree shallow.
+## Five rules keep the tree balanced
 
-Typical use cases:
-
-- **Database indexes** (PostgreSQL, MySQL/InnoDB, SQLite, MongoDB WiredTiger, …)
-- **Filesystems** (HFS+, NTFS B+ variants, many modern FS structures)
-- **Key-value stores** and embedded engines (LMDB, BoltDB-style B+trees)
-- **In-memory indexes** when you want block-oriented layouts and stable performance
-
-Most production systems use a close cousin — the **B+tree** — where all records live in leaves and internal nodes store only separators. The balancing ideas are the same; this post focuses on classic B-trees so the algorithms stay readable.
-
-## The rules (minimum degree t)
-
-Pick an integer t ≥ 2. Then every B-tree obeys:
+Choose a minimum degree *t* of at least 2. Then:
 
 1. Every node has **at most** 2t − 1 keys.
 2. Every node except the root has **at least** t − 1 keys.
@@ -35,17 +24,17 @@ Pick an integer t ≥ 2. Then every B-tree obeys:
 5. All leaves sit at the **same depth**.
 6. Keys inside a node are sorted; subtree i holds keys between key i−1 and key i.
 
-Example: t = 2 means 1–3 keys per non-root node (a 2-3-4 tree).
+When *t* is 2, each non-root node holds between one and three keys. This is also called a 2-3-4 tree.
 
-## Interactive B-tree
+## Break one yourself
 
-Use the playground below to insert, search, and delete. Each operation **animates the path** from the root so you can see which nodes are touched before the tree reshapes. Change t to see how fanout reshapes the tree.
+Insert, search, and delete a few values below. The animation marks the path before it changes the tree. Try a different value of *t* and watch the same keys settle into a wider or narrower shape.
 
 <BTreeVisualizer />
 
-## Core operations (pseudocode)
+## The three operations
 
-Notation matches CLRS-style B-trees: `t` is the minimum degree, `x.n` is the key count, `x.key[1..n]` are sorted keys, `x.c[1..n+1]` are child pointers, and `x.leaf` is a boolean.
+The pseudocode uses CLRS-style notation: `t` is the minimum degree, `x.n` is the number of keys, `x.key[1..n]` contains those keys in order, `x.c[1..n+1]` contains child pointers, and `x.leaf` says whether the node is a leaf.
 
 ### Search
 
@@ -63,11 +52,11 @@ B-TREE-SEARCH(x, k)
     return B-TREE-SEARCH(x.c[i], k)
 ```
 
-Each step discards whole ranges of keys. With large nodes, one comparison sequence can rule out many key ranges before the next node fetch.
+One node can rule out a large range of keys before the next fetch. That is the whole win.
 
 ### Insert
 
-Insert always lands in a **leaf**. Before descending into a full child (2t − 1 keys), split that child so there is room for a future promotion.
+An insert ends in a leaf. The useful trick is to split a full child *before* descending into it. That way the recursive call never has to deal with a full node.
 
 ```
 B-TREE-SPLIT-CHILD(x, i)
@@ -120,11 +109,11 @@ B-TREE-INSERT-NONFULL(x, k)
     B-TREE-INSERT-NONFULL(x.c[i], k)
 ```
 
-Splitting eagerly on the way down keeps recursion simple: you never insert into a full node.
+The median moves up to the parent, and the keys on either side become two children. If the root is full, it splits too and the tree grows by one level.
 
 ### Delete
 
-Deletion is the most intricate operation. Guarantees still hold if, before descending into a child with only t − 1 keys, you either **borrow** a key from a sibling or **merge** with a sibling.
+Deletion is the fiddly one. Before descending into a child that has only *t* − 1 keys, give it room to lose a key: borrow from a sibling if possible, otherwise merge it with a sibling.
 
 ```
 B-TREE-DELETE(x, k)
@@ -156,28 +145,26 @@ B-TREE-DELETE(x, k)
     T.root ← its only child                       // tree shrinks by one level
 ```
 
-Borrowing rotates a separator key down and a sibling key up. Merging glues two lean children and the separator into one node.
+Borrowing rotates a parent separator down and a sibling key up. Merging pulls the separator between two small children and turns all three pieces into one node. If that empties the root, its only child becomes the new root and the tree loses a level.
 
-## In the wild: B-trees as memory / database indexes
+## What this has to do with a database index
 
-Imagine a `users` table stored in heap pages—unsorted pages of records. Finding `WHERE id = 36` with no index means a **table scan**: read page 1, page 2, … until you hit the row (or finish the table).
+Imagine a `users` table spread across unsorted heap pages. Without an index, `WHERE id = 36` starts at page one and keeps reading until it finds the row. A miss scans everything.
 
-A production **secondary index**—usually a B+tree—stores keys in order, with leaf entries pointing to the heap page or row identifier that holds the full record. Lookup becomes:
+A secondary index—usually a B+tree—keeps the IDs ordered. Its leaf entry points to the heap page or row that contains the full record. Now the database can:
 
 1. Walk a handful of index nodes from the root (one I/O each, unless cached).
 2. Read the referenced heap page for the row, unless the index already covers the query.
 
-On large tables that difference is enormous: O(n) page reads vs O(logₜ n) index reads + 1 heap read.
+On a large table, that is the difference between a linear pile of page reads and a handful of index reads plus one trip to the heap.
 
-### Interactive index demo
+### Watch the page reads
 
-The demo below packs 24 rows into heap pages of 4 rows each and builds a B-tree index on `id`. Hit **table scan** and watch rows light up page by page as the I/O counter climbs; then **Use B-tree index** on the same key and watch a short root-to-leaf walk. Existing ids are multiples of 3 (`3 … 72`). Default `69` is late in the heap (scan pays for almost every page); try `33` for a shorter scan or a miss like `11`.
+This demo puts 24 rows into heap pages of four rows each and builds an index on `id`. Run a table scan, then use the index for the same value. The existing IDs are multiples of three from 3 through 72. Searching for 69 makes the scan do nearly all the work; 33 ends sooner, while 11 shows the cost of a miss.
 
 <BTreeIndexDemo />
 
-### What real engines add
-
-Production indexes are richer than this sketch:
+Real engines add plenty that this toy leaves out:
 
 - **B+trees** keep all row pointers in leaves and link leaves for range scans (`BETWEEN`, `ORDER BY`).
 - Internal nodes store separator keys sized to fill a page (often 4–16 KiB).
@@ -185,9 +172,9 @@ Production indexes are richer than this sketch:
 - Concurrent access uses latch coupling / leaf locks; splits and merges become careful atomic operations.
 - Covering indexes can answer queries from the index alone — no heap fetch.
 
-Still, the mental model in the demo is the one that matters: **the tree turns a linear hunt through pages into a short walk down a wide, balanced index.**
+But the useful mental picture stays the same: a wide, balanced index replaces a linear hunt with a short walk.
 
-## Complexity cheatsheet
+## Costs at a glance
 
 | Operation | I/O / node visits | Notes |
 |---|---|---|
@@ -196,17 +183,12 @@ Still, the mental model in the demo is the one that matters: **the tree turns a 
 | Delete | O(logₜ n) | Borrow/merge along the path |
 | Range scan (B+tree) | O(logₜ n + k) | k leaf entries after the first |
 
-Space is O(n). Constants hide page size, key width, and caching — which is why B-trees win on disk even when a hash index has O(1) average probes for point lookups.
+Space is O(n). The constants hide page size, key width, and caching, which is why a B-tree can be the better real-world choice even though a hash index offers O(1) average point lookups.
 
-## When to reach for a B-tree
+## When I’d choose one
 
-- You need **ordered** keys (ranges, scans, `ORDER BY`).
-- Nodes map naturally onto **pages/blocks**.
-- You want **stable logarithmic** behavior without rehashing a whole table.
-- You are building an index that must stay balanced as keys churn.
+B-trees are a natural fit when keys need to stay ordered for ranges, scans, or `ORDER BY`, and when nodes line up with pages or blocks. They stay balanced while keys come and go, without periodically rehashing the entire structure.
 
-Prefer a hash index for equality-only workloads when ordered scans do not matter. Prefer an LSM tree when sustained write throughput matters more than read and compaction costs. For the classic “read-heavy relational index” job, B-trees (and B+trees) remain the default for a reason.
+For equality-only lookups, a hash index may be simpler and faster. For sustained write-heavy workloads, an LSM tree may be worth its read and compaction costs. For a read-heavy relational index that also needs ranges, B+trees remain the unsurprising default.
 
-## Try it
-
-Scroll back to the playgrounds: grow a tree until it splits, delete until it merges, then contrast scan vs index I/O on the heap table. Once those two motions click — **split on the way down** and **log-height index walks** — every database EXPLAIN plan that says `Index Scan` makes a lot more sense.
+If you want the idea to stick, grow the first tree until it splits, then delete until two nodes merge. After that, compare the scan and index I/O counts. “Index Scan” in an `EXPLAIN` plan feels much less abstract once you can picture the pages it avoids.

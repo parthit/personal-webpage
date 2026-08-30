@@ -41,7 +41,7 @@ test.describe("writing section", () => {
     const description = page.locator('meta[name="description"]');
     await expect(description).toHaveAttribute(
       "content",
-      /confidence thresholds/i
+      /messy document text/i
     );
 
     // SVG covers are fine in-page but not for social previews.
@@ -422,7 +422,7 @@ test.describe("writing section", () => {
       page.getByRole("heading", { name: DOCUMENT_AI_POST.title })
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Scope and assumptions" })
+      page.getByRole("heading", { name: "From a page to a field" })
     ).toBeVisible();
 
     const cover = page.locator(
@@ -461,7 +461,7 @@ test.describe("writing section", () => {
       page.getByRole("heading", { name: VISION_VLM_POST.title })
     ).toBeVisible();
     await expect(
-      page.getByRole("heading", { name: "Scope and assumptions" })
+      page.getByRole("heading", { name: "Why the gap gets so large" })
     ).toBeVisible();
 
     const cover = page.locator(

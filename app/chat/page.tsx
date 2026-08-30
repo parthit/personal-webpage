@@ -8,8 +8,8 @@ export default function Home() {
       <header className="mb-8">
         <h1 className="mb-3 text-3xl font-semibold">Let’s connect</h1>
         <p className="text-gray-700 dark:text-gray-300">
-          Book a conversation about software engineering, system design,
-          applied AI, or building products for small businesses.
+          Want to talk software, AI, or small-business products? Pick a time
+          that works.
         </p>
       </header>
       <Cal calLink="parthit-patel"></Cal>

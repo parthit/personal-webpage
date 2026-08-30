@@ -2,25 +2,25 @@ import { expect, type Locator, type Page } from "@playwright/test";
 
 export const BTREE_POST = {
   slug: "b-trees",
-  title: "B-Trees: Balanced Search for Memory and Disk",
+  title: "Why database indexes use wide, short trees",
   path: "/writing/b-trees",
 } as const;
 
 export const REPLICATION_POST = {
   slug: "replication",
-  title: "Replication: Keeping Copies in Sync",
+  title: "Replication gets interesting when the copies disagree",
   path: "/writing/replication",
 } as const;
 
 export const DOCUMENT_AI_POST = {
   slug: "document-ai-field-matching",
-  title: "Document AI: matching fields without trusting OCR",
+  title: "OCR read the invoice. Now what?",
   path: "/writing/document-ai-field-matching",
 } as const;
 
 export const VISION_VLM_POST = {
   slug: "specialized-vision-vs-vlm",
-  title: "When a specialized vision model beats a VLM",
+  title: "You probably don’t need a VLM on every frame",
   path: "/writing/specialized-vision-vs-vlm",
 } as const;
 

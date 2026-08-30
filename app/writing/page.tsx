@@ -5,14 +5,14 @@ import { getAllPosts } from "@/lib/content/writing";
 export const metadata: Metadata = {
   title: "Writing",
   description:
-    "Essays and system-design notes by Parthit Patel on scalable systems, data structures, and software engineering.",
+    "Notes from Parthit Patel on applied AI, databases, and the engineering trade-offs behind everyday software.",
   alternates: {
     canonical: "/writing",
   },
   openGraph: {
     title: "Writing · Parthit Patel",
     description:
-      "Essays and system-design notes by Parthit Patel on scalable systems, data structures, and software engineering.",
+      "Notes from Parthit Patel on applied AI, databases, and the engineering trade-offs behind everyday software.",
     url: "/writing",
     type: "website",
   },
@@ -26,8 +26,7 @@ export default function WritingIndexPage() {
       <header className="mb-10">
         <h1 className="mb-3 text-3xl font-semibold">Writing</h1>
         <p className="text-gray-700 dark:text-gray-300">
-          Essays and interactive notes on system design, applied AI, data
-          structures, and the trade-offs behind dependable software.
+          Things I’ve been learning, with small demos you can poke at.
         </p>
       </header>
       <PostList posts={posts} />
