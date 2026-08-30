@@ -20,7 +20,7 @@ test.describe("videos section", () => {
       page.getByRole("heading", { name: CURATED_VIDEO.title })
     ).toBeVisible();
     await expect(
-      page.getByText(/Jackson Gabbard explains/i)
+      page.getByText(/A clear explanation from Jackson Gabbard/i)
     ).toBeVisible();
 
     const playButton = page.getByRole("button", {

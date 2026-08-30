@@ -38,7 +38,7 @@ test.describe("SEO discovery", () => {
     const description = page.locator('meta[name="description"]');
     await expect(description).toHaveAttribute(
       "content",
-      /fullstack engineer|system design|portfolio/i
+      /full-?stack engineer|system design|portfolio/i
     );
 
     await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
