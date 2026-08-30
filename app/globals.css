@@ -4,6 +4,33 @@
 :root {
   --foreground-rgb: 0, 0, 0;
   --background-rgb: 245, 245, 245; /* Very light gray for light mode */
+
+  /*
+   * Design tokens consumed by components/ui/* (shadcn). Without them
+   * bg-primary / border-input / ring-ring / var(--radius) resolve to nothing,
+   * which renders filled buttons transparent and square — so a "selected"
+   * toggle reads as less prominent than an unselected one.
+   */
+  --background: 0 0% 100%;
+  --foreground: 0 0% 9%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 9%;
+  --primary: 0 0% 12%;
+  --primary-foreground: 0 0% 98%;
+  --secondary: 0 0% 94%;
+  --secondary-foreground: 0 0% 12%;
+  --muted: 0 0% 96%;
+  --muted-foreground: 0 0% 40%;
+  --accent: 0 0% 92%;
+  --accent-foreground: 0 0% 12%;
+  --destructive: 0 72% 46%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 0% 85%;
+  --input: 0 0% 80%;
+  --ring: 0 0% 25%;
+  --radius: 0.5rem;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -11,6 +38,26 @@
     --foreground-rgb: 255, 255, 255;
     --background-rgb: 30, 30, 30; /* Very dark gray for dark mode */
     --header-text-color: 229, 231, 235;
+
+    --background: 0 0% 8%;
+    --foreground: 0 0% 96%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 96%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 0 0% 94%;
+    --primary-foreground: 0 0% 10%;
+    --secondary: 0 0% 20%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 65%;
+    --accent: 0 0% 26%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 26%;
+    --input: 0 0% 32%;
+    --ring: 0 0% 72%;
   }
 }
 
@@ -162,6 +209,28 @@ body {
   transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Shared animation timeline: dwell meter for the step currently on screen. */
+@keyframes anim-step-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.anim-step-progress {
+  transform-origin: left center;
+  animation-name: anim-step-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+/*
+ * Replication packets travel the drawn edge. Driving them from CSS (instead of
+ * SVG <animateMotion>) lets the figure pause with the timeline and pick up the
+ * viewer's playback speed, and keeps a seeked step from replaying its flight.
+ */
 @keyframes repl-packet {
   from {
     offset-distance: 0%;
@@ -173,7 +242,9 @@ body {
 
 .repl-packet {
   offset-rotate: 0deg;
-  animation: repl-packet 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  offset-distance: 100%;
+  animation: repl-packet var(--repl-packet-duration, 1.2s)
+    cubic-bezier(0.33, 0, 0.2, 1) both;
 }
 
 .repl-edge {
@@ -182,13 +253,65 @@ body {
     stroke-width 0.25s ease;
 }
 
+.repl-node {
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Highlight without fading the card: animate-pulse dims the text too. */
+@keyframes repl-focus-ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px rgb(251 191 36 / 0.9);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgb(251 191 36 / 1),
+      0 0 0 7px rgb(251 191 36 / 0.22);
+  }
+}
+
+.repl-focus {
+  animation: repl-focus-ring 1.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+/* A replica writing to its own log is not a network hop — show it locally. */
+@keyframes repl-value-change {
+  0% {
+    opacity: 0.35;
+    transform: translateY(-3px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.repl-value {
+  animation: repl-value-change 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .repl-packet {
+  .anim-step-progress {
     animation: none !important;
-    offset-distance: 70%;
+    transform: scaleX(1);
   }
 
-  .repl-edge {
+  .repl-packet {
+    animation: none !important;
+    offset-distance: 100%;
+  }
+
+  .repl-edge,
+  .repl-node {
     transition: none !important;
+  }
+
+  .repl-focus {
+    animation: none !important;
+    box-shadow: 0 0 0 2px rgb(251 191 36 / 0.9);
+  }
+
+  .repl-value {
+    animation: none !important;
   }
 }
