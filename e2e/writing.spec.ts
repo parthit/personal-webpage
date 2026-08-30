@@ -235,7 +235,7 @@ test.describe("writing section", () => {
 
     // A faster rate keeps this test honest about the animation still running.
     const speed = player.locator('[data-segmented-control="playback-rate"]');
-    await speed.getByRole("radio", { name: "2×" }).click();
+    await speed.getByRole("radio", { name: "2×", exact: true }).click();
     await expect(player).toHaveAttribute("data-playback-rate", "2");
 
     const writeBtn = demo.getByRole("button", { name: "Write to leader" });
@@ -263,8 +263,14 @@ test.describe("writing section", () => {
     const demo = page.locator("[data-leader-follower-demo]");
     await demo.scrollIntoViewIfNeeded();
     const control = demo.locator('[data-segmented-control="write-mode"]');
-    const async = control.getByRole("radio", { name: "Asynchronous" });
-    const sync = control.getByRole("radio", { name: "Synchronous" });
+    const async = control.getByRole("radio", {
+      name: "Asynchronous",
+      exact: true,
+    });
+    const sync = control.getByRole("radio", {
+      name: "Synchronous",
+      exact: true,
+    });
 
     await expect(async).toHaveAttribute("aria-checked", "true");
     await expect(sync).toHaveAttribute("aria-checked", "false");

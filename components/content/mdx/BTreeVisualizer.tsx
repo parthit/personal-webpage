@@ -28,6 +28,7 @@ import {
   type VizFrame,
 } from "@/lib/btree/demo-animation";
 import { useTreeViewport } from "./btree/useTreeViewport";
+import { ScrollableFigure } from "./ScrollableFigure";
 
 const SAMPLE = [10, 20, 5, 6, 12, 30, 7, 17, 3];
 
@@ -344,7 +345,7 @@ export function BTreeVisualizer() {
           <Button
             type="button"
             size="sm"
-            variant="destructive"
+            variant="secondary"
             className="w-full sm:w-auto"
             disabled={busy}
             onClick={() => void runDelete()}
@@ -388,9 +389,11 @@ export function BTreeVisualizer() {
         </span>
       </div>
 
-      <div
-        ref={treeScrollRef}
-        className="min-w-0 w-full overflow-x-auto overscroll-x-contain touch-pan-x px-2 py-4"
+      <ScrollableFigure
+        scrollRef={treeScrollRef}
+        revision={svgWidth}
+        className="px-2 py-4"
+        label="Scroll sideways to see the whole tree"
       >
         {tree.root ? (
           <div
@@ -518,7 +521,7 @@ export function BTreeVisualizer() {
             Empty tree — insert a key or load the sample.
           </p>
         )}
-      </div>
+      </ScrollableFigure>
 
       <AnimationPlayer player={playback} />
 

@@ -84,7 +84,7 @@ function PdfPage({ snapshot }: { snapshot: FieldMatchingSnapshot }) {
             data-ocr-span={span.id}
             data-ocr-active={isActive ? "true" : "false"}
             className={cn(
-              "absolute rounded border px-1.5 py-0.5 text-[10px] leading-tight transition-all duration-300 sm:text-[11px]",
+              "absolute rounded border px-1.5 py-0.5 text-[10px] leading-tight motion-safe:transition-all motion-safe:duration-300 sm:text-[11px]",
               isActive
                 ? "z-10 border-sky-500 bg-sky-200/90 text-sky-950 shadow dark:border-sky-400 dark:bg-sky-900/80 dark:text-sky-50"
                 : "border-gray-400/50 bg-white/70 text-gray-700 dark:border-gray-500 dark:bg-gray-900/50 dark:text-gray-300",
@@ -139,7 +139,7 @@ function ScoreBars({ snapshot }: { snapshot: FieldMatchingSnapshot }) {
             </div>
             <div className="h-2 overflow-hidden rounded bg-gray-200 dark:bg-gray-800">
               <div
-                className="h-full rounded bg-sky-500 transition-[width] duration-500 dark:bg-sky-400"
+                className="h-full rounded bg-sky-500 motion-safe:transition-[width] motion-safe:duration-500 dark:bg-sky-400"
                 style={{ width: `${Math.round(score.combined * 100)}%` }}
               />
             </div>

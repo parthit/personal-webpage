@@ -55,12 +55,13 @@ export function AnimationPlayer<T>({
     if (!list) return;
     const active = list.querySelector<HTMLElement>('[aria-current="step"]');
     if (!active) return;
-    const top = active.offsetTop;
-    const bottom = top + active.offsetHeight;
-    if (top < list.scrollTop) {
-      list.scrollTop = top;
-    } else if (bottom > list.scrollTop + list.clientHeight) {
-      list.scrollTop = bottom - list.clientHeight;
+    // Rect deltas rather than offsetTop: the list is not the offset parent.
+    const listBox = list.getBoundingClientRect();
+    const activeBox = active.getBoundingClientRect();
+    if (activeBox.top < listBox.top) {
+      list.scrollTop -= listBox.top - activeBox.top;
+    } else if (activeBox.bottom > listBox.bottom) {
+      list.scrollTop += activeBox.bottom - listBox.bottom;
     }
   }, [player.index, player.steps.length]);
 

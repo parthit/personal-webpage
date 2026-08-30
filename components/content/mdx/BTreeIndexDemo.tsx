@@ -23,6 +23,7 @@ import {
   type IndexDemoFrame,
 } from "@/lib/btree/demo-animation";
 import { useTreeViewport } from "./btree/useTreeViewport";
+import { ScrollableFigure } from "./ScrollableFigure";
 
 type Row = {
   id: number;
@@ -329,11 +330,13 @@ export function BTreeIndexDemo() {
           <p className="mb-3 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
             The B-tree stores keys (and, in a real engine, pointers to heap
             pages). Height stays small, so lookups cost a few node reads.
-            Swipe sideways to see the full tree on small screens.
           </p>
-          <div
-            ref={treeScrollRef}
-            className="min-w-0 w-full overflow-x-auto overscroll-x-contain touch-pan-x rounded-lg border border-gray-200 bg-white px-1 py-3 dark:border-gray-700 dark:bg-gray-950"
+          <ScrollableFigure
+            scrollRef={treeScrollRef}
+            revision={svgWidth}
+            className="rounded-lg border border-gray-200 bg-white px-1 py-3 dark:border-gray-700 dark:bg-gray-950"
+            fadeClassName="from-white dark:from-gray-950"
+            label="Scroll sideways to see the whole tree"
           >
             <div
               className="mx-auto"
@@ -410,7 +413,7 @@ export function BTreeIndexDemo() {
                 })}
               </svg>
             </div>
-          </div>
+          </ScrollableFigure>
         </div>
       </div>
 

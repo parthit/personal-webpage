@@ -1,7 +1,8 @@
 "use client";
 
-import { useId, useMemo, useSyncExternalStore } from "react";
+import { useId, useMemo, useRef, useSyncExternalStore } from "react";
 import { cn } from "@/lib/utils";
+import { ScrollableFigure } from "../ScrollableFigure";
 import {
   getReducedMotionServerSnapshot,
   getReducedMotionSnapshot,
@@ -48,6 +49,7 @@ export function ReplicaGraph({
   stepDurationMs?: number;
 }) {
   const markerId = useId().replace(/:/g, "");
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const reducedMotion = useSyncExternalStore(
     reducedMotionSubscribe,
     getReducedMotionSnapshot,
@@ -89,8 +91,10 @@ export function ReplicaGraph({
     : { x: layout.width / 2, y: layout.height / 2 };
 
   return (
-    <div
-      className="min-w-0 w-full overflow-x-auto overscroll-x-contain touch-pan-x"
+    <ScrollableFigure
+      scrollRef={scrollRef}
+      revision={layout.width}
+      label="Scroll sideways to see the whole cluster"
       data-repl-graph={topology}
     >
       <div
@@ -275,7 +279,7 @@ export function ReplicaGraph({
           );
         })}
       </div>
-    </div>
+    </ScrollableFigure>
   );
 }
 

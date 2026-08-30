@@ -38,7 +38,10 @@ function LatencyMeter({
       </div>
       <div className="h-2.5 overflow-hidden rounded bg-gray-200 dark:bg-gray-800">
         <div
-          className={cn("h-full rounded transition-[width] duration-500", accent)}
+          className={cn(
+            "h-full rounded motion-safe:transition-[width] motion-safe:duration-500",
+            accent
+          )}
           style={{ width: `${Math.round(progress * 100)}%` }}
         />
       </div>
@@ -85,7 +88,7 @@ function CameraPane({
               data-scene-object={obj.id}
               data-detected={hit ? "true" : "false"}
               className={cn(
-                "absolute rounded border-2 transition-all duration-500",
+                "absolute rounded border-2 motion-safe:transition-all motion-safe:duration-500",
                 hit
                   ? "border-emerald-400 bg-emerald-400/20 shadow-[0_0_0_1px_rgba(52,211,153,0.35)]"
                   : "border-white/20 bg-white/5"
