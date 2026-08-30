@@ -84,8 +84,9 @@ test.describe("writing section", () => {
     await insertBtn.click();
     await expect(player).toHaveAttribute("data-playback-status", "playing");
     await timeline.focus();
-    await timeline.press("End");
+    await timeline.press("Home");
     await expect(player).toHaveAttribute("data-playback-status", "paused");
+    await expect(player).toHaveAttribute("data-playback-index", "0");
     const resumeButton = player.getByRole("button", {
       name: "Play animation",
     });
@@ -214,6 +215,78 @@ test.describe("writing section", () => {
     await expect(cheatsheet).toBeVisible();
     await expect(cheatsheet.getByRole("cell", { name: "Search" })).toBeVisible();
     await expect(cheatsheet.getByRole("cell", { name: "Insert" })).toBeVisible();
+  });
+
+  test("timeline offers replay and viewer-controlled pacing", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.goto(REPLICATION_POST.path);
+
+    const demo = page.locator("[data-leader-follower-demo]");
+    await demo.scrollIntoViewIfNeeded();
+    const player = demo.locator("[data-animation-player]");
+
+    // Nothing has run yet, so there is no timeline to play.
+    await expect(player).toHaveAttribute("data-playback-status", "idle");
+    await expect(
+      player.getByRole("button", { name: /Play animation/ })
+    ).toBeDisabled();
+
+    // A faster rate keeps this test honest about the animation still running.
+    const speed = player.locator('[data-segmented-control="playback-rate"]');
+    await speed.getByRole("radio", { name: "2×" }).click();
+    await expect(player).toHaveAttribute("data-playback-rate", "2");
+
+    const writeBtn = demo.getByRole("button", { name: "Write to leader" });
+    await writeBtn.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await writeBtn.click();
+    await expect(player).toHaveAttribute("data-playback-status", "playing");
+    await expect(player).toHaveAttribute("data-playback-status", "complete", {
+      timeout: 40_000,
+    });
+
+    // A finished timeline must not dead-end on a disabled play button.
+    await expect(player).toHaveAttribute("data-playback-at-end", "true");
+    const replay = player.getByRole("button", { name: "Replay animation" });
+    await expect(replay).toBeEnabled();
+    await replay.click();
+    await expect(player).toHaveAttribute("data-playback-index", "0");
+    await expect(player).toHaveAttribute("data-playback-status", "playing");
+  });
+
+  test("write mode reads as one choice, not two actions", async ({ page }) => {
+    await page.goto(REPLICATION_POST.path);
+
+    const demo = page.locator("[data-leader-follower-demo]");
+    await demo.scrollIntoViewIfNeeded();
+    const control = demo.locator('[data-segmented-control="write-mode"]');
+    const async = control.getByRole("radio", { name: "Asynchronous" });
+    const sync = control.getByRole("radio", { name: "Synchronous" });
+
+    await expect(async).toHaveAttribute("aria-checked", "true");
+    await expect(sync).toHaveAttribute("aria-checked", "false");
+    await expect(control.locator("[data-segmented-hint]")).toContainText(
+      /answers the client first/i
+    );
+
+    await sync.click();
+    await expect(control).toHaveAttribute("data-segmented-value", "synchronous");
+    await expect(sync).toHaveAttribute("aria-checked", "true");
+    await expect(async).toHaveAttribute("aria-checked", "false");
+    await expect(control.locator("[data-segmented-hint]")).toContainText(
+      /waits for a follower/i
+    );
+
+    // Arrow keys move between options like a native radio group.
+    await sync.press("ArrowRight");
+    await expect(control).toHaveAttribute(
+      "data-segmented-value",
+      "asynchronous"
+    );
+    await expect(async).toBeFocused();
   });
 
   test("B-tree demos stay usable on a narrow viewport", async ({ page }) => {
