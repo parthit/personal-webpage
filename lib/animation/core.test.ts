@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 import {
   appendSteps,
   clampStep,
+  PLAYBACK_RATES,
+  scaleDuration,
   seekTimeline,
   visibleHistory,
   type AnimationTimeline,
@@ -50,5 +52,21 @@ describe("animation timeline", () => {
       [0, 1, 2, 3, 4]
     );
     assert.equal(timeline.steps.length, 3, "input remains immutable");
+  });
+});
+
+describe("playback rate", () => {
+  it("defaults to real time and offers slower and faster options", () => {
+    assert.ok(PLAYBACK_RATES.includes(1));
+    assert.ok(PLAYBACK_RATES.some((rate) => rate < 1), "a slower rate exists");
+    assert.ok(PLAYBACK_RATES.some((rate) => rate > 1), "a faster rate exists");
+  });
+
+  it("scales a step's dwell without ever reaching zero", () => {
+    assert.equal(scaleDuration(1600, 1), 1600);
+    assert.equal(scaleDuration(1600, 2), 800);
+    assert.equal(scaleDuration(1600, 0.5), 3200);
+    assert.equal(scaleDuration(1, 2), 1);
+    assert.equal(scaleDuration(0, 2), 0, "zero-dwell summary steps stay zero");
   });
 });

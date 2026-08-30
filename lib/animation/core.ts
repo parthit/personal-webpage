@@ -1,5 +1,19 @@
 export type PlaybackStatus = "idle" | "playing" | "paused" | "complete";
 
+/**
+ * Viewer-controlled pacing. Teaching demos ship at 1x on purpose; the other
+ * rates exist so a reader can slow a dense walkthrough down or skim a
+ * walkthrough they have already seen.
+ */
+export const PLAYBACK_RATES = [0.5, 1, 1.5, 2] as const;
+
+export type PlaybackRate = (typeof PLAYBACK_RATES)[number];
+
+export function scaleDuration(durationMs: number, rate: PlaybackRate): number {
+  if (durationMs <= 0) return 0;
+  return Math.max(1, Math.round(durationMs / rate));
+}
+
 export type AnimationStep<T> = {
   snapshot: T;
   label: string;

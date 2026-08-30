@@ -1,10 +1,39 @@
 "use client";
 
-import { History, Pause, Play, RotateCcw, StepBack, StepForward } from "lucide-react";
+import { useEffect, useRef } from "react";
+import {
+  History,
+  Pause,
+  Play,
+  RotateCcw,
+  SkipBack,
+  StepBack,
+  StepForward,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Slider } from "@/components/ui/slider";
+import { PLAYBACK_RATES, type PlaybackRate } from "@/lib/animation/core";
 import { cn } from "@/lib/utils";
 import type { AnimationPlayer as AnimationPlayerState } from "./useAnimationPlayer";
+
+const RATE_OPTIONS = PLAYBACK_RATES.map((rate) => ({
+  value: String(rate),
+  label: `${rate}×`,
+}));
+
+const STATUS_COPY: Record<
+  AnimationPlayerState<unknown>["status"],
+  { text: string; dot: string }
+> = {
+  idle: { text: "Ready", dot: "bg-gray-400 dark:bg-gray-500" },
+  playing: {
+    text: "Playing",
+    dot: "bg-amber-500 motion-safe:animate-pulse dark:bg-amber-400",
+  },
+  paused: { text: "Paused", dot: "bg-sky-500 dark:bg-sky-400" },
+  complete: { text: "Finished", dot: "bg-emerald-500 dark:bg-emerald-400" },
+};
 
 export function AnimationPlayer<T>({
   player,
@@ -13,8 +42,27 @@ export function AnimationPlayer<T>({
   player: AnimationPlayerState<T>;
   title?: string;
 }) {
-  const atEnd = player.index === player.steps.length - 1;
   const playing = player.status === "playing";
+  const hasTimeline = player.steps.length > 1;
+  const showReplay = hasTimeline && !playing && player.atEnd;
+  const historyRef = useRef<HTMLOListElement | null>(null);
+  const status = STATUS_COPY[player.status];
+
+  // Long walkthroughs overflow the history box; keep the active step in view so
+  // the list stays a readable transcript instead of scrolling away from you.
+  useEffect(() => {
+    const list = historyRef.current;
+    if (!list) return;
+    const active = list.querySelector<HTMLElement>('[aria-current="step"]');
+    if (!active) return;
+    const top = active.offsetTop;
+    const bottom = top + active.offsetHeight;
+    if (top < list.scrollTop) {
+      list.scrollTop = top;
+    } else if (bottom > list.scrollTop + list.clientHeight) {
+      list.scrollTop = bottom - list.clientHeight;
+    }
+  }, [player.index, player.steps.length]);
 
   return (
     <section
@@ -23,6 +71,8 @@ export function AnimationPlayer<T>({
       data-animation-player
       data-playback-status={player.status}
       data-playback-index={player.index}
+      data-playback-rate={player.rate}
+      data-playback-at-end={player.atEnd ? "true" : "false"}
     >
       <div className="flex items-center gap-2">
         <Button
@@ -34,7 +84,7 @@ export function AnimationPlayer<T>({
           disabled={!player.canStepBackward}
           aria-label="Go to beginning"
         >
-          <RotateCcw className="h-3.5 w-3.5" />
+          <SkipBack className="h-3.5 w-3.5" />
         </Button>
         <Button
           type="button"
@@ -52,11 +102,19 @@ export function AnimationPlayer<T>({
           size="icon"
           className="h-8 w-8 shrink-0"
           onClick={playing ? player.pause : player.play}
-          disabled={!playing && atEnd && player.status !== "paused"}
-          aria-label={playing ? "Pause animation" : "Play animation"}
+          disabled={!hasTimeline}
+          aria-label={
+            playing
+              ? "Pause animation"
+              : showReplay
+                ? "Replay animation"
+                : "Play animation"
+          }
         >
           {playing ? (
             <Pause className="h-3.5 w-3.5" />
+          ) : showReplay ? (
+            <RotateCcw className="h-3.5 w-3.5" />
           ) : (
             <Play className="h-3.5 w-3.5" />
           )}
@@ -86,11 +144,60 @@ export function AnimationPlayer<T>({
         </div>
         <span
           className="w-14 shrink-0 text-right text-xs tabular-nums text-gray-500 dark:text-gray-400"
-          aria-live="polite"
           data-animation-step-count
         >
           {player.index + 1} / {player.steps.length}
         </span>
+      </div>
+
+      {/* Dwell meter: how much of the current step's hold time is left. */}
+      {hasTimeline ? (
+        <div
+          className="mt-2.5 h-0.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800"
+          aria-hidden="true"
+        >
+          <div
+            key={`${player.index}-${player.steps.length}-${player.rate}`}
+            data-animation-step-progress
+            className="anim-step-progress h-full w-full rounded-full bg-amber-500 dark:bg-amber-400"
+            style={{
+              animationDuration: `${Math.max(player.currentDurationMs, 1)}ms`,
+              animationPlayState: playing ? "running" : "paused",
+            }}
+          />
+        </div>
+      ) : null}
+
+      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        {hasTimeline ? (
+          <p
+            className="flex items-center gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-300"
+            aria-live="polite"
+            data-playback-state-label
+          >
+            <span
+              aria-hidden="true"
+              className={cn("h-1.5 w-1.5 shrink-0 rounded-full", status.dot)}
+            />
+            {status.text}
+          </p>
+        ) : (
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Run an operation above and every step lands here — scrub, replay, or
+            slow it down.
+          </p>
+        )}
+        <SegmentedControl
+          label="Speed"
+          orientation="inline"
+          size="sm"
+          value={String(player.rate)}
+          options={RATE_OPTIONS}
+          onValueChange={(next) =>
+            player.setRate(Number(next) as PlaybackRate)
+          }
+          data-testid="playback-rate"
+        />
       </div>
 
       <details className="group mt-3" open>
@@ -100,6 +207,7 @@ export function AnimationPlayer<T>({
           <span className="text-gray-400">({player.steps.length})</span>
         </summary>
         <ol
+          ref={historyRef}
           className="mt-2 max-h-32 space-y-1 overflow-y-auto overscroll-contain pr-1 text-xs"
           aria-label="Animation step history"
           data-animation-history
