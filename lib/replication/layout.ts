@@ -279,9 +279,10 @@ export function packetHops(
   const clientFor = (replicaId?: string) => nearestClient(layout, replicaId)?.id;
 
   switch (kind) {
+    // `leader-apply` is deliberately absent: appending to the local log is not
+    // a network hop, and replaying the client packet reads as a second write.
     case "client-send":
     case "quorum-write":
-    case "leader-apply":
       if (toId) {
         push(clientFor(toId), replicaNodeId(toId));
       } else {

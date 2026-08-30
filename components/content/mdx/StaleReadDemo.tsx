@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AnimationPlayer } from "@/components/animation/AnimationPlayer";
 import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { createLeaderCluster, type WriteMode } from "@/lib/replication/model";
 import {
   buildCatchupFrames,
@@ -12,15 +13,17 @@ import {
 import { figureShell, packetCaption } from "./replication/ReplicaCard";
 import { ReplicaGraph } from "./replication/ReplicaGraph";
 import { useSimPlayback } from "./replication/useSimPlayback";
+import { WRITE_MODE_OPTIONS } from "./replication/writeMode";
 
 const IDLE =
   "Write, then immediately read a follower. Async replication makes read-your-writes fail unless you pin the session to the leader.";
 
 export function StaleReadDemo() {
-  const { view, busy, replicasRef, run, reset, playback } = useSimPlayback(
-    createLeaderCluster(),
-    IDLE
-  );
+  const { view, busy, motion, replicasRef, run, reset, playback } =
+    useSimPlayback(
+      createLeaderCluster(),
+      IDLE
+    );
   const [mode, setMode] = useState<WriteMode>("asynchronous");
 
   async function writeThenReadFollower() {
@@ -56,28 +59,15 @@ export function StaleReadDemo() {
       </figcaption>
 
       <div className="space-y-3 border-b border-gray-200 px-3 py-3 sm:px-4 dark:border-gray-700">
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant={mode === "asynchronous" ? "default" : "outline"}
-            disabled={busy}
-            aria-pressed={mode === "asynchronous"}
-            onClick={() => setMode("asynchronous")}
-          >
-            Async
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant={mode === "synchronous" ? "default" : "outline"}
-            disabled={busy}
-            aria-pressed={mode === "synchronous"}
-            onClick={() => setMode("synchronous")}
-          >
-            Sync
-          </Button>
-        </div>
+        <SegmentedControl
+          label="How the leader acknowledges the write"
+          value={mode}
+          options={WRITE_MODE_OPTIONS}
+          onValueChange={setMode}
+          disabled={busy}
+          hint
+          data-testid="write-mode"
+        />
         <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
           <Button
             type="button"
@@ -121,17 +111,6 @@ export function StaleReadDemo() {
             Reset
           </Button>
         </div>
-        {busy ? (
-          <p
-            className="text-xs font-medium text-amber-700 dark:text-amber-300"
-            aria-live="polite"
-          >
-            Animating
-            {view.stepInfo
-              ? ` — step ${view.stepInfo.index} of ${view.stepInfo.total}`
-              : "…"}
-          </p>
-        ) : null}
         {outcome ? (
           <p
             className="text-xs font-medium text-gray-700 dark:text-gray-300"
@@ -150,6 +129,9 @@ export function StaleReadDemo() {
           fromId={view.fromId}
           toId={view.toId}
           packetLabel={packet}
+          playing={motion.playing}
+          stepDurationMs={motion.stepDurationMs}
+          stepProgress={motion.stepProgress}
           topology="leader-tree"
           ariaLabel="Replicas used for a stale-read walkthrough"
         />

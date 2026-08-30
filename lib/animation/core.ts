@@ -1,5 +1,59 @@
 export type PlaybackStatus = "idle" | "playing" | "paused" | "complete";
 
+/**
+ * Viewer-controlled pacing. Teaching demos ship at 1x on purpose; the other
+ * rates exist so a reader can slow a dense walkthrough down or skim a
+ * walkthrough they have already seen.
+ */
+export const PLAYBACK_RATES = [0.5, 1, 1.5, 2] as const;
+
+export type PlaybackRate = (typeof PLAYBACK_RATES)[number];
+
+export function scaleDuration(durationMs: number, rate: PlaybackRate): number {
+  if (durationMs <= 0) return 0;
+  return Math.max(1, Math.round(durationMs / rate));
+}
+
+/**
+ * How much of a step's dwell has been served, tracked as a fraction rather than
+ * milliseconds so a mid-step speed change rescales what is left instead of
+ * restarting or overshooting it.
+ */
+export function advanceDwell(
+  progress: number,
+  spentMs: number,
+  durationMs: number
+): number {
+  if (durationMs <= 0) return 1;
+  const next = progress + spentMs / durationMs;
+  return Math.min(1, Math.max(0, next));
+}
+
+/** What a resumed step still owes, so pausing does not extend it. */
+export function remainingDwellMs(durationMs: number, progress: number): number {
+  if (durationMs <= 0) return 0;
+  const clamped = Math.min(1, Math.max(0, progress));
+  return Math.max(0, Math.round(durationMs * (1 - clamped)));
+}
+
+/**
+ * A CSS clock for motion that spans a step's dwell: how long the animation runs
+ * and how far into it to start. Applied as a negative `animation-delay` on an
+ * element keyed by these values, it picks up wherever the step timer is instead
+ * of restarting on a pause, a resume, or a speed change.
+ */
+export function dwellClock(
+  stepDurationMs: number,
+  progress: number,
+  animationDurationMs: number = stepDurationMs
+): { durationMs: number; delayMs: number } {
+  const clamped = Math.min(1, Math.max(0, progress));
+  return {
+    durationMs: Math.max(1, Math.round(animationDurationMs)),
+    delayMs: Math.max(0, Math.round(Math.max(0, stepDurationMs) * clamped)),
+  };
+}
+
 export type AnimationStep<T> = {
   snapshot: T;
   label: string;

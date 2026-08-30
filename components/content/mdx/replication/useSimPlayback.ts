@@ -92,6 +92,12 @@ export function useSimPlayback(initial: Replica[], idleMessage: string) {
   return {
     view: player.current.snapshot,
     busy: player.isActive,
+    /** Graph props that keep packet flight in step with the timeline. */
+    motion: {
+      playing: player.status === "playing",
+      stepDurationMs: player.currentDurationMs,
+      stepProgress: player.stepProgress,
+    },
     replicasRef,
     run,
     reset,

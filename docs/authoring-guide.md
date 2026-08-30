@@ -127,14 +127,34 @@ only embed a registered demo component.
    `snapshot`, a human-readable `label`, and optional `durationMs` / `group`.
 3. Pass the initial snapshot to `useAnimationPlayer`.
 4. Render `player.current.snapshot` and add
-   `<AnimationPlayer player={player} />` for play, pause, forward/back, slider,
-   and step history.
+   `<AnimationPlayer player={player} />`. It owns play/pause, replay at the end
+   of the timeline, step forward/back, the scrub slider, a 0.5×–2× speed
+   selector, a dwell meter for the current step, the playback status line, and
+   the step history. Before the first run it collapses to a speed selector and a
+   one-line hint, so seeding the player with a single idle step costs nothing.
 5. Use `player.run(steps)` to append and play an operation. Use `player.reset`
    only when the demo itself resets; reset intentionally clears history.
 
 Snapshots must be complete and side-effect free. Precompute mutations while
 building steps instead of mutating application state when a frame plays. That
 contract makes every animation reversible and directly seekable.
+
+Two rules that keep figures honest:
+
+- **The player is the only place that reports playback state.** Do not add a
+  per-demo "Animating…" line; it double-announces with the demo's status text.
+- **CSS motion inside a figure must know whether the timeline is running.**
+  Read `player.status` and `player.currentDurationMs` and pass them down (see
+  `ReplicaGraph`'s `playing` / `stepDurationMs` props) so motion pauses with the
+  timeline, follows the viewer's speed, and does not replay on every scrub.
+
+### Shared demo building blocks
+
+| Component | Use it for |
+|---|---|
+| `SegmentedControl` | A single choice between demo modes. Filled `Button`s already mean "primary action" inside a figure, so never build a mode toggle out of them. Pass `hint` to explain the selected option. |
+| `Slider` | Numeric demo parameters. Native `<input type="range">` is unthemed and inconsistent with the timeline. |
+| `ScrollableFigure` | Any diagram wider than its container. Adds edge fades and a scroll hint so cropped content does not read as a rendering bug. |
 
 ## Local preview
 

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimationPlayer } from "@/components/animation/AnimationPlayer";
 import { useAnimationPlayer } from "@/components/animation/useAnimationPlayer";
 import { Button } from "@/components/ui/button";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import {
   clear,
   contains,
@@ -26,8 +27,15 @@ import {
   type VizAccent,
   type VizFrame,
 } from "@/lib/btree/demo-animation";
+import { useTreeViewport } from "./btree/useTreeViewport";
+import { ScrollableFigure } from "./ScrollableFigure";
 
 const SAMPLE = [10, 20, 5, 6, 12, 30, 7, 17, 3];
+
+const DEGREE_OPTIONS = [2, 3, 4].map((t) => ({
+  value: String(t),
+  label: `t = ${t}`,
+}));
 
 function parseKeys(raw: string): number[] {
   return raw
@@ -87,7 +95,6 @@ export function BTreeVisualizer() {
   );
   const [degree, setDegree] = useState(2);
   const busy = playback.isActive;
-  const treeScrollRef = useRef<HTMLDivElement | null>(null);
 
   const layout = useMemo(() => layoutTree(tree.root), [tree]);
 
@@ -103,30 +110,11 @@ export function BTreeVisualizer() {
     frameView.highlight.length > 0
       ? frameView.highlight[frameView.highlight.length - 1]?.nodeId
       : null;
-  const nodeById = useMemo(() => {
-    const map = new Map<string, (typeof layout.nodes)[number]>();
-    for (const node of layout.nodes) map.set(node.id, node);
-    return map;
-  }, [layout]);
-
-  useEffect(() => {
-    const scroller = treeScrollRef.current;
-    if (!scroller || !focusNodeId) return;
-    const node = nodeById.get(focusNodeId);
-    if (!node) return;
-
-    const pad = 28;
-    const left = node.x - node.width / 2 - pad;
-    const right = node.x + node.width / 2 + pad;
-    const viewLeft = scroller.scrollLeft;
-    const viewRight = viewLeft + scroller.clientWidth;
-
-    if (left < viewLeft) {
-      scroller.scrollLeft = Math.max(0, left);
-    } else if (right > viewRight) {
-      scroller.scrollLeft = Math.max(0, right - scroller.clientWidth);
-    }
-  }, [focusNodeId, nodeById]);
+  const treeScrollRef = useTreeViewport({
+    layoutWidth: layout.width,
+    nodes: layout.nodes,
+    focusNodeId,
+  });
 
   function resetView(nextTree: BTreeSnapshot, message: string) {
     playback.reset({
@@ -309,7 +297,7 @@ export function BTreeVisualizer() {
 
   const svgWidth = Math.max(layout.width, 320);
   const svgHeight = Math.max(layout.height, 120);
-  const { highlight, accent, message, stepInfo } = frameView;
+  const { highlight, accent, message } = frameView;
 
   return (
     <figure className={figureShell} data-btree-visualizer>
@@ -357,7 +345,7 @@ export function BTreeVisualizer() {
           <Button
             type="button"
             size="sm"
-            variant="destructive"
+            variant="secondary"
             className="w-full sm:w-auto"
             disabled={busy}
             onClick={() => void runDelete()}
@@ -383,47 +371,29 @@ export function BTreeVisualizer() {
             Sample
           </Button>
         </div>
-        {busy && (
-          <p
-            className="text-xs font-medium text-amber-700 dark:text-amber-300"
-            aria-live="polite"
-            data-btree-animating
-          >
-            Animating operation
-            {stepInfo
-              ? ` — step ${stepInfo.index} of ${stepInfo.total}`
-              : "…"}
-          </p>
-        )}
       </div>
 
       <div className="flex flex-col gap-2 border-b border-gray-200 px-3 py-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:px-4 dark:border-gray-700">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-gray-600 dark:text-gray-400">Min degree t</span>
-          {[2, 3, 4].map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => changeDegree(t)}
-              disabled={busy}
-              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-60 ${
-                degree === t
-                  ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
-                  : "bg-white text-gray-700 ring-1 ring-gray-300 hover:bg-gray-100 dark:bg-gray-950 dark:text-gray-200 dark:ring-gray-600 dark:hover:bg-gray-800"
-              }`}
-            >
-              t = {t}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          label="Min degree t"
+          orientation="inline"
+          size="sm"
+          value={String(degree)}
+          options={DEGREE_OPTIONS}
+          onValueChange={(next) => changeDegree(Number(next))}
+          disabled={busy}
+          data-testid="min-degree"
+        />
         <span className="text-xs text-gray-500 sm:ml-auto dark:text-gray-400">
           size {tree.size} · height {tree.height} · max keys/node {2 * degree - 1}
         </span>
       </div>
 
-      <div
-        ref={treeScrollRef}
-        className="min-w-0 w-full overflow-x-auto overscroll-x-contain touch-pan-x px-2 py-4"
+      <ScrollableFigure
+        scrollRef={treeScrollRef}
+        revision={svgWidth}
+        className="px-2 py-4"
+        label="Scroll sideways to see the whole tree"
       >
         {tree.root ? (
           <div
@@ -551,7 +521,7 @@ export function BTreeVisualizer() {
             Empty tree — insert a key or load the sample.
           </p>
         )}
-      </div>
+      </ScrollableFigure>
 
       <AnimationPlayer player={playback} />
 
