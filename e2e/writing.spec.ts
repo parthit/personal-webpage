@@ -312,6 +312,63 @@ test.describe("writing section", () => {
     await expect(player).toHaveAttribute("data-playback-progress", "0.000");
   });
 
+  test("a speed change mid-step does not rewind the figures", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.goto(REPLICATION_POST.path);
+
+    const demo = page.locator("[data-leader-follower-demo]");
+    await demo.scrollIntoViewIfNeeded();
+    const player = demo.locator("[data-animation-player]");
+    const speed = player.locator('[data-segmented-control="playback-rate"]');
+
+    // The slowest rate leaves a wide window inside a single step.
+    const writeBtn = demo.getByRole("button", { name: "Write to leader" });
+    await writeBtn.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await writeBtn.click();
+    await expect(player).toHaveAttribute("data-playback-status", "playing");
+    await speed.getByRole("radio", { name: "0.5×", exact: true }).click();
+    await page.waitForTimeout(900);
+
+    // Watch every DOM state the dwell meter passes through as the rate changes:
+    // publishing the served fraction late would paint one frame back at zero.
+    const samples = await player.evaluate(async (root, label) => {
+      const readProgress = () => {
+        const meter = root.querySelector("[data-animation-step-progress]");
+        const timing = meter?.getAnimations()[0]?.effect?.getComputedTiming();
+        return typeof timing?.progress === "number" ? timing.progress : null;
+      };
+      const seen: (number | null)[] = [readProgress()];
+      const observer = new MutationObserver(() => seen.push(readProgress()));
+      observer.observe(root, {
+        subtree: true,
+        attributes: true,
+        childList: true,
+      });
+      const option = [...root.querySelectorAll("[data-segmented-option]")].find(
+        (el) => el.textContent?.trim() === label
+      );
+      (option as HTMLElement | undefined)?.click();
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      observer.disconnect();
+      return seen;
+    }, "1×");
+
+    await expect(player).toHaveAttribute("data-playback-rate", "1");
+    expect(samples.length).toBeGreaterThan(1);
+    const start = samples[0];
+    expect(start).not.toBeNull();
+    expect(start!).toBeGreaterThan(0.1);
+    for (const seen of samples.slice(1)) {
+      expect(seen, "the meter never restarts mid-step").toBeGreaterThan(
+        start! - 0.05
+      );
+    }
+  });
+
   test("write mode reads as one choice, not two actions", async ({ page }) => {
     await page.goto(REPLICATION_POST.path);
 

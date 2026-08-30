@@ -119,8 +119,8 @@ export function useAnimationPlayer<T>(
     const dwellMs = scaleDuration(step.durationMs ?? defaultDurationMs, rate);
     stepDwellRef.current = dwellMs;
     startedAtRef.current = Date.now();
-    // A speed change lands here with time already served; publish it so the
-    // figures restart their CSS clocks from the same place this timer does.
+    // Every transition publishes before it renders; this only backstops a ref
+    // that moved without one, so the timer and the CSS clocks cannot drift.
     setStepProgress(progressRef.current);
 
     timerRef.current = setTimeout(
@@ -189,6 +189,21 @@ export function useAnimationPlayer<T>(
     setStatus("paused");
   }, [clearTimer, commitDwell]);
 
+  /**
+   * Settle the served fraction before the new rate renders. Publishing it later
+   * would let the figures paint one frame rewound to the start of the step.
+   */
+  const changeRate = useCallback(
+    (next: PlaybackRate) => {
+      if (next === rateRef.current) return;
+      clearTimer();
+      commitDwell();
+      setStepProgress(progressRef.current);
+      setRate(next);
+    },
+    [clearTimer, commitDwell]
+  );
+
   const seekTo = useCallback(
     (index: number, nextStatus?: PlaybackStatus) => {
       clearTimer();
@@ -251,7 +266,7 @@ export function useAnimationPlayer<T>(
     [clearTimer, resolveRun, setDwell]
   );
 
-  return useMemo(() => {
+  return useMemo<AnimationPlayer<T>>(() => {
     const current = timeline.steps[timeline.index] ?? timeline.steps[0];
     const latest = timeline.steps[timeline.steps.length - 1];
     return {
@@ -274,13 +289,14 @@ export function useAnimationPlayer<T>(
       play,
       pause,
       replay,
-      setRate,
+      setRate: changeRate,
       seek,
       stepBackward,
       stepForward,
       reset,
     };
   }, [
+    changeRate,
     defaultDurationMs,
     pause,
     play,
