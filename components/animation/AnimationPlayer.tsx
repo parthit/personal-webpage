@@ -13,7 +13,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Slider } from "@/components/ui/slider";
-import { PLAYBACK_RATES, type PlaybackRate } from "@/lib/animation/core";
+import {
+  dwellClock,
+  PLAYBACK_RATES,
+  type PlaybackRate,
+} from "@/lib/animation/core";
 import { cn } from "@/lib/utils";
 import type { AnimationPlayer as AnimationPlayerState } from "./useAnimationPlayer";
 
@@ -45,6 +49,7 @@ export function AnimationPlayer<T>({
   const playing = player.status === "playing";
   const hasTimeline = player.steps.length > 1;
   const showReplay = hasTimeline && !playing && player.atEnd;
+  const dwell = dwellClock(player.currentDurationMs, player.stepProgress);
   const historyRef = useRef<HTMLOListElement | null>(null);
   const status = STATUS_COPY[player.status];
 
@@ -74,6 +79,7 @@ export function AnimationPlayer<T>({
       data-playback-index={player.index}
       data-playback-rate={player.rate}
       data-playback-at-end={player.atEnd ? "true" : "false"}
+      data-playback-progress={player.stepProgress.toFixed(3)}
     >
       {/*
        * Before the first run there is nothing to scrub: a seeded timeline of one
@@ -163,11 +169,14 @@ export function AnimationPlayer<T>({
             aria-hidden="true"
           >
             <div
-              key={`${player.index}-${player.steps.length}-${player.rate}`}
+              key={`${player.index}-${player.steps.length}-${dwell.durationMs}-${dwell.delayMs}`}
               data-animation-step-progress
               className="anim-step-progress h-full w-full rounded-full bg-amber-500 dark:bg-amber-400"
               style={{
-                animationDuration: `${Math.max(player.currentDurationMs, 1)}ms`,
+                animationDuration: `${dwell.durationMs}ms`,
+                // Seeded from the time already served, so a pause holds the bar
+                // where it stopped and a resume runs only what the step owes.
+                animationDelay: `-${dwell.delayMs}ms`,
                 animationPlayState: playing ? "running" : "paused",
               }}
             />

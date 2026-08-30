@@ -151,6 +151,7 @@ export function LeaderFollowerDemo() {
           packetLabel={packet}
           playing={motion.playing}
           stepDurationMs={motion.stepDurationMs}
+          stepProgress={motion.stepProgress}
           topology="leader-tree"
           ariaLabel="Leader and two follower replicas"
         />

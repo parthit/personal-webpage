@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useMemo, useRef, useSyncExternalStore } from "react";
+import { dwellClock } from "@/lib/animation/core";
 import { cn } from "@/lib/utils";
 import { ScrollableFigure } from "../ScrollableFigure";
 import {
@@ -33,6 +34,7 @@ export function ReplicaGraph({
   ariaLabel,
   playing = false,
   stepDurationMs,
+  stepProgress = 0,
 }: {
   replicas: Replica[];
   highlightIds: string[];
@@ -47,6 +49,8 @@ export function ReplicaGraph({
   playing?: boolean;
   /** Dwell of the current step, already scaled by playback speed. */
   stepDurationMs?: number;
+  /** Fraction of that dwell already served, so a resumed flight continues. */
+  stepProgress?: number;
 }) {
   const markerId = useId().replace(/:/g, "");
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -198,29 +202,39 @@ export function ReplicaGraph({
               )?.kind ?? "client";
             const d = edgePath(from, to, kind, centroid);
             const ctrl = controlPoint(from, to, kind, centroid);
-            const inFlight = playing && !reducedMotion;
+            // A step reached by scrubbing has served none of its dwell, so its
+            // packet reads as arrived; one caught mid-flight holds its place.
+            const flying = !reducedMotion && (playing || stepProgress > 0);
+            const clock = dwellClock(
+              stepDurationMs ?? 0,
+              stepProgress,
+              packetFlightMs(stepDurationMs)
+            );
             return (
               <g key={`${hop.fromId}-${hop.toId}-${hopKey}`}>
                 {/* Ringed so the token stays readable on top of the amber wire. */}
                 <circle
+                  key={flying ? `${clock.durationMs}-${clock.delayMs}` : "parked"}
                   cx={0}
                   cy={0}
                   r={6}
                   strokeWidth={2.5}
                   data-repl-packet
-                  data-repl-packet-flying={inFlight ? "true" : "false"}
+                  data-repl-packet-flying={
+                    playing && !reducedMotion ? "true" : "false"
+                  }
                   className={cn(
                     "fill-amber-500 stroke-white dark:fill-amber-300 dark:stroke-gray-950",
-                    inFlight && "repl-packet"
+                    flying && "repl-packet"
                   )}
                   style={{
                     offsetPath: `path("${d}")`,
                     offsetRotate: "0deg",
-                    ...(inFlight
+                    ...(flying
                       ? {
-                          ["--repl-packet-duration" as string]: `${packetFlightMs(
-                            stepDurationMs
-                          )}ms`,
+                          ["--repl-packet-duration" as string]: `${clock.durationMs}ms`,
+                          animationDelay: `-${clock.delayMs}ms`,
+                          animationPlayState: playing ? "running" : "paused",
                         }
                       : { offsetDistance: "100%" }),
                   }}

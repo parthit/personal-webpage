@@ -262,6 +262,56 @@ test.describe("writing section", () => {
     await expect(player).toHaveAttribute("data-playback-status", "playing");
   });
 
+  test("pausing holds a step where it stopped", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.goto(REPLICATION_POST.path);
+
+    const demo = page.locator("[data-leader-follower-demo]");
+    await demo.scrollIntoViewIfNeeded();
+    const player = demo.locator("[data-animation-player]");
+
+    const writeBtn = demo.getByRole("button", { name: "Write to leader" });
+    await writeBtn.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await writeBtn.click();
+    await expect(player).toHaveAttribute("data-playback-status", "playing");
+
+    // Land somewhere inside a step, not on its boundary.
+    await page.waitForTimeout(700);
+    await player.getByRole("button", { name: "Pause animation" }).click();
+    await expect(player).toHaveAttribute("data-playback-status", "paused");
+
+    const served = Number(await player.getAttribute("data-playback-progress"));
+    expect(served).toBeGreaterThan(0);
+    expect(served).toBeLessThan(1);
+
+    // The dwell meter holds its position: seeded partway, clock stopped.
+    const meter = player.locator("[data-animation-step-progress]");
+    const paused = await meter.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { delay: cs.animationDelay, playState: cs.animationPlayState };
+    });
+    expect(paused.playState).toBe("paused");
+    expect(Number.parseFloat(paused.delay)).toBeLessThan(0);
+
+    // Resuming must not rewind the meter or restart the step's full dwell.
+    await player.getByRole("button", { name: "Play animation" }).click();
+    await expect(player).toHaveAttribute("data-playback-status", "playing");
+    await expect(player).toHaveAttribute(
+      "data-playback-progress",
+      served.toFixed(3)
+    );
+    const running = await meter.evaluate(
+      (el) => getComputedStyle(el).animationPlayState
+    );
+    expect(running).toBe("running");
+
+    // Scrubbing to a step shows it from the start of its dwell instead.
+    await player.getByRole("button", { name: "Previous step" }).click();
+    await expect(player).toHaveAttribute("data-playback-progress", "0.000");
+  });
+
   test("write mode reads as one choice, not two actions", async ({ page }) => {
     await page.goto(REPLICATION_POST.path);
 

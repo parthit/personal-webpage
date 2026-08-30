@@ -96,6 +96,7 @@ export function useSimPlayback(initial: Replica[], idleMessage: string) {
     motion: {
       playing: player.status === "playing",
       stepDurationMs: player.currentDurationMs,
+      stepProgress: player.stepProgress,
     },
     replicasRef,
     run,

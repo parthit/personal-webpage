@@ -131,6 +131,7 @@ export function StaleReadDemo() {
           packetLabel={packet}
           playing={motion.playing}
           stepDurationMs={motion.stepDurationMs}
+          stepProgress={motion.stepProgress}
           topology="leader-tree"
           ariaLabel="Replicas used for a stale-read walkthrough"
         />

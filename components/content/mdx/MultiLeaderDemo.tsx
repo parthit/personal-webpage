@@ -120,6 +120,7 @@ export function MultiLeaderDemo() {
           packetLabel={packet}
           playing={motion.playing}
           stepDurationMs={motion.stepDurationMs}
+          stepProgress={motion.stepProgress}
           topology="multi-leader"
           linkBroken={view.linkBroken ?? false}
           ariaLabel="Two multi-leader datacenters"

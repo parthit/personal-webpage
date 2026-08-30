@@ -193,6 +193,7 @@ export function QuorumDemo() {
           packetLabel={packet}
           playing={motion.playing}
           stepDurationMs={motion.stepDurationMs}
+          stepProgress={motion.stepProgress}
           topology="quorum"
           ariaLabel="Five leaderless replicas"
         />
