@@ -142,10 +142,10 @@ export default function Blockchain() {
         </CardHeader>
         <CardContent className="space-y-6">
           <p className="text-sm text-gray-600 dark:text-gray-300">
-            The miner hashes <code>Block data with nonce: N</code> until the
-            hex digest ends with the target number of zeros.
+            The miner hashes <code className="whitespace-nowrap">Block data with nonce: N</code> until
+            the hex digest ends with the target number of zeros.
           </p>
-          <div className="space-y-2">
+          <div className="space-y-3">
             <label
               htmlFor="target-zeros"
               className="text-sm font-medium text-gray-700 dark:text-gray-300"

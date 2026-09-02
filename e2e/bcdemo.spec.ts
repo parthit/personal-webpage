@@ -15,7 +15,7 @@ test.describe("SHA-256 mining demo", () => {
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Start Mining" }).click();
-    await expect(page.getByRole("button", { name: "Stop Mining" })).toBeVisible();
+    // Difficulty 1 often finishes in one tick; assert the result, not Stop.
     await expect(page.getByText(/Found solution! Nonce:/i)).toBeVisible({
       timeout: 30_000,
     });
