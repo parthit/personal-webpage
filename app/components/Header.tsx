@@ -16,7 +16,7 @@ const Header = () => {
 
   return (
     <header className="mx-auto mb-5 max-w-2xl">
-      <nav className="container py-4">
+      <nav className="py-4" aria-label="Primary">
         <ul className="flex flex-wrap justify-start gap-x-6 gap-y-2">
           {navItems.map((item) => {
             const active =

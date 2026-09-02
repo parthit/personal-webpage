@@ -12,6 +12,7 @@ test.describe("SEO discovery", () => {
     expect(body).toMatch(/User-Agent:\s*\*/i);
     expect(body).toMatch(/Allow:\s*\//i);
     expect(body).toMatch(/Sitemap:\s*https?:\/\/.+\/sitemap\.xml/i);
+    expect(body).toMatch(/Disallow:\s*\/bcdemo/i);
   });
 
   test("serves a sitemap that includes key portfolio routes", async ({
