@@ -27,6 +27,23 @@ test.describe("home page", () => {
     await expect(
       page.getByRole("link", { name: "X" })
     ).toHaveAttribute("href", /x\.com|twitter\.com/);
+
+    const cornell = page.getByRole("link", { name: "Cornell Tech" });
+    await expect(cornell).toBeVisible();
+    await expect(cornell).toHaveAttribute("href", /tech\.cornell\.edu/);
+    await expect(page.getByRole("link", { name: "AugmentED" })).toHaveAttribute(
+      "href",
+      /augmentedcornell/
+    );
+    await expect(
+      page.getByRole("link", { name: /Dakka.?s Bakery/i })
+    ).toHaveAttribute("href", /instagram\.com/);
+
+    const portrait = page.getByRole("img", { name: /Portrait of Parthit Patel/i });
+    await expect(portrait).toBeVisible();
+    const box = await portrait.boundingBox();
+    expect(box).toBeTruthy();
+    expect(Math.abs((box?.width ?? 0) - (box?.height ?? 0))).toBeLessThan(8);
   });
 
   test("surfaces latest writing and video teasers", async ({ page }) => {

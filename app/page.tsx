@@ -31,15 +31,22 @@ export default function Home() {
       <h1 className="mb-4 text-3xl">{homeContent.title}</h1>
       <p className="mb-4 font-sans">{homeContent.introduction}</p>
       {homeContent.images.length > 0 && (
-        <div className="mb-4 grid grid-cols-2 gap-4">
-          {homeContent.images.map((image, index) => (
+        <div
+          className={
+            homeContent.images.length === 1
+              ? "mb-4"
+              : "mb-4 grid grid-cols-2 gap-4"
+          }
+        >
+          {homeContent.images.map((image) => (
             <Image
-              key={index}
+              key={image.src}
               src={image.src}
               alt={image.alt}
-              width={300}
-              height={200}
-              className="rounded-lg"
+              width={800}
+              height={800}
+              className="h-auto w-full max-w-[280px] rounded-lg"
+              priority
             />
           ))}
         </div>
