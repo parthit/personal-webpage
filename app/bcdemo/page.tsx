@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useReducer, useRef, useState } from "react";
+import React, { useEffect, useReducer, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
@@ -39,21 +39,21 @@ export default function Blockchain() {
   const [inputNonce, setInputNonce] = useState("");
   const [inputHash, setInputHash] = useState("");
   const [inputError, setInputError] = useState<string | null>(null);
-  const sessionRef = useRef(0);
 
   useEffect(() => {
     if (!state.mining) return;
 
+    let cancelled = false;
     const runId = state.runId;
-    sessionRef.current = runId;
+    const zeros = state.targetZeros;
 
     const mine = async () => {
       let nonce = 0;
-      while (sessionRef.current === runId) {
+      while (!cancelled) {
         const hash = await sha256Hash(blockPayload(nonce));
-        if (sessionRef.current !== runId) return;
+        if (cancelled) return;
 
-        if (meetsTrailingZeroTarget(hash, state.targetZeros)) {
+        if (meetsTrailingZeroTarget(hash, zeros)) {
           dispatch({ type: "FOUND_NONCE", runId, nonce, hash });
           return;
         }
@@ -66,9 +66,7 @@ export default function Blockchain() {
 
     void mine();
     return () => {
-      if (sessionRef.current === runId) {
-        sessionRef.current += 1;
-      }
+      cancelled = true;
     };
   }, [state.mining, state.runId, state.targetZeros]);
 
@@ -123,14 +121,11 @@ export default function Blockchain() {
           </div>
 
           <Button
-            onClick={() => {
-              if (state.mining) {
-                sessionRef.current += 1;
-                dispatch({ type: "STOP_MINING" });
-              } else {
-                dispatch({ type: "START_MINING" });
-              }
-            }}
+            onClick={() =>
+              dispatch({
+                type: state.mining ? "STOP_MINING" : "START_MINING",
+              })
+            }
             className={`w-40 ${
               state.mining
                 ? "bg-red-500 text-white hover:bg-red-600"
