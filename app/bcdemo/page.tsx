@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useReducer, useState } from "react";
+import React, { useEffect, useReducer, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
@@ -11,58 +11,10 @@ import {
   meetsTrailingZeroTarget,
   parseNonceInput,
 } from "@/lib/mining/pow";
-
-interface MiningState {
-  nonce: number;
-  targetZeros: number;
-  mining: boolean;
-  currentHash: string;
-  foundNonce: number | null;
-}
-
-type MiningAction =
-  | { type: "START_MINING" }
-  | { type: "STOP_MINING" }
-  | { type: "TICK"; nonce: number; hash: string }
-  | { type: "FOUND_NONCE"; nonce: number; hash: string }
-  | { type: "SET_TARGET_ZEROS"; zeros: number };
-
-const initialState: MiningState = {
-  nonce: 0,
-  targetZeros: 1,
-  mining: false,
-  currentHash: "",
-  foundNonce: null,
-};
-
-function miningReducer(state: MiningState, action: MiningAction): MiningState {
-  switch (action.type) {
-    case "START_MINING":
-      return {
-        ...state,
-        nonce: 0,
-        mining: true,
-        foundNonce: null,
-        currentHash: "",
-      };
-    case "STOP_MINING":
-      return { ...state, mining: false };
-    case "TICK":
-      return { ...state, nonce: action.nonce, currentHash: action.hash };
-    case "FOUND_NONCE":
-      return {
-        ...state,
-        mining: false,
-        nonce: action.nonce,
-        currentHash: action.hash,
-        foundNonce: action.nonce,
-      };
-    case "SET_TARGET_ZEROS":
-      return { ...state, targetZeros: action.zeros };
-    default:
-      return state;
-  }
-}
+import {
+  initialMiningState,
+  miningReducer,
+} from "@/lib/mining/session";
 
 async function sha256Hash(input: string): Promise<string> {
   const msgBuffer = new TextEncoder().encode(input);
@@ -83,39 +35,42 @@ function HashDisplay({ hash, zeros }: { hash: string; zeros: number }) {
 }
 
 export default function Blockchain() {
-  const [state, dispatch] = useReducer(miningReducer, initialState);
+  const [state, dispatch] = useReducer(miningReducer, initialMiningState);
   const [inputNonce, setInputNonce] = useState("");
   const [inputHash, setInputHash] = useState("");
   const [inputError, setInputError] = useState<string | null>(null);
+  const sessionRef = useRef(0);
 
   useEffect(() => {
     if (!state.mining) return;
 
-    let cancelled = false;
+    const runId = state.runId;
+    sessionRef.current = runId;
 
     const mine = async () => {
       let nonce = 0;
-      while (!cancelled) {
+      while (sessionRef.current === runId) {
         const hash = await sha256Hash(blockPayload(nonce));
-        if (cancelled) return;
+        if (sessionRef.current !== runId) return;
 
         if (meetsTrailingZeroTarget(hash, state.targetZeros)) {
-          dispatch({ type: "FOUND_NONCE", nonce, hash });
+          dispatch({ type: "FOUND_NONCE", runId, nonce, hash });
           return;
         }
 
-        dispatch({ type: "TICK", nonce, hash });
+        dispatch({ type: "TICK", runId, nonce, hash });
         nonce += 1;
-        // Yield so Stop stays responsive and the UI can paint.
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
     };
 
     void mine();
     return () => {
-      cancelled = true;
+      if (sessionRef.current === runId) {
+        sessionRef.current += 1;
+      }
     };
-  }, [state.mining, state.targetZeros]);
+  }, [state.mining, state.runId, state.targetZeros]);
 
   const parsedNonce = parseNonceInput(inputNonce);
 
@@ -168,11 +123,14 @@ export default function Blockchain() {
           </div>
 
           <Button
-            onClick={() =>
-              dispatch({
-                type: state.mining ? "STOP_MINING" : "START_MINING",
-              })
-            }
+            onClick={() => {
+              if (state.mining) {
+                sessionRef.current += 1;
+                dispatch({ type: "STOP_MINING" });
+              } else {
+                dispatch({ type: "START_MINING" });
+              }
+            }}
             className={`w-40 ${
               state.mining
                 ? "bg-red-500 text-white hover:bg-red-600"
