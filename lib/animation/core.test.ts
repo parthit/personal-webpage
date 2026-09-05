@@ -5,11 +5,14 @@ import {
   appendSteps,
   clampStep,
   dwellClock,
+  lerp,
+  liveStepProgress,
   PLAYBACK_RATES,
   remainingDwellMs,
   scaleDuration,
   seekTimeline,
   visibleHistory,
+  visiblePlayhead,
   type AnimationTimeline,
 } from "./core";
 
@@ -107,5 +110,19 @@ describe("step dwell", () => {
     const clock = dwellClock(1600, 0.25, 1152);
     assert.deepEqual(clock, { durationMs: 1152, delayMs: 400 });
     assert.equal(clock.delayMs / clock.durationMs, 400 / 1152);
+  });
+});
+
+describe("continuous playhead", () => {
+  it("lerps along an axis and snaps under reduced motion", () => {
+    assert.equal(lerp(10, 20, 0.5), 15);
+    assert.equal(visiblePlayhead(2, 8, 0.25), 3.5);
+    assert.equal(visiblePlayhead(2, 8, 0.25, true), 8);
+  });
+
+  it("keeps using the sampled fraction until playback adds elapsed time", () => {
+    assert.equal(liveStepProgress(0.25, 400, 1600, false), 0.25);
+    assert.equal(liveStepProgress(0.25, 400, 1600, true), 0.5);
+    assert.equal(liveStepProgress(0.9, 400, 1600, true), 1);
   });
 });

@@ -24,6 +24,12 @@ export const VISION_VLM_POST = {
   path: "/writing/specialized-vision-vs-vlm",
 } as const;
 
+export const ISOLATION_POST = {
+  slug: "transaction-isolation",
+  title: "Isolation is which writes a read is allowed to miss",
+  path: "/writing/transaction-isolation",
+} as const;
+
 export const CURATED_VIDEO = {
   slug: "architecture-system-design-interviews",
   title: "Intro to Architecture and Systems Design Interviews",

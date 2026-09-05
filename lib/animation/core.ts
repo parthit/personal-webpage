@@ -15,6 +15,46 @@ export function scaleDuration(durationMs: number, rate: PlaybackRate): number {
 }
 
 /**
+ * Sample a continuous axis (a sequence-diagram playhead, a packet's path)
+ * between two snapshots. Snapshots stay complete; the renderer lerps.
+ */
+export function lerp(from: number, to: number, progress: number): number {
+  const clamped = Math.min(1, Math.max(0, progress));
+  return from + (to - from) * clamped;
+}
+
+/**
+ * Playhead for a step that moves along a shared time axis. Reduced motion
+ * jumps to the step's settled time so the lesson is still on screen.
+ */
+export function visiblePlayhead(
+  from: number,
+  to: number,
+  progress: number,
+  reducedMotion = false
+): number {
+  if (reducedMotion) return to;
+  return lerp(from, to, progress);
+}
+
+/**
+ * `stepProgress` on the player is sampled at pause / seek / rate / step
+ * boundaries, not every frame. Views that draw a continuous axis (sequence
+ * playheads, growing arrows) add elapsed playback time on top of that sample.
+ */
+export function liveStepProgress(
+  sampledProgress: number,
+  elapsedMs: number,
+  durationMs: number,
+  playing: boolean
+): number {
+  if (!playing) {
+    return Math.min(1, Math.max(0, sampledProgress));
+  }
+  return advanceDwell(sampledProgress, elapsedMs, durationMs);
+}
+
+/**
  * How much of a step's dwell has been served, tracked as a fraction rather than
  * milliseconds so a mid-step speed change rescales what is left instead of
  * restarting or overshooting it.

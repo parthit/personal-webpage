@@ -1,0 +1,60 @@
+---
+title: "Isolation is which writes a read is allowed to miss"
+summary: "Dirty reads, lost updates, read skew, and write skew — the same interleaving under four isolation levels, drawn the way DDIA draws time."
+date: "2026-09-05"
+tags: ["system-design", "databases", "transactions"]
+cover: "/content/images/writing/transaction-isolation/cover.svg"
+draft: false
+series: "ddia-notes"
+---
+
+These are my notes from chapter 7 of Martin Kleppmann’s *Designing Data-Intensive Applications*. Replication is about copies that disagree. Transactions are about **overlapping work on the same copy**.
+
+The diagrams in that chapter are time moving left to right, one track per person or row, and arrows for the queries in between. I wanted the same thing on this site: a playhead you can pause, not a static PNG. The figures below are generated from a small isolation simulator. They are not Postgres. They are the interleavings from the book, stepped slowly enough to follow.
+
+## What “committed” is for
+
+If Alice writes 600 and then aborts, that 600 should vanish. Under **read uncommitted**, Bob can still see it. That is a dirty read: a value that never became history.
+
+<IsolationDemo scenario="dirty-read" />
+
+Read committed is the default in PostgreSQL, Oracle, and SQL Server for a reason. It stops the abort from leaking. It does not stop the rest of this page.
+
+## Lost updates are two correct transactions
+
+Alice and Bob both read 500, both add 100, both write 600. Each statement is true in isolation. Together they lost a hundred dollars.
+
+<IsolationDemo scenario="lost-update" />
+
+Read committed lets the second commit win. Serializable aborts Bob. The abort is the feature: a retry would read 600 and write 700. `UPDATE accounts SET balance = balance + 100` does the same job without a round-trip read, because the database applies the increment to whatever is there now.
+
+Atomic increment, `SELECT FOR UPDATE`, and compare-and-set (`WHERE balance = 500`) are three ways to refuse this interleaving without serializing the whole database.
+
+## Read skew is a total that never existed
+
+Alice has 500 in each of two accounts. She transfers 100 from the first to the second in one transaction. Bob, in his own transaction, reads the first account before the transfer commits and the second account after. He adds 500 + 600 = 1100. There was never a moment when the committed totals were 1100.
+
+<IsolationDemo scenario="read-skew" />
+
+Snapshot isolation fixes this by pinning Bob to the committed world as of his `BEGIN`. Both of his reads see 500. The transfer still happens; he just does not straddle it.
+
+## Write skew looks like two independent decisions
+
+Two doctors are on call. The constraint is that at least one must remain. Each reads both rows, sees the other is still on, and goes off. Snapshot isolation allows both commits. Nobody wrote the same row. The invariant still dies.
+
+<IsolationDemo scenario="write-skew" />
+
+Serializable (in the strict sense used here) notices that Bob read a row Alice committed a write to, and aborts him. Snapshot isolation does not. That gap is why “repeatable read” in PostgreSQL is SSI with some anomalies still possible, and why a check constraint on a single row is not the same as a check over two rows.
+
+## How I keep the levels straight
+
+| Level | Dirty read | Lost update | Read skew | Write skew |
+|---|---|---|---|---|
+| Read uncommitted | Yes | Yes | Yes | Yes |
+| Read committed | No | Yes | Yes | Yes |
+| Snapshot | No | Abort | No | Yes |
+| Serializable | No | Abort | No | Abort |
+
+The names in vendor docs do not match this table one-for-one. MySQL’s repeatable read is not Postgres’s. Oracle’s serializable is snapshot isolation. If you need a guarantee, look at the anomaly, not the label.
+
+Try the same interleaving at both levels in each figure. The arrows are the lesson; the isolation control is which of those arrows are allowed to see the write that is still in the air.

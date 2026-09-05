@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   BTREE_POST,
   DOCUMENT_AI_POST,
+  ISOLATION_POST,
   REPLICATION_POST,
   VISION_VLM_POST,
   expectActiveNav,
@@ -20,7 +21,7 @@ test.describe("writing section", () => {
       page.getByRole("link", { name: DOCUMENT_AI_POST.title })
     ).toBeVisible();
     await expect(page.getByText("applied-ai").first()).toBeVisible();
-    await expect(page.getByText(/Aug 24, 2026/i)).toBeVisible();
+    await expect(page.getByText(/Sep 5, 2026/i)).toBeVisible();
   });
 
   test("returns a useful not-found page for unknown slugs", async ({ page }) => {
@@ -694,6 +695,118 @@ test.describe("writing section", () => {
     expect(visionBox).not.toBeNull();
     expect(visionBox!.width).toBeLessThanOrEqual(390);
     const pageWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+    expect(pageWidth).toBeLessThanOrEqual(400);
+  });
+
+  test("renders the isolation post with sequence-diagram playgrounds", async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    await page.goto("/writing");
+    await expect(
+      page.getByRole("link", { name: ISOLATION_POST.title })
+    ).toBeVisible();
+
+    await page.goto(ISOLATION_POST.path);
+    await expect(
+      page.getByRole("heading", { name: ISOLATION_POST.title })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "What “committed” is for" })
+    ).toBeVisible();
+
+    const cover = page.locator(
+      'img[src="/content/images/writing/transaction-isolation/cover.svg"]'
+    );
+    await expectImageLoaded(cover);
+
+    const dirty = page.locator('[data-isolation-demo="dirty-read"]');
+    await dirty.scrollIntoViewIfNeeded();
+    await expect(
+      dirty.getByRole("img", { name: "Dirty read sequence diagram" })
+    ).toBeVisible();
+    await expect(dirty.locator("[data-sequence-actor=alice]")).toBeVisible();
+    await expect(dirty.locator("[data-sequence-actor=acc1]")).toBeVisible();
+
+    const speed = dirty.locator('[data-segmented-control="playback-rate"]');
+    await speed.getByRole("radio", { name: "2×", exact: true }).click();
+    const runDirty = dirty.getByRole("button", { name: "Run the interleaving" });
+    await runDirty.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await runDirty.click();
+    await expect(dirty.locator("[data-animation-player]")).toHaveAttribute(
+      "data-playback-status",
+      "playing"
+    );
+    const diagram = dirty.locator("[data-sequence-diagram]");
+    const playheadAtStart = Number(await diagram.getAttribute("data-playhead"));
+    await expect
+      .poll(async () => Number(await diagram.getAttribute("data-playhead")), {
+        timeout: 4_000,
+      })
+      .toBeGreaterThan(playheadAtStart);
+    await expect(dirty.locator("[data-isolation-status]")).toContainText(
+      /never committed|Bob read 600/i,
+      { timeout: 80_000 }
+    );
+    await expect(dirty.locator("[data-sequence-event=abort]")).toBeVisible();
+
+    const level = dirty.locator('[data-segmented-control="isolation-level"]');
+    await level.getByRole("radio", { name: "Read committed", exact: true }).click();
+    await dirty.getByRole("button", { name: "Run the interleaving" }).click();
+    await expect(dirty.locator("[data-isolation-status]")).toContainText(
+      /did not leak/i,
+      { timeout: 80_000 }
+    );
+
+    const lost = page.locator('[data-isolation-demo="lost-update"]');
+    await lost.scrollIntoViewIfNeeded();
+    await lost.getByRole("button", { name: "Run the interleaving" }).click();
+    await expect(lost.locator("[data-isolation-status]")).toContainText(
+      /vanished/i,
+      { timeout: 80_000 }
+    );
+    await expect(lost.locator('[data-record-id="acc1"]')).toHaveAttribute(
+      "data-record-committed",
+      "600"
+    );
+
+    const skew = page.locator('[data-isolation-demo="write-skew"]');
+    await skew.scrollIntoViewIfNeeded();
+    await expect(
+      skew.getByRole("img", { name: "Write skew sequence diagram" })
+    ).toBeVisible();
+    await skew.getByRole("button", { name: "Run the interleaving" }).click();
+    await expect(skew.locator("[data-isolation-status]")).toContainText(
+      /Both went off call/i,
+      { timeout: 80_000 }
+    );
+  });
+
+  test("isolation diagrams stay usable on a narrow viewport", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(ISOLATION_POST.path);
+
+    const dirty = page.locator('[data-isolation-demo="dirty-read"]');
+    await dirty.scrollIntoViewIfNeeded();
+    await expect(
+      dirty.getByRole("button", { name: "Run the interleaving" })
+    ).toBeVisible();
+    const box = await dirty.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width).toBeLessThanOrEqual(390);
+    const graph = dirty.locator("[data-sequence-diagram]");
+    const sizes = await graph.evaluate((el) => ({
+      client: el.clientWidth,
+      scroll: el.scrollWidth,
+    }));
+    expect(sizes.scroll).toBeGreaterThan(sizes.client);
+    const pageWidth = await page.evaluate(
+      () => document.documentElement.scrollWidth
+    );
     expect(pageWidth).toBeLessThanOrEqual(400);
   });
 });

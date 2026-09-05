@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { DOCUMENT_AI_POST } from "./helpers";
+import { ISOLATION_POST } from "./helpers";
 
 test.describe("SEO discovery", () => {
   test("serves robots.txt that allows crawling and points to the sitemap", async ({
@@ -26,7 +26,7 @@ test.describe("SEO discovery", () => {
     expect(body).toMatch(/https?:\/\/.+\/writing/);
     expect(body).toMatch(/https?:\/\/.+\/videos/);
     expect(body).toMatch(/https?:\/\/.+\/chat/);
-    expect(body).toContain(`/writing/${DOCUMENT_AI_POST.slug}`);
+    expect(body).toContain(`/writing/${ISOLATION_POST.slug}`);
   });
 
   test("home page exposes useful document metadata and JSON-LD", async ({

@@ -21,7 +21,7 @@ const projects = [
   {
     title: "Systems Visualizations",
     description:
-      "Small visualizations I built while learning replication, quorums, and B-tree indexes. Clicking through them helped the ideas stick better than another page of notes.",
+      "Small visualizations I built while learning replication, isolation, quorums, and B-tree indexes. Clicking through them helped the ideas stick better than another page of notes.",
     href: "/writing/replication",
     linkLabel: "Explore the replication walkthrough",
     external: false,
