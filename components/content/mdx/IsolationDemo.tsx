@@ -71,6 +71,7 @@ export function IsolationDemo({
   const options = levels.map((value) => ({
     value,
     label: ISOLATION_LABELS[value],
+    hint: ISOLATION_HINTS[value],
   }));
 
   return (
@@ -86,7 +87,7 @@ export function IsolationDemo({
           options={options}
           onValueChange={(next) => changeLevel(next as IsolationLevel)}
           disabled={busy}
-          hint={ISOLATION_HINTS[level]}
+          hint
           data-testid="isolation-level"
         />
         <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
