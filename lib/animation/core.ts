@@ -38,6 +38,23 @@ export function visiblePlayhead(
 }
 
 /**
+ * `stepProgress` on the player is sampled at pause / seek / rate / step
+ * boundaries, not every frame. Views that draw a continuous axis (sequence
+ * playheads, growing arrows) add elapsed playback time on top of that sample.
+ */
+export function liveStepProgress(
+  sampledProgress: number,
+  elapsedMs: number,
+  durationMs: number,
+  playing: boolean
+): number {
+  if (!playing) {
+    return Math.min(1, Math.max(0, sampledProgress));
+  }
+  return advanceDwell(sampledProgress, elapsedMs, durationMs);
+}
+
+/**
  * How much of a step's dwell has been served, tracked as a fraction rather than
  * milliseconds so a mid-step speed change rescales what is left instead of
  * restarting or overshooting it.

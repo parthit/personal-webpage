@@ -119,6 +119,8 @@ export function IsolationDemo({
           fromNow={view.fromNow}
           toNow={view.toNow}
           stepProgress={player.stepProgress}
+          playing={player.status === "playing"}
+          stepDurationMs={player.currentDurationMs}
           highlightActorIds={view.highlightActorIds}
           highlightMessageIds={view.highlightMessageIds}
           ariaLabel={`${script.title} sequence diagram`}

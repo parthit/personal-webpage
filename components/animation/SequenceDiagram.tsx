@@ -7,6 +7,7 @@ import {
   reducedMotionSubscribe,
   visiblePlayhead,
 } from "@/lib/animation/core";
+import { useLiveStepProgress } from "./useLiveStepProgress";
 import {
   arrowEndpoints,
   layoutSequence,
@@ -24,6 +25,8 @@ export function SequenceDiagram({
   fromNow,
   toNow,
   stepProgress = 0,
+  playing = false,
+  stepDurationMs = 0,
   highlightActorIds = [],
   highlightMessageIds = [],
   ariaLabel,
@@ -32,6 +35,10 @@ export function SequenceDiagram({
   fromNow: number;
   toNow: number;
   stepProgress?: number;
+  /** True only while the timeline is running; sampled progress is not live. */
+  playing?: boolean;
+  /** Current step dwell, already scaled by playback rate. */
+  stepDurationMs?: number;
   highlightActorIds?: string[];
   highlightMessageIds?: string[];
   ariaLabel: string;
@@ -44,7 +51,12 @@ export function SequenceDiagram({
     getReducedMotionServerSnapshot
   );
   const layout = useMemo(() => layoutSequence(scenario), [scenario]);
-  const now = visiblePlayhead(fromNow, toNow, stepProgress, reducedMotion);
+  const progress = useLiveStepProgress(
+    playing && !reducedMotion,
+    stepProgress,
+    stepDurationMs
+  );
+  const now = visiblePlayhead(fromNow, toNow, progress, reducedMotion);
   const view = useMemo(() => viewAt(scenario, now), [scenario, now]);
   const highlightActors = useMemo(
     () => new Set(highlightActorIds),

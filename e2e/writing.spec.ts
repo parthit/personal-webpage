@@ -735,6 +735,17 @@ test.describe("writing section", () => {
       el.scrollIntoView({ block: "center", inline: "nearest" })
     );
     await runDirty.click();
+    await expect(dirty.locator("[data-animation-player]")).toHaveAttribute(
+      "data-playback-status",
+      "playing"
+    );
+    const diagram = dirty.locator("[data-sequence-diagram]");
+    const playheadAtStart = Number(await diagram.getAttribute("data-playhead"));
+    await expect
+      .poll(async () => Number(await diagram.getAttribute("data-playhead")), {
+        timeout: 4_000,
+      })
+      .toBeGreaterThan(playheadAtStart);
     await expect(dirty.locator("[data-isolation-status]")).toContainText(
       /never committed|Bob read 600/i,
       { timeout: 80_000 }
