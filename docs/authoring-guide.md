@@ -102,6 +102,20 @@ Registered in `components/content/mdx/components.tsx`:
 | `QuorumDemo` | `<QuorumDemo />` — leaderless N/W/R quorums |
 | `FieldMatchingDemo` | `<FieldMatchingDemo />` — OCR spans → schema matching with confidence thresholds |
 | `VisionVsVlmDemo` | `<VisionVsVlmDemo />` — specialized detector vs VLM latency/accuracy walkthrough |
+| `IsolationDemo` | `<IsolationDemo scenario="lost-update" />` — DDIA-style sequence diagram of a transaction interleaving |
+
+### Sequence diagrams
+
+Overlapping transactions need a different figure than a replica graph: **time on the x-axis**, one horizontal track per actor, diagonal arrows for request and response. That language comes from DDIA. The shared engine for it lives in `lib/animation/sequence.ts` and renders through `SequenceDiagram`.
+
+A sequence snapshot is still a complete, side-effect-free player snapshot. It names a playhead interval `[fromNow, toNow]`. During the step, `visiblePlayhead` lerps along that interval with `stepProgress`, so arrows grow instead of popping. Reduced motion jumps to `toNow`.
+
+To add a new sequence-backed demo:
+
+1. Describe actors, messages, notes, commit ticks, and transaction spans as a `SequenceScenario`.
+2. Put each teaching beat in an `AnimationStep` whose snapshot includes `fromNow`, `toNow`, and the full scenario.
+3. Render `<SequenceDiagram scenario={...} fromNow={...} toNow={...} stepProgress={player.stepProgress} playing={player.status === "playing"} />`.
+4. Isolation walkthroughs go one step further: `lib/transactions` simulates a script at an isolation level and *then* emits the scenario, so the figure and the anomaly stay in lockstep.
 
 ### Before you publish
 
