@@ -4,9 +4,8 @@ import { lerp } from "./core";
  * DDIA-style sequence diagrams: actors on parallel tracks, time left-to-right,
  * requests and replies as diagonal arrows, notes and commit ticks on the tracks.
  *
- * The animation player still steps through complete snapshots. Each snapshot
- * names a playhead interval `[fromNow, toNow]`; the renderer samples that
- * interval with `stepProgress` so arrows grow during a step instead of popping.
+ * The renderer is deliberately clock-agnostic: its owner supplies one `now`
+ * value shared by geometry, captions, and state projections.
  */
 
 export type ActorKind = "person" | "record" | "process";

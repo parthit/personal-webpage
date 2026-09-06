@@ -26,7 +26,7 @@ export const VISION_VLM_POST = {
 
 export const ISOLATION_POST = {
   slug: "transaction-isolation",
-  title: "Isolation is which writes a read is allowed to miss",
+  title: "Isolation controls which concurrent histories may commit",
   path: "/writing/transaction-isolation",
 } as const;
 

@@ -1,6 +1,6 @@
 ---
-title: "Isolation is which writes a read is allowed to miss"
-summary: "Dirty reads, lost updates, read skew, and write skew — the same interleaving under four isolation levels, drawn the way DDIA draws time."
+title: "Isolation controls which concurrent histories may commit"
+summary: "Dirty reads, lost updates, read skew, and write skew — four overlapping histories, drawn the way DDIA draws time."
 date: "2026-09-05"
 tags: ["system-design", "databases", "transactions"]
 cover: "/content/images/writing/transaction-isolation/cover.svg"
@@ -8,7 +8,7 @@ draft: false
 series: "ddia-notes"
 ---
 
-These are my notes from chapter 7 of Martin Kleppmann’s *Designing Data-Intensive Applications*. Replication is about copies that disagree. Transactions are about **overlapping work on the same copy**.
+These are my notes from chapter 7 of Martin Kleppmann’s *Designing Data-Intensive Applications*. Replication is about copies that disagree. Transaction isolation is about **what overlapping work may observe, and which combinations are allowed to commit**.
 
 The diagrams in that chapter are time moving left to right, one track per person or row, and arrows for the queries in between. I wanted the same thing on this site: a playhead you can pause, not a static PNG. The figures below are generated from a small isolation simulator. They are not a database or a benchmark. They are the interleavings from the book, stepped slowly enough to follow.
 
@@ -20,17 +20,17 @@ If Alice writes 600 and then aborts, that 600 should vanish. Under **read uncomm
 
 <IsolationDemo scenario="dirty-read" />
 
-Read committed is the default in [PostgreSQL](https://www.postgresql.org/docs/current/transaction-iso.html), [Oracle](https://docs.oracle.com/en/database/oracle/oracle-database/21/cncpt/data-concurrency-and-consistency.html), and [SQL Server](https://learn.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql) for a reason. It stops the abort from leaking. It does not stop the rest of this page. PostgreSQL maps `READ UNCOMMITTED` to `READ COMMITTED`, so the dirty-read run is a model of the SQL level, not behavior PostgreSQL exposes.
+Read committed is the default isolation-level label in [PostgreSQL](https://www.postgresql.org/docs/current/transaction-iso.html), [Oracle](https://docs.oracle.com/en/database/oracle/oracle-database/21/cncpt/data-concurrency-and-consistency.html), and [SQL Server](https://learn.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql). It prevents dirty reads **and dirty writes**: one transaction cannot overwrite another transaction’s still-uncommitted write. It does not stop the rest of this page. PostgreSQL maps `READ UNCOMMITTED` to `READ COMMITTED`, so the dirty-read run is a model of the SQL level, not behavior PostgreSQL exposes. SQL Server’s implementation of Read Committed also depends on whether `READ_COMMITTED_SNAPSHOT` is enabled.
 
 ## Lost updates are two correct transactions
 
-Alice and Bob both read 500, both add 100, both write 600. Each statement is true in isolation. Together they lost a hundred dollars.
+Alice and Bob both read 500 and each computes 600. Alice writes and commits first. Bob then sends the literal 600 he computed from his earlier read, overwriting Alice’s committed result. Each assignment looks reasonable alone. Together they lose a hundred dollars.
 
 <IsolationDemo scenario="lost-update" />
 
-Read committed lets the second commit win. This simulator’s serializable run aborts Bob; a real serializable implementation may block first or abort either participant. The retry is the feature: Bob would read 600 and write 700. `UPDATE accounts SET balance = balance + 100` avoids the stale application-side read because the database applies the increment to the current row value.
+Read committed lets the stale assignment win. Canonical snapshot isolation detects that another transaction changed the same row since Bob’s snapshot and aborts his write; a retry would read 600 and write 700. At ordinary Read Committed isolation, one `UPDATE accounts SET balance = balance + 100` avoids the stale client-side read-modify-write because the database locks the row and evaluates the expression against its current version. Snapshot-based levels may instead report a retryable write conflict.
 
-Atomic increment, `SELECT FOR UPDATE`, and compare-and-set (`WHERE balance = 500`) are three ways to refuse this interleaving without serializing the whole database.
+Atomic updates, row locking with `SELECT … FOR UPDATE`, and compare-and-set can prevent or detect this race without requiring database-wide serializable isolation. A compare-and-set such as `UPDATE … SET balance = 600 WHERE balance = 500` only works if the caller checks that one row changed; zero rows means retry or report a conflict.
 
 ## Read skew is a total that never existed
 
@@ -38,7 +38,7 @@ Alice has 500 in each of two accounts. She transfers 100 from the first to the s
 
 <IsolationDemo scenario="read-skew" />
 
-Snapshot isolation fixes this by pinning Bob to the committed world as of his `BEGIN`. Both of his reads see 500. The transfer still happens; he just does not straddle it.
+Snapshot isolation fixes this by pinning Bob to one consistent committed snapshot for the transaction—typically established at the first data-access statement, depending on the database. Both reads see 500. The transfer still happens; he just does not straddle it.
 
 ## Write skew looks like two independent decisions
 
@@ -46,7 +46,7 @@ Two doctors are on call. The constraint is that at least one must remain. Each r
 
 <IsolationDemo scenario="write-skew" />
 
-This simulator’s serializable run rejects Bob because the overlapping read/write dependencies cannot be explained by any one-at-a-time ordering. Snapshot isolation does not. In PostgreSQL, `REPEATABLE READ` provides snapshot isolation and can still permit serialization anomalies; `SERIALIZABLE` adds Serializable Snapshot Isolation (SSI) conflict tracking and aborts a transaction when needed. A check constraint on one row is still not a check over two rows.
+A serializable implementation must prevent both doctors from committing this history. This simulator uses simplified commit-time validation and rejects Bob; PostgreSQL’s SSI detects a dangerous dependency pattern and aborts one transaction, while a lock-based implementation may block or abort one earlier. Snapshot isolation does not prevent the history. In PostgreSQL, `REPEATABLE READ` provides snapshot isolation and can still permit serialization anomalies; `SERIALIZABLE` adds SSI conflict tracking. A row-local check constraint cannot enforce an invariant spanning two rows.
 
 ## How I keep the levels straight
 
@@ -59,4 +59,4 @@ This simulator’s serializable run rejects Bob because the overlapping read/wri
 
 This is an anomaly table for the simplified model, not a portability chart. Product names and mechanisms do not match it one-for-one: PostgreSQL’s `REPEATABLE READ` behaves like snapshot isolation, while PostgreSQL `SERIALIZABLE` adds SSI; Oracle’s `SERIALIZABLE` provides a transaction-level snapshot and write-conflict checks but can still permit write skew. If you need a guarantee, look at the anomaly and the product documentation, not only the label.
 
-Try the same interleaving at both levels in each figure. Follow one operation from request, through the processing delay, to the response. The isolation control changes which version that response is allowed to carry.
+Try the same interleaving at both levels in each figure. Follow one operation from request, through the processing delay, to the response. Read visibility explains dirty reads and read skew. Write-conflict handling prevents the lost update. Serializability additionally rules out dependency patterns such as write skew.

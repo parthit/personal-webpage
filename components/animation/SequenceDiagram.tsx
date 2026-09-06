@@ -1,13 +1,6 @@
 "use client";
 
-import { useId, useMemo, useRef, useSyncExternalStore } from "react";
-import {
-  getReducedMotionServerSnapshot,
-  getReducedMotionSnapshot,
-  reducedMotionSubscribe,
-  visiblePlayhead,
-} from "@/lib/animation/core";
-import { useLiveStepProgress } from "./useLiveStepProgress";
+import { useEffect, useId, useMemo, useRef } from "react";
 import {
   arrowEndpoints,
   layoutSequence,
@@ -22,42 +15,30 @@ import { ScrollableFigure } from "@/components/content/mdx/ScrollableFigure";
 
 export function SequenceDiagram({
   scenario,
-  fromNow,
-  toNow,
-  stepProgress = 0,
-  playing = false,
-  stepDurationMs = 0,
+  now,
+  stepFrom = now,
+  stepTo = now,
+  followPlayhead = false,
   highlightActorIds = [],
   highlightMessageIds = [],
   ariaLabel,
 }: {
   scenario: SequenceScenario;
-  fromNow: number;
-  toNow: number;
-  stepProgress?: number;
-  /** True only while the timeline is running; sampled progress is not live. */
-  playing?: boolean;
-  /** Current step dwell, already scaled by playback rate. */
-  stepDurationMs?: number;
+  /** Single source of truth for all time-dependent geometry. */
+  now: number;
+  /** Current teaching interval, exposed for tests and diagnostics. */
+  stepFrom?: number;
+  stepTo?: number;
+  /** Keep the current time in view on narrow horizontal scrollers. */
+  followPlayhead?: boolean;
   highlightActorIds?: string[];
   highlightMessageIds?: string[];
   ariaLabel: string;
 }) {
   const markerId = useId().replace(/:/g, "");
+  const descriptionId = `${markerId}-sequence-description`;
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const reducedMotion = useSyncExternalStore(
-    reducedMotionSubscribe,
-    getReducedMotionSnapshot,
-    getReducedMotionServerSnapshot
-  );
   const layout = useMemo(() => layoutSequence(scenario), [scenario]);
-  const progress = useLiveStepProgress(
-    playing && !reducedMotion,
-    stepProgress,
-    stepDurationMs,
-    `${scenario.id}:${fromNow}:${toNow}`
-  );
-  const now = visiblePlayhead(fromNow, toNow, progress, reducedMotion);
   const view = useMemo(() => viewAt(scenario, now), [scenario, now]);
   const highlightActors = useMemo(
     () => new Set(highlightActorIds),
@@ -68,8 +49,29 @@ export function SequenceDiagram({
     [highlightMessageIds]
   );
 
+  useEffect(() => {
+    if (!followPlayhead) return;
+    const scroller = scrollRef.current;
+    if (!scroller || scroller.scrollWidth <= scroller.clientWidth + 1) return;
+    const x = xAt(layout, now, scenario.duration);
+    const leftGuard = scroller.scrollLeft + Math.min(120, scroller.clientWidth / 3);
+    const rightGuard = scroller.scrollLeft + scroller.clientWidth - 48;
+    if (x > rightGuard) {
+      scroller.scrollLeft = x - scroller.clientWidth + 48;
+    } else if (x < leftGuard) {
+      scroller.scrollLeft = Math.max(0, x - Math.min(120, scroller.clientWidth / 3));
+    }
+  }, [followPlayhead, layout, now, scenario.duration]);
+
   return (
     <>
+      <p id={descriptionId} className="sr-only">
+        {scenario.title}. Logical time runs left to right across tracks for{" "}
+        {scenario.actors.map((actor) => actor.label).join(", ")}. Requests,
+        database processing, client waiting, responses, and transaction end
+        events appear as the playhead advances. The step history provides the
+        same sequence as text.
+      </p>
       <ul
         className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-gray-500 dark:text-gray-400"
         aria-label="Sequence diagram timing legend"
@@ -84,11 +86,12 @@ export function SequenceDiagram({
       scrollRef={scrollRef}
       revision={`${layout.width}:${scenario.id}`}
       label="Scroll sideways to follow time across the tracks"
+      ariaLabel={`${ariaLabel}. Scroll horizontally to follow logical time.`}
       fadeClassName="from-gray-50 dark:from-gray-900"
       data-sequence-diagram={scenario.id}
       data-playhead={now.toFixed(2)}
-      data-playhead-from={fromNow.toFixed(2)}
-      data-playhead-to={toNow.toFixed(2)}
+      data-playhead-from={stepFrom.toFixed(2)}
+      data-playhead-to={stepTo.toFixed(2)}
     >
       <svg
         width={layout.width}
@@ -97,6 +100,7 @@ export function SequenceDiagram({
         className="block max-w-none"
         role="img"
         aria-label={ariaLabel}
+        aria-describedby={descriptionId}
         data-sequence-svg
       >
         <defs>
@@ -226,7 +230,7 @@ export function SequenceDiagram({
           y={layout.plotTop + 4}
           className="fill-gray-400 text-[10px] dark:fill-gray-500"
         >
-          time
+          logical time
         </text>
 
         {view.spans.map((span) => {

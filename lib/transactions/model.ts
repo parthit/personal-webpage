@@ -34,6 +34,11 @@ export type ClientDef = {
   label: string;
 };
 
+export type TransactionDef = {
+  id: string;
+  clientId: string;
+};
+
 export type OperationTiming = {
   /** Time from the client sending a request until the database receives it. */
   request: number;
@@ -68,10 +73,19 @@ export type IsolationScript = {
   summary: string;
   records: RecordDef[];
   clients: ClientDef[];
+  /** Defaults to one transaction per client with matching ids. */
+  transactions?: TransactionDef[];
   ops: ScriptOp[];
   /** Scenario-wide latency defaults; individual reads/writes may override. */
   timing?: Partial<OperationTiming>;
 };
+
+function transactionDefs(script: IsolationScript): TransactionDef[] {
+  return (
+    script.transactions ??
+    script.clients.map((client) => ({ id: client.id, clientId: client.id }))
+  );
+}
 
 export const ISOLATION_LABELS: Record<IsolationLevel, string> = {
   "read-uncommitted": "Read uncommitted",
@@ -83,8 +97,8 @@ export const ISOLATION_LABELS: Record<IsolationLevel, string> = {
 export const ISOLATION_HINTS: Record<IsolationLevel, string> = {
   "read-uncommitted": "Reads can see writes that later abort.",
   "read-committed": "Reads only see committed data. Concurrent writes can still surprise you.",
-  snapshot: "Each transaction reads a consistent snapshot. Write-write conflicts abort.",
-  serializable: "Aborts if a concurrent commit changed a row this transaction read.",
+  snapshot: "Canonical snapshot isolation gives each transaction one consistent snapshot and rejects overlapping writes to the same row.",
+  serializable: "Committed transactions must match some serial order. This demo uses simplified commit-time validation.",
 };
 
 export const DEFAULT_OPERATION_TIMING: OperationTiming = {
@@ -111,7 +125,7 @@ type RecordState = {
   label: string;
   unit?: string;
   committed: number;
-  dirtyTx: string | null;
+  intents: Map<string, { value: number; at: number }>;
 };
 
 export type RecordView = {
@@ -140,11 +154,10 @@ export type IsolationRun = {
 
 function recordViews(records: Map<string, RecordState>, txs: Map<string, TxState>): RecordView[] {
   return [...records.values()].map((record) => {
-    const dirtyTx = record.dirtyTx ? txs.get(record.dirtyTx) : undefined;
     const uncommitted =
-      dirtyTx && dirtyTx.status === "active" && dirtyTx.writes.has(record.id)
-        ? dirtyTx.writes.get(record.id)!
-        : null;
+      [...record.intents.entries()]
+        .filter(([txId]) => txs.get(txId)?.status === "active")
+        .sort(([, a], [, b]) => b.at - a.at)[0]?.[1].value ?? null;
     return {
       id: record.id,
       label: record.label,
@@ -163,12 +176,12 @@ function visibleRead(
 ): number {
   if (tx.writes.has(record.id)) return tx.writes.get(record.id)!;
   if (level === "read-uncommitted") {
-    if (record.dirtyTx && record.dirtyTx !== tx.id) {
-      const writer = txs.get(record.dirtyTx);
-      if (writer?.status === "active" && writer.writes.has(record.id)) {
-        return writer.writes.get(record.id)!;
-      }
-    }
+    const visibleIntent = [...record.intents.entries()]
+      .filter(
+        ([txId]) => txId !== tx.id && txs.get(txId)?.status === "active"
+      )
+      .sort(([, a], [, b]) => b.at - a.at)[0]?.[1];
+    if (visibleIntent) return visibleIntent.value;
     return record.committed;
   }
   if (level === "read-committed") {
@@ -191,10 +204,114 @@ function formatValue(record: RecordState | RecordView, value: number): string {
   return String(value);
 }
 
+function operationTiming(
+  script: IsolationScript,
+  op: Extract<ScriptOp, { kind: "read" | "write" }>
+): OperationTiming {
+  return {
+    ...DEFAULT_OPERATION_TIMING,
+    ...script.timing,
+    ...op.timing,
+  };
+}
+
+export function validateIsolationScript(script: IsolationScript): void {
+  const errors: string[] = [];
+  const clientIds = new Set<string>();
+  const recordIds = new Set<string>();
+
+  for (const client of script.clients) {
+    if (!client.id || clientIds.has(client.id)) {
+      errors.push(`duplicate or empty client id "${client.id}"`);
+    }
+    clientIds.add(client.id);
+  }
+  for (const record of script.records) {
+    if (!record.id || recordIds.has(record.id) || clientIds.has(record.id)) {
+      errors.push(`duplicate, empty, or ambiguous record id "${record.id}"`);
+    }
+    recordIds.add(record.id);
+  }
+  const txIds = new Set<string>();
+  for (const tx of transactionDefs(script)) {
+    if (!tx.id || txIds.has(tx.id)) {
+      errors.push(`duplicate or empty transaction id "${tx.id}"`);
+    }
+    if (!clientIds.has(tx.clientId)) {
+      errors.push(
+        `transaction "${tx.id}" refers to unknown client "${tx.clientId}"`
+      );
+    }
+    txIds.add(tx.id);
+  }
+
+  const begins = new Map<string, number>();
+  const ends = new Map<string, number>();
+  for (const [index, op] of script.ops.entries()) {
+    if (!Number.isFinite(op.t) || op.t < 0) {
+      errors.push(`op ${index} has invalid time ${op.t}`);
+    }
+    if (!txIds.has(op.tx)) {
+      errors.push(`op ${index} refers to unknown transaction "${op.tx}"`);
+    }
+    if (op.kind === "begin") {
+      if (begins.has(op.tx)) errors.push(`transaction "${op.tx}" begins twice`);
+      begins.set(op.tx, op.t);
+    }
+    if (op.kind === "commit" || op.kind === "abort") {
+      if (ends.has(op.tx)) errors.push(`transaction "${op.tx}" ends twice`);
+      ends.set(op.tx, op.t);
+    }
+  }
+
+  for (const tx of transactionDefs(script)) {
+    if (!begins.has(tx.id)) errors.push(`transaction "${tx.id}" never begins`);
+    if (!ends.has(tx.id)) errors.push(`transaction "${tx.id}" never ends`);
+  }
+
+  for (const [index, op] of script.ops.entries()) {
+    if (op.kind !== "read" && op.kind !== "write") continue;
+    if (!recordIds.has(op.record)) {
+      errors.push(`op ${index} refers to unknown record "${op.record}"`);
+    }
+    const begin = begins.get(op.tx);
+    const end = ends.get(op.tx);
+    if (begin !== undefined && op.t < begin) {
+      errors.push(`op ${index} starts before transaction "${op.tx}" begins`);
+    }
+    const timing = operationTiming(script, op);
+    if (
+      Object.values(timing).some(
+        (duration) => !Number.isFinite(duration) || duration < 0
+      )
+    ) {
+      errors.push(`op ${index} has invalid request/processing/response timing`);
+    }
+    const responseAt =
+      op.t + timing.request + timing.processing + timing.response;
+    if (end !== undefined && responseAt > end + 1e-9) {
+      errors.push(
+        `op ${index} response arrives at ${responseAt} after transaction "${op.tx}" ends at ${end}`
+      );
+    }
+    if (op.kind === "write") {
+      const modes = Number(typeof op.set === "number") + Number(typeof op.add === "number");
+      if (modes !== 1) {
+        errors.push(`write op ${index} must specify exactly one of set or add`);
+      }
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(`Invalid isolation script "${script.id}":\n- ${errors.join("\n- ")}`);
+  }
+}
+
 export function simulate(
   script: IsolationScript,
   level: IsolationLevel
 ): IsolationRun {
+  validateIsolationScript(script);
   const records = new Map<string, RecordState>(
     script.records.map((record) => [
       record.id,
@@ -203,11 +320,14 @@ export function simulate(
         label: record.label,
         unit: record.unit,
         committed: record.value,
-        dirtyTx: null,
+        intents: new Map(),
       },
     ])
   );
   const txs = new Map<string, TxState>();
+  const clientByTx = new Map(
+    transactionDefs(script).map((tx) => [tx.id, tx.clientId])
+  );
   const committedTxs: TxState[] = [];
   const aborted: string[] = [];
 
@@ -231,9 +351,13 @@ export function simulate(
   ) {
     if (beats.length && lastBeatAt === now) {
       const prev = beats[beats.length - 1];
-      prev.caption = caption;
-      prev.highlightActorIds = highlightActorIds;
-      prev.highlightMessageIds = highlightMessageIds;
+      prev.caption = `${prev.caption} ${caption}`;
+      prev.highlightActorIds = [
+        ...new Set([...prev.highlightActorIds, ...highlightActorIds]),
+      ];
+      prev.highlightMessageIds = [
+        ...new Set([...prev.highlightMessageIds, ...highlightMessageIds]),
+      ];
       prev.records = recordViews(records, txs);
       return;
     }
@@ -256,8 +380,13 @@ export function simulate(
     });
   }
 
-  const clientLabel = (id: string) =>
-    script.clients.find((c) => c.id === id)?.label ?? id;
+  const clientActor = (txId: string) => clientByTx.get(txId) ?? txId;
+  const clientLabel = (txId: string) => {
+    const clientId = clientActor(txId);
+    return (
+      script.clients.find((client) => client.id === clientId)?.label ?? clientId
+    );
+  };
 
   type Effect = { t: number; run: () => void };
   const effects: Effect[] = [];
@@ -287,7 +416,7 @@ export function simulate(
             });
             events.push({
               id: `ev-${++eventN}`,
-              actorId: captured.tx,
+              actorId: clientActor(captured.tx),
               at: captured.t,
               label: "begin",
               kind: "begin",
@@ -295,7 +424,7 @@ export function simulate(
             pushBeat(
               captured.t,
               `${clientLabel(captured.tx)} begins a transaction.`,
-              [captured.tx],
+              [clientActor(captured.tx)],
               []
             );
             return;
@@ -316,20 +445,20 @@ export function simulate(
             aborted.push(tx.id);
             events.push({
               id: `ev-${++eventN}`,
-              actorId: tx.id,
+              actorId: clientActor(tx.id),
               at: arrive,
               label: "abort",
               kind: "abort",
             });
             spans.push({
               id: `span-${tx.id}`,
-              actorId: tx.id,
+              actorId: clientActor(tx.id),
               t0: tx.beginAt,
               t1: arrive,
               status: "aborted",
               label: tx.id,
             });
-            pushBeat(arrive, reason, [tx.id], []);
+            pushBeat(arrive, reason, [clientActor(tx.id)], []);
             return;
           }
 
@@ -337,7 +466,7 @@ export function simulate(
             const record = records.get(recordId);
             if (!record) continue;
             record.committed = value;
-            if (record.dirtyTx === tx.id) record.dirtyTx = null;
+            record.intents.delete(tx.id);
             noteRecord(record, arrive, value, " (committed)");
           }
           tx.status = "committed";
@@ -345,14 +474,14 @@ export function simulate(
           committedTxs.push(tx);
           events.push({
             id: `ev-${++eventN}`,
-            actorId: tx.id,
+            actorId: clientActor(tx.id),
             at: arrive,
             label: "commit",
             kind: "commit",
           });
           spans.push({
             id: `span-${tx.id}`,
-            actorId: tx.id,
+            actorId: clientActor(tx.id),
             t0: tx.beginAt,
             t1: arrive,
             status: "committed",
@@ -361,7 +490,7 @@ export function simulate(
           pushBeat(
             arrive,
             `${clientLabel(tx.id)} commits.`,
-            [tx.id, ...tx.writeSet],
+            [clientActor(tx.id), ...tx.writeSet],
             []
           );
         },
@@ -372,14 +501,10 @@ export function simulate(
     const exchangeId = `exchange-${++msgN}`;
     const t0 = op.t;
     const captured = op;
-    const timing = {
-      ...DEFAULT_OPERATION_TIMING,
-      ...script.timing,
-      ...captured.timing,
-    };
+    const timing = operationTiming(script, captured);
     const exchange = buildSequenceExchange({
       id: exchangeId,
-      callerId: captured.tx,
+      callerId: clientActor(captured.tx),
       handlerId: captured.record,
       startAt: t0,
       requestDuration: timing.request,
@@ -388,23 +513,29 @@ export function simulate(
       requestLabel:
         captured.kind === "read"
           ? `SELECT ${records.get(captured.record)?.label ?? captured.record}`
-          : `UPDATE ${records.get(captured.record)?.label ?? captured.record}`,
+          : writeRequestLabel(
+              captured,
+              records.get(captured.record)?.label ?? captured.record
+            ),
       responseLabel: "…",
     });
     const requestId = exchange.request.id;
     const responseId = exchange.response.id;
+    let operationResult: number | undefined;
+    let operationSucceeded = false;
     messages.push(exchange.request, exchange.response);
     intervals.push(...exchange.intervals);
 
     effects.push({
       t: t0,
       run: () => {
+        if (txs.get(captured.tx)?.status !== "active") return;
         pushBeat(
           t0,
           captured.kind === "read"
             ? `${clientLabel(captured.tx)} reads ${records.get(captured.record)?.label}.`
             : `${clientLabel(captured.tx)} writes ${records.get(captured.record)?.label}.`,
-          [captured.tx, captured.record],
+          [clientActor(captured.tx), captured.record],
           [requestId]
         );
       },
@@ -413,6 +544,7 @@ export function simulate(
     effects.push({
       t: exchange.requestArrivesAt,
       run: () => {
+        if (txs.get(captured.tx)?.status !== "active") return;
         pushBeat(
           exchange.requestArrivesAt,
           `${records.get(captured.record)?.label ?? captured.record} received the request and starts processing it.`,
@@ -428,27 +560,40 @@ export function simulate(
         const tx = txs.get(captured.tx);
         const record = records.get(captured.record);
         const response = messages.find((m) => m.id === responseId);
-        if (!tx || !record || !response) return;
+        if (!tx || tx.status !== "active" || !record || !response) return;
 
         if (captured.kind === "read") {
           const value = visibleRead(level, tx, record, txs);
-          tx.reads.set(record.id, value);
           tx.readSet.add(record.id);
+          operationResult = value;
+          operationSucceeded = true;
           response.label = formatValue(record, value);
           pushBeat(
             exchange.responseStartsAt,
             `${record.label} finishes the read and sends ${formatValue(record, value)} back to ${clientLabel(tx.id)}.`,
-            [tx.id, record.id],
+            [clientActor(tx.id), record.id],
             [requestId, responseId]
           );
           return;
         }
 
+        const conflictingIntent = [...record.intents.keys()].find(
+          (txId) => txId !== tx.id && txs.get(txId)?.status === "active"
+        );
+        if (conflictingIntent) {
+          throw new Error(
+            `Script "${script.id}" schedules ${tx.id} to overwrite ${conflictingIntent}'s uncommitted write to ${record.id}. Model an explicit lock wait instead.`
+          );
+        }
         const next = writeValue(captured, tx);
+        operationResult = next;
+        operationSucceeded = true;
         tx.writes.set(record.id, next);
         tx.writeSet.add(record.id);
-        tx.reads.set(record.id, next);
-        record.dirtyTx = tx.id;
+        record.intents.set(tx.id, {
+          value: next,
+          at: exchange.responseStartsAt,
+        });
         response.label = "ok";
         noteRecord(
           record,
@@ -459,7 +604,7 @@ export function simulate(
         pushBeat(
           exchange.responseStartsAt,
           `${record.label} finishes the write at ${formatValue(record, next)} and sends ok to ${clientLabel(tx.id)} (not committed yet).`,
-          [tx.id, record.id],
+          [clientActor(tx.id), record.id],
           [requestId, responseId]
         );
       },
@@ -470,13 +615,22 @@ export function simulate(
       run: () => {
         const tx = txs.get(captured.tx);
         const record = records.get(captured.record);
-        if (!tx || !record) return;
+        if (
+          !tx ||
+          tx.status !== "active" ||
+          !record ||
+          !operationSucceeded ||
+          operationResult === undefined
+        ) {
+          return;
+        }
+        tx.reads.set(record.id, operationResult);
         pushBeat(
           exchange.responseArrivesAt,
           captured.kind === "read"
-            ? `Result ${record.label} = ${formatValue(record, tx.reads.get(record.id) ?? record.committed)} reaches ${clientLabel(tx.id)}.`
+            ? `${clientLabel(tx.id)} receives ${record.label} = ${formatValue(record, operationResult)}.`
             : `${clientLabel(tx.id)} gets ok for the write to ${record.label}.`,
-          [tx.id],
+          [clientActor(tx.id)],
           [responseId]
         );
       },
@@ -498,7 +652,7 @@ export function simulate(
     if (tx.status === "active") {
       spans.push({
         id: `span-${tx.id}`,
-        actorId: tx.id,
+        actorId: clientActor(tx.id),
         t0: tx.beginAt,
         t1: Math.max(tx.endAt, lastBeatAt),
         status: "active",
@@ -582,11 +736,22 @@ function abortReason(
 
 function rollback(tx: TxState, records: Map<string, RecordState>) {
   for (const recordId of tx.writeSet) {
-    const record = records.get(recordId);
-    if (record && record.dirtyTx === tx.id) {
-      record.dirtyTx = null;
-    }
+    records.get(recordId)?.intents.delete(tx.id);
   }
+}
+
+function writeRequestLabel(
+  op: Extract<ScriptOp, { kind: "write" }>,
+  recordLabel: string
+): string {
+  if (typeof op.add === "number") {
+    const sign = op.add >= 0 ? "+" : "−";
+    return `SET ${recordLabel} = prior read ${sign} ${Math.abs(op.add)}`;
+  }
+  if (typeof op.set === "number") {
+    return `SET ${recordLabel} = ${op.set}`;
+  }
+  return `UPDATE ${recordLabel}`;
 }
 
 function summarize(

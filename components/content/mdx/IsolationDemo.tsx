@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { AnimationPlayer } from "@/components/animation/AnimationPlayer";
 import { SequenceDiagram } from "@/components/animation/SequenceDiagram";
 import { useAnimationPlayer } from "@/components/animation/useAnimationPlayer";
+import { useLiveStepProgress } from "@/components/animation/useLiveStepProgress";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { figureShell } from "@/components/content/mdx/replication/ReplicaCard";
@@ -11,13 +12,21 @@ import {
   ISOLATION_HINTS,
   ISOLATION_LABELS,
   type IsolationLevel,
+  type RecordView,
 } from "@/lib/transactions/model";
 import {
   buildIsolationSteps,
   idleSnapshot,
-  TX_STEP_MS,
+  isolationPresentationAt,
+  TX_MIN_STEP_MS,
   type IsolationSnapshot,
 } from "@/lib/transactions/frames";
+import {
+  getReducedMotionServerSnapshot,
+  getReducedMotionSnapshot,
+  reducedMotionSubscribe,
+  visiblePlayhead,
+} from "@/lib/animation/core";
 import {
   ISOLATION_SCRIPTS,
   SCENARIO_LEVELS,
@@ -37,21 +46,39 @@ export function IsolationDemo({
   const player = useAnimationPlayer<IsolationSnapshot>(
     {
       snapshot: idle,
-      label: idle.caption,
-      durationMs: TX_STEP_MS,
+      label: script.summary,
+      durationMs: TX_MIN_STEP_MS,
     },
-    TX_STEP_MS
+    TX_MIN_STEP_MS
   );
-  const view = player.current.snapshot;
+  const snapshot = player.current.snapshot;
   const busy = player.isActive;
+  const reducedMotion = useSyncExternalStore(
+    reducedMotionSubscribe,
+    getReducedMotionSnapshot,
+    getReducedMotionServerSnapshot
+  );
+  const progress = useLiveStepProgress(
+    player.status === "playing" && !reducedMotion,
+    player.stepProgress,
+    player.currentDurationMs,
+    `${snapshot.scenario.id}:${snapshot.fromNow}:${snapshot.toNow}`
+  );
+  const now = visiblePlayhead(
+    snapshot.fromNow,
+    snapshot.toNow,
+    progress,
+    reducedMotion
+  );
+  const presentation = isolationPresentationAt(snapshot, now, snapshot.settled);
 
   function changeLevel(next: IsolationLevel) {
     setLevel(next);
     const nextIdle = idleSnapshot(script, next);
     player.reset({
       snapshot: nextIdle,
-      label: nextIdle.caption,
-      durationMs: TX_STEP_MS,
+      label: script.summary,
+      durationMs: TX_MIN_STEP_MS,
     });
   }
 
@@ -63,8 +90,8 @@ export function IsolationDemo({
     const nextIdle = idleSnapshot(script, level);
     player.reset({
       snapshot: nextIdle,
-      label: nextIdle.caption,
-      durationMs: TX_STEP_MS,
+      label: script.summary,
+      durationMs: TX_MIN_STEP_MS,
     });
   }
 
@@ -110,19 +137,18 @@ export function IsolationDemo({
             Reset
           </Button>
         </div>
-        <RecordStrip records={view.records} />
+        <RecordStrip records={presentation.records} />
       </div>
 
       <div className="p-3 sm:p-4">
         <SequenceDiagram
-          scenario={view.scenario}
-          fromNow={view.fromNow}
-          toNow={view.toNow}
-          stepProgress={player.stepProgress}
-          playing={player.status === "playing"}
-          stepDurationMs={player.currentDurationMs}
-          highlightActorIds={view.highlightActorIds}
-          highlightMessageIds={view.highlightMessageIds}
+          scenario={snapshot.scenario}
+          now={now}
+          stepFrom={snapshot.fromNow}
+          stepTo={snapshot.toNow}
+          followPlayhead={player.status === "playing"}
+          highlightActorIds={presentation.highlightActorIds}
+          highlightMessageIds={presentation.highlightMessageIds}
           ariaLabel={`${script.title} sequence diagram`}
         />
       </div>
@@ -134,7 +160,7 @@ export function IsolationDemo({
         data-isolation-status
         aria-live="polite"
       >
-        {view.outcome ?? view.caption}
+        {presentation.outcome ?? presentation.caption}
       </p>
     </figure>
   );
@@ -143,7 +169,7 @@ export function IsolationDemo({
 function RecordStrip({
   records,
 }: {
-  records: IsolationSnapshot["records"];
+  records: RecordView[];
 }) {
   return (
     <ul className="flex flex-wrap gap-2" data-isolation-records>

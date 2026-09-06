@@ -108,13 +108,13 @@ Registered in `components/content/mdx/components.tsx`:
 
 Overlapping transactions need a different figure than a replica graph: **time on the x-axis**, one horizontal track per actor, diagonal arrows for request and response. That language comes from DDIA. The shared engine for it lives in `lib/animation/sequence.ts` and renders through `SequenceDiagram`.
 
-A sequence snapshot is still a complete, side-effect-free player snapshot. It names a playhead interval `[fromNow, toNow]`. `player.stepProgress` is only sampled at pause, seek, rate change, and step boundaries — the same contract replica packets use with CSS `dwellClock`. Sequence diagrams have too many time-dependent marks for one CSS animation, so pass `playing` and `stepDurationMs` and let `useLiveStepProgress` add elapsed time onto that sample. Reduced motion still jumps to `toNow`.
+A sequence snapshot is still a complete, side-effect-free player snapshot. It names a playhead interval `[fromNow, toNow]`. `player.stepProgress` is only sampled at pause, seek, rate change, and step boundaries — the same contract replica packets use with CSS `dwellClock`. The owning demo uses `useLiveStepProgress` to derive one live `now`, then passes that same value to the diagram and any captions or state cards. This prevents prose and state from arriving before the geometry. Reduced motion still jumps to `toNow`.
 
 To add a new sequence-backed demo:
 
 1. Describe actors, messages, notes, commit ticks, transaction spans, and duration intervals as a `SequenceScenario`.
 2. Put each teaching beat in an `AnimationStep` whose snapshot includes `fromNow`, `toNow`, and the full scenario.
-3. Render `<SequenceDiagram scenario={...} fromNow={...} toNow={...} stepProgress={player.stepProgress} playing={player.status === "playing"} stepDurationMs={player.currentDurationMs} />`.
+3. Derive one live playhead from `useLiveStepProgress` and render `<SequenceDiagram scenario={...} now={now} stepFrom={fromNow} stepTo={toNow} />`. Use that same `now` for captions and state.
 4. Isolation walkthroughs go one step further: `lib/transactions` simulates a script at an isolation level and *then* emits the scenario, so the figure and the anomaly stay in lockstep.
 
 Use `buildSequenceExchange` for request/response work. It emits a request

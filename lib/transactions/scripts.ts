@@ -34,9 +34,9 @@ export const LOST_UPDATE: IsolationScript = {
     { kind: "read", tx: "alice", record: "acc1", t: 2.0 },
     { kind: "read", tx: "bob", record: "acc1", t: 3.4 },
     { kind: "write", tx: "alice", record: "acc1", t: 7.0, add: 100 },
-    { kind: "write", tx: "bob", record: "acc1", t: 9.2, add: 100 },
-    { kind: "commit", tx: "alice", t: 12.6 },
-    { kind: "commit", tx: "bob", t: 14.0 },
+    { kind: "commit", tx: "alice", t: 10.8 },
+    { kind: "write", tx: "bob", record: "acc1", t: 11.2, add: 100 },
+    { kind: "commit", tx: "bob", t: 15.0 },
   ],
 };
 
@@ -101,7 +101,7 @@ export type IsolationScenarioId = keyof typeof ISOLATION_SCRIPTS;
 
 export const SCENARIO_LEVELS: Record<IsolationScenarioId, IsolationLevel[]> = {
   "dirty-read": ["read-uncommitted", "read-committed"],
-  "lost-update": ["read-committed", "serializable"],
+  "lost-update": ["read-committed", "snapshot"],
   "read-skew": ["read-committed", "snapshot"],
   "write-skew": ["snapshot", "serializable"],
 };
