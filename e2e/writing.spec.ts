@@ -746,6 +746,20 @@ test.describe("writing section", () => {
         timeout: 4_000,
       })
       .toBeGreaterThan(playheadAtStart);
+    await dirty.getByRole("button", { name: "Pause animation" }).click();
+    await expect(dirty.locator("[data-animation-player]")).toHaveAttribute(
+      "data-playback-status",
+      "paused"
+    );
+    const pausedPlayhead = await diagram.getAttribute("data-playhead");
+    await page.waitForTimeout(300);
+    await expect(diagram).toHaveAttribute("data-playhead", pausedPlayhead!);
+    await dirty.getByRole("button", { name: "Play animation" }).click();
+    await expect
+      .poll(async () => Number(await diagram.getAttribute("data-playhead")), {
+        timeout: 4_000,
+      })
+      .toBeGreaterThan(Number(pausedPlayhead));
     await expect(dirty.locator("[data-isolation-status]")).toContainText(
       /never committed|Bob read 600/i,
       { timeout: 80_000 }
