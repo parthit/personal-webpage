@@ -112,10 +112,16 @@ A sequence snapshot is still a complete, side-effect-free player snapshot. It na
 
 To add a new sequence-backed demo:
 
-1. Describe actors, messages, notes, commit ticks, and transaction spans as a `SequenceScenario`.
+1. Describe actors, messages, notes, commit ticks, transaction spans, and duration intervals as a `SequenceScenario`.
 2. Put each teaching beat in an `AnimationStep` whose snapshot includes `fromNow`, `toNow`, and the full scenario.
 3. Render `<SequenceDiagram scenario={...} fromNow={...} toNow={...} stepProgress={player.stepProgress} playing={player.status === "playing"} stepDurationMs={player.currentDurationMs} />`.
 4. Isolation walkthroughs go one step further: `lib/transactions` simulates a script at an isolation level and *then* emits the scenario, so the figure and the anomaly stay in lockstep.
+
+Use `buildSequenceExchange` for request/response work. It emits a request
+arrow, an explicit processing interval on the handler, a response arrow, and a
+client waiting interval. Do not place the response at request arrival: even a
+conceptual diagram should leave visible space for server work or lock waiting.
+`SequenceInterval` also supports a `lock` kind for future blocking examples.
 
 ### Before you publish
 

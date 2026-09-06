@@ -99,4 +99,36 @@ describe("isolation animation steps", () => {
     assert.ok(steps.at(-1)?.snapshot.outcome);
     assert.equal(steps.at(-1)?.durationMs, TX_HOLD_MS);
   });
+
+  it("draws request, database work, and response as separate durations", () => {
+    const run = simulate(DIRTY_READ, "read-committed");
+    const request = run.scenario.messages.find(
+      (message) => message.kind === "request"
+    );
+    const response = run.scenario.messages.find(
+      (message) =>
+        message.kind === "response" &&
+        message.exchangeId === request?.exchangeId
+    );
+    const processing = run.scenario.intervals?.find(
+      (interval) =>
+        interval.kind === "processing" &&
+        interval.exchangeId === request?.exchangeId
+    );
+    const waiting = run.scenario.intervals?.find(
+      (interval) =>
+        interval.kind === "waiting" &&
+        interval.exchangeId === request?.exchangeId
+    );
+
+    assert.ok(request);
+    assert.ok(response);
+    assert.ok(processing);
+    assert.ok(waiting);
+    assert.equal(processing.t0, request.t1);
+    assert.equal(response.t0, processing.t1);
+    assert.equal(waiting.t0, request.t0);
+    assert.equal(waiting.t1, response.t1);
+    assert.ok(response.t0 > request.t1, "the database visibly takes time");
+  });
 });

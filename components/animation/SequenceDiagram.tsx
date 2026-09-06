@@ -68,7 +68,18 @@ export function SequenceDiagram({
   );
 
   return (
-    <ScrollableFigure
+    <>
+      <ul
+        className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-gray-500 dark:text-gray-400"
+        aria-label="Sequence diagram timing legend"
+        data-sequence-legend
+      >
+        <LegendItem className="bg-amber-500" label="request" />
+        <LegendItem className="bg-sky-500" label="database processing" />
+        <LegendItem className="bg-violet-500" label="client waiting" />
+        <LegendItem className="bg-gray-500" label="response" />
+      </ul>
+      <ScrollableFigure
       scrollRef={scrollRef}
       revision={`${layout.width}:${scenario.id}`}
       label="Scroll sideways to follow time across the tracks"
@@ -244,6 +255,61 @@ export function SequenceDiagram({
           );
         })}
 
+        {view.intervals.map((interval) => {
+          const y = layout.tracks.find(
+            (track) => track.actor.id === interval.actorId
+          )?.y;
+          if (y === undefined) return null;
+          const x1 = xAt(layout, interval.t0, scenario.duration);
+          const x2 = Math.max(
+            x1 + 2,
+            xAt(layout, interval.t1, scenario.duration)
+          );
+          const processing = interval.kind === "processing";
+          const barY = processing ? y - 7 : y + 12;
+          const barHeight = processing ? 14 : 5;
+          const width = x2 - x1;
+          return (
+            <g
+              key={interval.id}
+              data-sequence-interval={interval.id}
+              data-sequence-interval-kind={interval.kind}
+              data-sequence-interval-status={interval.status}
+            >
+              <rect
+                x={x1}
+                y={barY}
+                width={width}
+                height={barHeight}
+                rx={barHeight / 2}
+                className={
+                  processing
+                    ? interval.status === "active"
+                      ? "fill-sky-500 dark:fill-sky-400"
+                      : "fill-sky-300/80 dark:fill-sky-500/60"
+                    : interval.status === "active"
+                      ? "fill-violet-500/70 dark:fill-violet-400/70"
+                      : "fill-violet-300/60 dark:fill-violet-500/40"
+                }
+              />
+              {width >= (processing ? 30 : 80) ? (
+                <text
+                  x={x1 + width / 2}
+                  y={processing ? barY - 4 : barY + 14}
+                  textAnchor="middle"
+                  className={
+                    processing
+                      ? "fill-sky-700 text-[9px] font-medium dark:fill-sky-200"
+                      : "fill-violet-700 text-[9px] font-medium dark:fill-violet-200"
+                  }
+                >
+                  {interval.label}
+                </text>
+              ) : null}
+            </g>
+          );
+        })}
+
         {view.messages
           .filter((message) => message.status !== "pending")
           .map((message) => (
@@ -326,7 +392,20 @@ export function SequenceDiagram({
           />
         ) : null}
       </svg>
-    </ScrollableFigure>
+      </ScrollableFigure>
+    </>
+  );
+}
+
+function LegendItem({ className, label }: { className: string; label: string }) {
+  return (
+    <li className="flex items-center gap-1.5">
+      <span
+        aria-hidden="true"
+        className={cn("h-1.5 w-4 rounded-full", className)}
+      />
+      {label}
+    </li>
   );
 }
 
@@ -397,6 +476,7 @@ function MessageArrow({
   const geom = arrowEndpoints(layout, duration, message, message.progress);
   if (!geom) return null;
   const active = highlight || message.status === "inflight";
+  const request = message.kind === "request";
   const labelY =
     message.kind === "request"
       ? Math.min(geom.y1, geom.y2) - 8
@@ -414,12 +494,12 @@ function MessageArrow({
         x2={geom.x2}
         y2={geom.y2}
         className={
-          active
+          request
             ? "stroke-amber-500 dark:stroke-amber-400"
-            : "stroke-gray-500 dark:stroke-gray-400"
+            : "stroke-gray-500 dark:stroke-gray-300"
         }
         strokeWidth={active ? 1.8 : 1.35}
-        markerEnd={`url(#${markerId}-${active ? "arrow-active" : "arrow"})`}
+        markerEnd={`url(#${markerId}-${request ? "arrow-active" : "arrow"})`}
       />
       {message.label ? (
         <text
@@ -427,7 +507,7 @@ function MessageArrow({
           y={labelY}
           textAnchor="middle"
           className={
-            active
+            request
               ? "fill-amber-800 text-[10px] font-medium dark:fill-amber-200"
               : "fill-gray-600 text-[10px] dark:fill-gray-300"
           }

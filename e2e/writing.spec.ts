@@ -751,6 +751,27 @@ test.describe("writing section", () => {
       { timeout: 80_000 }
     );
     await expect(dirty.locator("[data-sequence-event=abort]")).toBeVisible();
+    const firstRequest = dirty
+      .locator('[data-sequence-message-kind="request"] line')
+      .first();
+    const firstResponse = dirty
+      .locator('[data-sequence-message-kind="response"] line')
+      .first();
+    const processing = dirty
+      .locator('[data-sequence-interval-kind="processing"] rect')
+      .first();
+    const waiting = dirty
+      .locator('[data-sequence-interval-kind="waiting"] rect')
+      .first();
+    const timing = await Promise.all([
+      firstRequest.getAttribute("x2"),
+      firstResponse.getAttribute("x1"),
+      processing.getAttribute("width"),
+      waiting.getAttribute("width"),
+    ]);
+    expect(Number(timing[1])).toBeGreaterThan(Number(timing[0]));
+    expect(Number(timing[2])).toBeGreaterThan(20);
+    expect(Number(timing[3])).toBeGreaterThan(Number(timing[2]));
 
     const level = dirty.locator('[data-segmented-control="isolation-level"]');
     await level.getByRole("radio", { name: "Read committed", exact: true }).click();

@@ -10,7 +10,9 @@ series: "ddia-notes"
 
 These are my notes from chapter 7 of Martin Kleppmann’s *Designing Data-Intensive Applications*. Replication is about copies that disagree. Transactions are about **overlapping work on the same copy**.
 
-The diagrams in that chapter are time moving left to right, one track per person or row, and arrows for the queries in between. I wanted the same thing on this site: a playhead you can pause, not a static PNG. The figures below are generated from a small isolation simulator. They are not Postgres. They are the interleavings from the book, stepped slowly enough to follow.
+The diagrams in that chapter are time moving left to right, one track per person or row, and arrows for the queries in between. I wanted the same thing on this site: a playhead you can pause, not a static PNG. The figures below are generated from a small isolation simulator. They are not a database or a benchmark. They are the interleavings from the book, stepped slowly enough to follow.
+
+Each operation has three visible parts: the request travels to the row, the database spends time processing it, and the response travels back. The thin purple bar is how long the client waits; the blue bar is work inside the database. Those intervals are deliberately relative rather than milliseconds—the point is to see that a result cannot arrive at the same instant the request does.
 
 ## What “committed” is for
 
@@ -18,7 +20,7 @@ If Alice writes 600 and then aborts, that 600 should vanish. Under **read uncomm
 
 <IsolationDemo scenario="dirty-read" />
 
-Read committed is the default in PostgreSQL, Oracle, and SQL Server for a reason. It stops the abort from leaking. It does not stop the rest of this page.
+Read committed is the default in [PostgreSQL](https://www.postgresql.org/docs/current/transaction-iso.html), [Oracle](https://docs.oracle.com/en/database/oracle/oracle-database/21/cncpt/data-concurrency-and-consistency.html), and [SQL Server](https://learn.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql) for a reason. It stops the abort from leaking. It does not stop the rest of this page. PostgreSQL maps `READ UNCOMMITTED` to `READ COMMITTED`, so the dirty-read run is a model of the SQL level, not behavior PostgreSQL exposes.
 
 ## Lost updates are two correct transactions
 
@@ -26,7 +28,7 @@ Alice and Bob both read 500, both add 100, both write 600. Each statement is tru
 
 <IsolationDemo scenario="lost-update" />
 
-Read committed lets the second commit win. Serializable aborts Bob. The abort is the feature: a retry would read 600 and write 700. `UPDATE accounts SET balance = balance + 100` does the same job without a round-trip read, because the database applies the increment to whatever is there now.
+Read committed lets the second commit win. This simulator’s serializable run aborts Bob; a real serializable implementation may block first or abort either participant. The retry is the feature: Bob would read 600 and write 700. `UPDATE accounts SET balance = balance + 100` avoids the stale application-side read because the database applies the increment to the current row value.
 
 Atomic increment, `SELECT FOR UPDATE`, and compare-and-set (`WHERE balance = 500`) are three ways to refuse this interleaving without serializing the whole database.
 
@@ -44,17 +46,17 @@ Two doctors are on call. The constraint is that at least one must remain. Each r
 
 <IsolationDemo scenario="write-skew" />
 
-Serializable (in the strict sense used here) notices that Bob read a row Alice committed a write to, and aborts him. Snapshot isolation does not. That gap is why “repeatable read” in PostgreSQL is SSI with some anomalies still possible, and why a check constraint on a single row is not the same as a check over two rows.
+This simulator’s serializable run rejects Bob because the overlapping read/write dependencies cannot be explained by any one-at-a-time ordering. Snapshot isolation does not. In PostgreSQL, `REPEATABLE READ` provides snapshot isolation and can still permit serialization anomalies; `SERIALIZABLE` adds Serializable Snapshot Isolation (SSI) conflict tracking and aborts a transaction when needed. A check constraint on one row is still not a check over two rows.
 
 ## How I keep the levels straight
 
-| Level | Dirty read | Lost update | Read skew | Write skew |
+| Model used here | Dirty read | Lost update | Read skew | Write skew |
 |---|---|---|---|---|
 | Read uncommitted | Yes | Yes | Yes | Yes |
 | Read committed | No | Yes | Yes | Yes |
-| Snapshot | No | Abort | No | Yes |
-| Serializable | No | Abort | No | Abort |
+| Snapshot isolation with write-conflict detection | No | One writer aborts | No | Yes |
+| Serializable | No | Prevented | No | Prevented |
 
-The names in vendor docs do not match this table one-for-one. MySQL’s repeatable read is not Postgres’s. Oracle’s serializable is snapshot isolation. If you need a guarantee, look at the anomaly, not the label.
+This is an anomaly table for the simplified model, not a portability chart. Product names and mechanisms do not match it one-for-one: PostgreSQL’s `REPEATABLE READ` behaves like snapshot isolation, while PostgreSQL `SERIALIZABLE` adds SSI; Oracle’s `SERIALIZABLE` provides a transaction-level snapshot and write-conflict checks but can still permit write skew. If you need a guarantee, look at the anomaly and the product documentation, not only the label.
 
-Try the same interleaving at both levels in each figure. The arrows are the lesson; the isolation control is which of those arrows are allowed to see the write that is still in the air.
+Try the same interleaving at both levels in each figure. Follow one operation from request, through the processing delay, to the response. The isolation control changes which version that response is allowed to carry.

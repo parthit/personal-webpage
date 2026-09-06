@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { lerp, visiblePlayhead } from "./core";
 import {
   arrowEndpoints,
+  buildSequenceExchange,
   layoutSequence,
   messageProgress,
   viewAt,
@@ -92,5 +93,51 @@ describe("sequence view", () => {
     assert.ok(geom);
     assert.ok(geom.x2 > geom.x1);
     assert.ok(geom.y2 > geom.y1);
+  });
+});
+
+describe("request/response timing", () => {
+  it("leaves a visible processing interval before the response starts", () => {
+    const exchange = buildSequenceExchange({
+      id: "lookup",
+      callerId: "alice",
+      handlerId: "acc1",
+      startAt: 2,
+      requestDuration: 1,
+      processingDuration: 2,
+      responseDuration: 1,
+      requestLabel: "SELECT",
+      responseLabel: "500",
+    });
+
+    assert.equal(exchange.request.t1, 3);
+    assert.equal(exchange.response.t0, 5);
+    assert.equal(exchange.response.t1, 6);
+    assert.equal(exchange.intervals[0].t0, 2);
+    assert.equal(exchange.intervals[0].t1, 6);
+    assert.equal(exchange.intervals[1].t0, 3);
+    assert.equal(exchange.intervals[1].t1, 5);
+  });
+
+  it("reveals a processing interval progressively", () => {
+    const withInterval: SequenceScenario = {
+      ...scenario,
+      intervals: [
+        {
+          id: "work",
+          actorId: "acc1",
+          t0: 3,
+          t1: 5,
+          label: "processing",
+          kind: "processing",
+        },
+      ],
+    };
+
+    assert.equal(viewAt(withInterval, 2).intervals.length, 0);
+    const active = viewAt(withInterval, 4).intervals[0];
+    assert.equal(active.status, "active");
+    assert.equal(active.t1, 4);
+    assert.equal(viewAt(withInterval, 6).intervals[0].status, "complete");
   });
 });

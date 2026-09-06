@@ -152,10 +152,10 @@ function RecordStrip({
           key={record.id}
           data-record-id={record.id}
           data-record-committed={record.committed}
-          data-record-dirty={record.dirty ?? ""}
+          data-record-uncommitted={record.uncommitted ?? ""}
           className={cn(
             "rounded-md border px-2.5 py-1.5 text-xs",
-            record.dirty != null
+            record.uncommitted != null
               ? "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40"
               : "border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-950"
           )}
@@ -165,8 +165,8 @@ function RecordStrip({
           </span>
           <span className="ml-2 tabular-nums text-gray-600 dark:text-gray-300">
             {formatRecord(record.committed, record.unit)}
-            {record.dirty != null
-              ? ` · dirty ${formatRecord(record.dirty, record.unit)}`
+            {record.uncommitted != null
+              ? ` · uncommitted ${formatRecord(record.uncommitted, record.unit)}`
               : ""}
           </span>
         </li>

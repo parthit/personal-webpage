@@ -1,5 +1,7 @@
+import { buildSequenceExchange } from "@/lib/animation/sequence";
 import type {
   SequenceEvent,
+  SequenceInterval,
   SequenceMessage,
   SequenceNote,
   SequenceScenario,
@@ -32,10 +34,23 @@ export type ClientDef = {
   label: string;
 };
 
+export type OperationTiming = {
+  /** Time from the client sending a request until the database receives it. */
+  request: number;
+  /** Time spent executing or waiting inside the database. */
+  processing: number;
+  /** Time from the database replying until the client receives the result. */
+  response: number;
+};
+
+type TimedOperation = {
+  timing?: Partial<OperationTiming>;
+};
+
 export type ScriptOp =
   | { kind: "begin"; tx: string; t: number }
-  | { kind: "read"; tx: string; record: string; t: number }
-  | {
+  | ({ kind: "read"; tx: string; record: string; t: number } & TimedOperation)
+  | ({
       kind: "write";
       tx: string;
       record: string;
@@ -43,7 +58,7 @@ export type ScriptOp =
       /** Absolute value, or add to this transaction's last read of the row. */
       set?: number;
       add?: number;
-    }
+    } & TimedOperation)
   | { kind: "commit"; tx: string; t: number }
   | { kind: "abort"; tx: string; t: number };
 
@@ -54,6 +69,8 @@ export type IsolationScript = {
   records: RecordDef[];
   clients: ClientDef[];
   ops: ScriptOp[];
+  /** Scenario-wide latency defaults; individual reads/writes may override. */
+  timing?: Partial<OperationTiming>;
 };
 
 export const ISOLATION_LABELS: Record<IsolationLevel, string> = {
@@ -70,7 +87,11 @@ export const ISOLATION_HINTS: Record<IsolationLevel, string> = {
   serializable: "Aborts if a concurrent commit changed a row this transaction read.",
 };
 
-const HOP = 1.2;
+export const DEFAULT_OPERATION_TIMING: OperationTiming = {
+  request: 0.9,
+  processing: 1.4,
+  response: 0.9,
+};
 
 type TxState = {
   id: string;
@@ -97,7 +118,7 @@ export type RecordView = {
   id: string;
   label: string;
   committed: number;
-  dirty: number | null;
+  uncommitted: number | null;
   unit?: string;
 };
 
@@ -120,7 +141,7 @@ export type IsolationRun = {
 function recordViews(records: Map<string, RecordState>, txs: Map<string, TxState>): RecordView[] {
   return [...records.values()].map((record) => {
     const dirtyTx = record.dirtyTx ? txs.get(record.dirtyTx) : undefined;
-    const dirty =
+    const uncommitted =
       dirtyTx && dirtyTx.status === "active" && dirtyTx.writes.has(record.id)
         ? dirtyTx.writes.get(record.id)!
         : null;
@@ -128,7 +149,7 @@ function recordViews(records: Map<string, RecordState>, txs: Map<string, TxState
       id: record.id,
       label: record.label,
       committed: record.committed,
-      dirty,
+      uncommitted,
       unit: record.unit,
     };
   });
@@ -194,6 +215,7 @@ export function simulate(
   const notes: SequenceNote[] = [];
   const events: SequenceEvent[] = [];
   const spans: SequenceSpan[] = [];
+  const intervals: SequenceInterval[] = [];
   const beats: IsolationBeat[] = [];
 
   let msgN = 0;
@@ -347,34 +369,32 @@ export function simulate(
       continue;
     }
 
-    const requestId = `m-${++msgN}`;
-    const responseId = `m-${++msgN}`;
+    const exchangeId = `exchange-${++msgN}`;
     const t0 = op.t;
-    const tMid = op.t + HOP;
-    const t1 = op.t + 2 * HOP;
     const captured = op;
-
-    messages.push({
-      id: requestId,
-      from: captured.tx,
-      to: captured.record,
-      t0,
-      t1: tMid,
-      label:
+    const timing = {
+      ...DEFAULT_OPERATION_TIMING,
+      ...script.timing,
+      ...captured.timing,
+    };
+    const exchange = buildSequenceExchange({
+      id: exchangeId,
+      callerId: captured.tx,
+      handlerId: captured.record,
+      startAt: t0,
+      requestDuration: timing.request,
+      processingDuration: timing.processing,
+      responseDuration: timing.response,
+      requestLabel:
         captured.kind === "read"
           ? `SELECT ${records.get(captured.record)?.label ?? captured.record}`
           : `UPDATE ${records.get(captured.record)?.label ?? captured.record}`,
-      kind: "request",
+      responseLabel: "…",
     });
-    messages.push({
-      id: responseId,
-      from: captured.record,
-      to: captured.tx,
-      t0: tMid,
-      t1,
-      label: "…",
-      kind: "response",
-    });
+    const requestId = exchange.request.id;
+    const responseId = exchange.response.id;
+    messages.push(exchange.request, exchange.response);
+    intervals.push(...exchange.intervals);
 
     effects.push({
       t: t0,
@@ -391,7 +411,19 @@ export function simulate(
     });
 
     effects.push({
-      t: tMid,
+      t: exchange.requestArrivesAt,
+      run: () => {
+        pushBeat(
+          exchange.requestArrivesAt,
+          `${records.get(captured.record)?.label ?? captured.record} received the request and starts processing it.`,
+          [captured.record],
+          [requestId]
+        );
+      },
+    });
+
+    effects.push({
+      t: exchange.responseStartsAt,
       run: () => {
         const tx = txs.get(captured.tx);
         const record = records.get(captured.record);
@@ -404,8 +436,8 @@ export function simulate(
           tx.readSet.add(record.id);
           response.label = formatValue(record, value);
           pushBeat(
-            tMid,
-            `${clientLabel(tx.id)} sees ${record.label} = ${formatValue(record, value)}.`,
+            exchange.responseStartsAt,
+            `${record.label} finishes the read and sends ${formatValue(record, value)} back to ${clientLabel(tx.id)}.`,
             [tx.id, record.id],
             [requestId, responseId]
           );
@@ -418,24 +450,29 @@ export function simulate(
         tx.reads.set(record.id, next);
         record.dirtyTx = tx.id;
         response.label = "ok";
-        noteRecord(record, tMid, next, level === "read-uncommitted" ? " (dirty)" : " (uncommitted)");
+        noteRecord(
+          record,
+          exchange.responseStartsAt,
+          next,
+          level === "read-uncommitted" ? " (dirty)" : " (uncommitted)"
+        );
         pushBeat(
-          tMid,
-          `${clientLabel(tx.id)} sets ${record.label} = ${formatValue(record, next)} (not committed yet).`,
+          exchange.responseStartsAt,
+          `${record.label} finishes the write at ${formatValue(record, next)} and sends ok to ${clientLabel(tx.id)} (not committed yet).`,
           [tx.id, record.id],
-          [requestId]
+          [requestId, responseId]
         );
       },
     });
 
     effects.push({
-      t: t1,
+      t: exchange.responseArrivesAt,
       run: () => {
         const tx = txs.get(captured.tx);
         const record = records.get(captured.record);
         if (!tx || !record) return;
         pushBeat(
-          t1,
+          exchange.responseArrivesAt,
           captured.kind === "read"
             ? `Result ${record.label} = ${formatValue(record, tx.reads.get(record.id) ?? record.committed)} reaches ${clientLabel(tx.id)}.`
             : `${clientLabel(tx.id)} gets ok for the write to ${record.label}.`,
@@ -502,6 +539,7 @@ export function simulate(
     notes,
     events,
     spans,
+    intervals,
   };
 
   const outcome = summarize(script, level, txs, aborted);

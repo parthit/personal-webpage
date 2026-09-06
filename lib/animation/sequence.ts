@@ -24,6 +24,8 @@ export type MessageKind = "request" | "response";
 
 export type SequenceMessage = {
   id: string;
+  /** Links the request and response arrows for one round trip. */
+  exchangeId?: string;
   from: string;
   to: string;
   t0: number;
@@ -58,6 +60,22 @@ export type SequenceSpan = {
   status: "active" | "committed" | "aborted";
 };
 
+export type SequenceIntervalKind = "waiting" | "processing" | "lock";
+
+/**
+ * A duration that matters independently of an arrow: client wait time,
+ * server-side work, or time blocked on a lock.
+ */
+export type SequenceInterval = {
+  id: string;
+  exchangeId?: string;
+  actorId: string;
+  t0: number;
+  t1: number;
+  label: string;
+  kind: SequenceIntervalKind;
+};
+
 export type SequenceScenario = {
   id: string;
   title: string;
@@ -67,6 +85,7 @@ export type SequenceScenario = {
   notes: SequenceNote[];
   events: SequenceEvent[];
   spans: SequenceSpan[];
+  intervals?: SequenceInterval[];
 };
 
 export type MessageStatus = "pending" | "inflight" | "arrived";
@@ -85,6 +104,9 @@ export type SequenceView = {
   notes: SequenceNote[];
   events: SequenceEvent[];
   spans: SequenceSpan[];
+  intervals: Array<
+    SequenceInterval & { status: "active" | "complete" }
+  >;
 };
 
 export function clampTime(now: number, duration: number): number {
@@ -124,6 +146,95 @@ export function viewAt(scenario: SequenceScenario, now: number): SequenceView {
         t1: Math.min(span.t1, t),
         status: span.t1 <= t + 1e-9 ? span.status : "active",
       })),
+    intervals: (scenario.intervals ?? [])
+      .filter((interval) => interval.t0 <= t + 1e-9)
+      .map((interval) => ({
+        ...interval,
+        t1: Math.min(interval.t1, t),
+        status:
+          interval.t1 <= t + 1e-9
+            ? ("complete" as const)
+            : ("active" as const),
+      })),
+  };
+}
+
+export type SequenceExchange = {
+  id: string;
+  callerId: string;
+  handlerId: string;
+  startAt: number;
+  requestDuration: number;
+  processingDuration: number;
+  responseDuration: number;
+  requestLabel: string;
+  responseLabel: string;
+};
+
+/**
+ * Compile one request/process/response round trip into diagram primitives.
+ * Keeping this timing model in the shared engine prevents callers from drawing
+ * a response at the same instant the request arrives.
+ */
+export function buildSequenceExchange(exchange: SequenceExchange): {
+  request: SequenceMessage;
+  response: SequenceMessage;
+  intervals: SequenceInterval[];
+  requestArrivesAt: number;
+  responseStartsAt: number;
+  responseArrivesAt: number;
+} {
+  const requestDuration = Math.max(0, exchange.requestDuration);
+  const processingDuration = Math.max(0, exchange.processingDuration);
+  const responseDuration = Math.max(0, exchange.responseDuration);
+  const requestArrivesAt = exchange.startAt + requestDuration;
+  const responseStartsAt = requestArrivesAt + processingDuration;
+  const responseArrivesAt = responseStartsAt + responseDuration;
+
+  return {
+    request: {
+      id: `${exchange.id}-request`,
+      exchangeId: exchange.id,
+      from: exchange.callerId,
+      to: exchange.handlerId,
+      t0: exchange.startAt,
+      t1: requestArrivesAt,
+      label: exchange.requestLabel,
+      kind: "request",
+    },
+    response: {
+      id: `${exchange.id}-response`,
+      exchangeId: exchange.id,
+      from: exchange.handlerId,
+      to: exchange.callerId,
+      t0: responseStartsAt,
+      t1: responseArrivesAt,
+      label: exchange.responseLabel,
+      kind: "response",
+    },
+    intervals: [
+      {
+        id: `${exchange.id}-waiting`,
+        exchangeId: exchange.id,
+        actorId: exchange.callerId,
+        t0: exchange.startAt,
+        t1: responseArrivesAt,
+        label: "waiting for response",
+        kind: "waiting",
+      },
+      {
+        id: `${exchange.id}-processing`,
+        exchangeId: exchange.id,
+        actorId: exchange.handlerId,
+        t0: requestArrivesAt,
+        t1: responseStartsAt,
+        label: "processing",
+        kind: "processing",
+      },
+    ],
+    requestArrivesAt,
+    responseStartsAt,
+    responseArrivesAt,
   };
 }
 
