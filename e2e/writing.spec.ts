@@ -792,6 +792,10 @@ test.describe("writing section", () => {
       /never committed|Bob read 600/i,
       { timeout: 80_000 }
     );
+    await expect(diagram).toHaveAttribute("data-playhead-from", /.+/);
+    expect(await diagram.getAttribute("data-playhead-from")).toBe(
+      await diagram.getAttribute("data-playhead-to")
+    );
     await expect(dirty.locator("[data-sequence-event=abort]")).toBeVisible();
     const firstRequest = dirty
       .locator('[data-sequence-message-kind="request"] line')
@@ -814,6 +818,31 @@ test.describe("writing section", () => {
     expect(Number(timing[1])).toBeGreaterThan(Number(timing[0]));
     expect(Number(timing[2])).toBeGreaterThan(20);
     expect(Number(timing[3])).toBeGreaterThan(Number(timing[2]));
+
+    const writeFinishStep = dirty
+      .locator("[data-animation-history] button")
+      .filter({ hasText: /finishes the write/i });
+    await writeFinishStep.click();
+    await expect(dirty.locator('[data-record-id="acc1"]')).toHaveAttribute(
+      "data-record-uncommitted",
+      ""
+    );
+    await expect(dirty.locator("[data-isolation-status]")).not.toContainText(
+      /finishes the write/i
+    );
+    await dirty.getByRole("button", { name: "Play animation" }).click();
+    await expect(dirty.locator('[data-record-id="acc1"]')).toHaveAttribute(
+      "data-record-uncommitted",
+      "600",
+      { timeout: 4_000 }
+    );
+    await expect(dirty.locator("[data-isolation-status]")).toContainText(
+      /finishes the write/i
+    );
+    await expect(dirty.locator("[data-isolation-status]")).toContainText(
+      /never committed|Bob read 600/i,
+      { timeout: 80_000 }
+    );
 
     const level = dirty.locator('[data-segmented-control="isolation-level"]');
     await level.getByRole("radio", { name: "Read committed", exact: true }).click();
@@ -862,11 +891,26 @@ test.describe("writing section", () => {
     expect(box).not.toBeNull();
     expect(box!.width).toBeLessThanOrEqual(390);
     const graph = dirty.locator("[data-sequence-diagram]");
+    await expect(graph).toHaveAttribute("tabindex", "0");
+    await expect(graph).toHaveAttribute(
+      "aria-label",
+      /Dirty read sequence diagram/
+    );
     const sizes = await graph.evaluate((el) => ({
       client: el.clientWidth,
       scroll: el.scrollWidth,
     }));
     expect(sizes.scroll).toBeGreaterThan(sizes.client);
+    await dirty
+      .locator('[data-segmented-control="playback-rate"]')
+      .getByRole("radio", { name: "2×", exact: true })
+      .click();
+    await dirty.getByRole("button", { name: "Run the interleaving" }).click();
+    await expect
+      .poll(async () => graph.evaluate((el) => el.scrollLeft), {
+        timeout: 15_000,
+      })
+      .toBeGreaterThan(0);
     const pageWidth = await page.evaluate(
       () => document.documentElement.scrollWidth
     );
