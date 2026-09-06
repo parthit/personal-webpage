@@ -10,6 +10,7 @@ import { MultiLeaderDemo } from "./MultiLeaderDemo";
 import { QuorumDemo } from "./QuorumDemo";
 import { FieldMatchingDemo } from "./FieldMatchingDemo";
 import { VisionVsVlmDemo } from "./VisionVsVlmDemo";
+import { IsolationDemo } from "./IsolationDemo";
 
 export const mdxComponents: MDXComponents = {
   h1: (props) => (
@@ -109,4 +110,5 @@ export const mdxComponents: MDXComponents = {
   QuorumDemo,
   FieldMatchingDemo,
   VisionVsVlmDemo,
+  IsolationDemo,
 };

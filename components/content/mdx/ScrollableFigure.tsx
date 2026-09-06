@@ -50,6 +50,7 @@ export function ScrollableFigure({
   className,
   fadeClassName = "from-gray-50 dark:from-gray-900",
   label,
+  ariaLabel,
   children,
   ...rest
 }: {
@@ -61,6 +62,8 @@ export function ScrollableFigure({
   fadeClassName?: string;
   /** Announced hint shown while content is hidden off-screen. */
   label?: string;
+  /** Accessible name for the keyboard-scrollable region. */
+  ariaLabel?: string;
   children: ReactNode;
 } & Record<`data-${string}`, string | undefined>) {
   const edges = useOverflowEdges(scrollRef, revision);
@@ -75,6 +78,13 @@ export function ScrollableFigure({
             className
           )}
           data-scroll-overflowing={edges.overflowing ? "true" : "false"}
+          tabIndex={edges.overflowing ? 0 : undefined}
+          role={edges.overflowing ? "region" : undefined}
+          aria-label={
+            edges.overflowing
+              ? ariaLabel ?? label ?? "Horizontally scrollable figure"
+              : undefined
+          }
           {...rest}
         >
           {children}

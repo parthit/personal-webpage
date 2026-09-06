@@ -1,0 +1,62 @@
+---
+title: "Isolation controls which concurrent histories may commit"
+summary: "Dirty reads, lost updates, read skew, and write skew — four overlapping histories, drawn the way DDIA draws time."
+date: "2026-09-05"
+tags: ["system-design", "databases", "transactions"]
+cover: "/content/images/writing/transaction-isolation/cover.svg"
+draft: false
+series: "ddia-notes"
+---
+
+These are my notes from chapter 7 of Martin Kleppmann’s *Designing Data-Intensive Applications*. Replication is about copies that disagree. Transaction isolation is about **what overlapping work may observe, and which combinations are allowed to commit**.
+
+The diagrams in that chapter are time moving left to right, one track per person or row, and arrows for the queries in between. I wanted the same thing on this site: a playhead you can pause, not a static PNG. The figures below are generated from a small isolation simulator. They are not a database or a benchmark. They are the interleavings from the book, stepped slowly enough to follow.
+
+Each operation has three visible parts: the request travels to the row, the database spends time processing it, and the response travels back. The thin purple bar is how long the client waits; the blue bar is work inside the database. Those intervals are deliberately relative rather than milliseconds—the point is to see that a result cannot arrive at the same instant the request does.
+
+## What “committed” is for
+
+If Alice writes 600 and then aborts, that 600 should vanish. Under **read uncommitted**, Bob can still see it. That is a dirty read: a value that never became history.
+
+<IsolationDemo scenario="dirty-read" />
+
+Read committed is the default isolation-level label in [PostgreSQL](https://www.postgresql.org/docs/current/transaction-iso.html), [Oracle](https://docs.oracle.com/en/database/oracle/oracle-database/21/cncpt/data-concurrency-and-consistency.html), and [SQL Server](https://learn.microsoft.com/en-us/sql/t-sql/statements/set-transaction-isolation-level-transact-sql). It prevents dirty reads **and dirty writes**: one transaction cannot overwrite another transaction’s still-uncommitted write. It does not stop the rest of this page. PostgreSQL maps `READ UNCOMMITTED` to `READ COMMITTED`, so the dirty-read run is a model of the SQL level, not behavior PostgreSQL exposes. SQL Server’s implementation of Read Committed also depends on whether `READ_COMMITTED_SNAPSHOT` is enabled.
+
+## Lost updates are two correct transactions
+
+Alice and Bob both read 500 and each computes 600. Alice writes and commits first. Bob then sends the literal 600 he computed from his earlier read, overwriting Alice’s committed result. Each assignment looks reasonable alone. Together they lose a hundred dollars.
+
+<IsolationDemo scenario="lost-update" />
+
+Read committed lets the stale assignment win. Canonical snapshot isolation detects that another transaction changed the same row since Bob’s snapshot and aborts his write; a retry would read 600 and write 700. At ordinary Read Committed isolation, one `UPDATE accounts SET balance = balance + 100` avoids the stale client-side read-modify-write because the database locks the row and evaluates the expression against its current version. Snapshot-based levels may instead report a retryable write conflict.
+
+Atomic updates, row locking with `SELECT … FOR UPDATE`, and compare-and-set can prevent or detect this race without requiring database-wide serializable isolation. A compare-and-set such as `UPDATE … SET balance = 600 WHERE balance = 500` only works if the caller checks that one row changed; zero rows means retry or report a conflict.
+
+## Read skew is a total that never existed
+
+Alice has 500 in each of two accounts. She transfers 100 from the first to the second in one transaction. Bob, in his own transaction, reads the first account before the transfer commits and the second account after. He adds 500 + 600 = 1100. There was never a moment when the committed totals were 1100.
+
+<IsolationDemo scenario="read-skew" />
+
+Snapshot isolation fixes this by pinning Bob to one consistent committed snapshot for the transaction—typically established at the first data-access statement, depending on the database. Both reads see 500. The transfer still happens; he just does not straddle it.
+
+## Write skew looks like two independent decisions
+
+Two doctors are on call. The constraint is that at least one must remain. Each reads both rows, sees the other is still on, and goes off. Snapshot isolation allows both commits. Nobody wrote the same row. The invariant still dies.
+
+<IsolationDemo scenario="write-skew" />
+
+A serializable implementation must prevent both doctors from committing this history. This simulator uses simplified commit-time validation and rejects Bob; PostgreSQL’s SSI detects a dangerous dependency pattern and aborts one transaction, while a lock-based implementation may block or abort one earlier. Snapshot isolation does not prevent the history. In PostgreSQL, `REPEATABLE READ` provides snapshot isolation and can still permit serialization anomalies; `SERIALIZABLE` adds SSI conflict tracking. A row-local check constraint cannot enforce an invariant spanning two rows.
+
+## How I keep the levels straight
+
+| Model used here | Dirty read | Lost update | Read skew | Write skew |
+|---|---|---|---|---|
+| Read uncommitted | Yes | Yes | Yes | Yes |
+| Read committed | No | Yes | Yes | Yes |
+| Snapshot isolation with write-conflict detection | No | One writer aborts | No | Yes |
+| Serializable | No | Prevented | No | Prevented |
+
+This is an anomaly table for the simplified model, not a portability chart. Product names and mechanisms do not match it one-for-one: PostgreSQL’s `REPEATABLE READ` behaves like snapshot isolation, while PostgreSQL `SERIALIZABLE` adds SSI; Oracle’s `SERIALIZABLE` provides a transaction-level snapshot and write-conflict checks but can still permit write skew. If you need a guarantee, look at the anomaly and the product documentation, not only the label.
+
+Try the same interleaving at both levels in each figure. Follow one operation from request, through the processing delay, to the response. Read visibility explains dirty reads and read skew. Write-conflict handling prevents the lost update. Serializability additionally rules out dependency patterns such as write skew.

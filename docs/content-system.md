@@ -7,7 +7,7 @@ This site publishes **writing** (MDX pages) and **videos** (a typed catalog of Y
 - Add posts by dropping MDX files into the repo
 - Curate system-design YouTube videos from a typed list
 - Keep images local and optimized via `next/image`
-- Stay extensible for tags, series, RSS, and a future CMS
+- Stay extensible for tags, series, RSS, a sequence-diagram animation engine, and a future CMS
 
 ## Folder map
 
