@@ -56,12 +56,36 @@ export function SequenceDiagram({
     const x = xAt(layout, now, scenario.duration);
     const leftGuard = scroller.scrollLeft + Math.min(120, scroller.clientWidth / 3);
     const rightGuard = scroller.scrollLeft + scroller.clientWidth - 48;
+    const before = scroller.scrollLeft;
     if (x > rightGuard) {
       scroller.scrollLeft = x - scroller.clientWidth + 48;
     } else if (x < leftGuard) {
       scroller.scrollLeft = Math.max(0, x - Math.min(120, scroller.clientWidth / 3));
     }
-  }, [followPlayhead, layout, now, scenario.duration]);
+    if (scroller.scrollLeft !== before) {
+      // #region agent log
+      void fetch("/api/agent-debug", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          hypothesisId: "B",
+          location: "SequenceDiagram.tsx:follow-playhead",
+          message: "Sequence scroller position mutated",
+          data: {
+            scenarioId: scenario.id,
+            now,
+            followPlayhead,
+            before,
+            after: scroller.scrollLeft,
+            x,
+            clientWidth: scroller.clientWidth,
+            scrollWidth: scroller.scrollWidth,
+          },
+        }),
+      });
+      // #endregion
+    }
+  }, [followPlayhead, layout, now, scenario.duration, scenario.id]);
 
   return (
     <>

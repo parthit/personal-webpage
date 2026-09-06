@@ -130,6 +130,25 @@ export function useAnimationPlayer<T>(
           setDwell(0);
           setTimeline({ ...current, index: current.index + 1 });
         } else {
+          // #region agent log
+          void fetch("/api/agent-debug", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              hypothesisId: "A,D",
+              location: "useAnimationPlayer.ts:final-timer",
+              message: "Final dwell timer completed",
+              data: {
+                index: current.index,
+                stepsLength: current.steps.length,
+                progressBefore: progressRef.current,
+                dwellMs,
+                startedAt: startedAtRef.current,
+                firedAt: Date.now(),
+              },
+            }),
+          });
+          // #endregion
           setDwell(1);
           setStatus("complete");
           resolveRun(true);

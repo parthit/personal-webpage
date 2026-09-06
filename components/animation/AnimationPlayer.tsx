@@ -63,11 +63,32 @@ export function AnimationPlayer<T>({
     // Rect deltas rather than offsetTop: the list is not the offset parent.
     const listBox = list.getBoundingClientRect();
     const activeBox = active.getBoundingClientRect();
+    const before = list.scrollTop;
     if (activeBox.top < listBox.top) {
       list.scrollTop -= listBox.top - activeBox.top;
     } else if (activeBox.bottom > listBox.bottom) {
       list.scrollTop += activeBox.bottom - listBox.bottom;
     }
+    // #region agent log
+    void fetch("/api/agent-debug", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        hypothesisId: "C",
+        location: "AnimationPlayer.tsx:history-follow",
+        message: "History auto-scroll effect completed",
+        data: {
+          index: player.index,
+          before,
+          after: list.scrollTop,
+          listTop: listBox.top,
+          listBottom: listBox.bottom,
+          activeTop: activeBox.top,
+          activeBottom: activeBox.bottom,
+        },
+      }),
+    });
+    // #endregion
   }, [player.index, player.steps.length]);
 
   return (
