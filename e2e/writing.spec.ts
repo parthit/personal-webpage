@@ -754,12 +754,40 @@ test.describe("writing section", () => {
     const pausedPlayhead = await diagram.getAttribute("data-playhead");
     await page.waitForTimeout(300);
     await expect(diagram).toHaveAttribute("data-playhead", pausedPlayhead!);
+    const pausedIndex = Number(
+      await dirty
+        .locator("[data-animation-player]")
+        .getAttribute("data-playback-index")
+    );
     await dirty.getByRole("button", { name: "Play animation" }).click();
     await expect
       .poll(async () => Number(await diagram.getAttribute("data-playhead")), {
         timeout: 4_000,
       })
       .toBeGreaterThan(Number(pausedPlayhead));
+    await expect
+      .poll(
+        async () =>
+          Number(
+            await dirty
+              .locator("[data-animation-player]")
+              .getAttribute("data-playback-index")
+          ),
+        { timeout: 4_000 }
+      )
+      .toBeGreaterThan(pausedIndex);
+    const laterStep = {
+      from: Number(await diagram.getAttribute("data-playhead-from")),
+      now: Number(await diagram.getAttribute("data-playhead")),
+      to: Number(await diagram.getAttribute("data-playhead-to")),
+    };
+    expect(laterStep.now).toBeGreaterThanOrEqual(laterStep.from);
+    expect(laterStep.now).toBeLessThan(laterStep.to);
+    await expect
+      .poll(async () => Number(await diagram.getAttribute("data-playhead")), {
+        timeout: 4_000,
+      })
+      .toBeGreaterThan(laterStep.now);
     await expect(dirty.locator("[data-isolation-status]")).toContainText(
       /never committed|Bob read 600/i,
       { timeout: 80_000 }

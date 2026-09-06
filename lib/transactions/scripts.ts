@@ -58,9 +58,9 @@ export const READ_SKEW: IsolationScript = {
     { kind: "read", tx: "bob", record: "acc1", t: 1.8 },
     { kind: "write", tx: "alice", record: "acc1", t: 4.6, set: 400 },
     { kind: "write", tx: "alice", record: "acc2", t: 7.4, set: 600 },
-    { kind: "commit", tx: "alice", t: 10.4 },
-    { kind: "read", tx: "bob", record: "acc2", t: 11.2 },
-    { kind: "commit", tx: "bob", t: 14.4 },
+    { kind: "commit", tx: "alice", t: 11.0 },
+    { kind: "read", tx: "bob", record: "acc2", t: 11.8 },
+    { kind: "commit", tx: "bob", t: 15.6 },
   ],
 };
 
@@ -85,8 +85,8 @@ export const WRITE_SKEW: IsolationScript = {
     { kind: "read", tx: "bob", record: "bob-shift", t: 5.2 },
     { kind: "write", tx: "alice", record: "alice-shift", t: 8.6, set: 0 },
     { kind: "write", tx: "bob", record: "bob-shift", t: 10.0, set: 0 },
-    { kind: "commit", tx: "alice", t: 13.2 },
-    { kind: "commit", tx: "bob", t: 14.6 },
+    { kind: "commit", tx: "alice", t: 12.4 },
+    { kind: "commit", tx: "bob", t: 14.2 },
   ],
 };
 

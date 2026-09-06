@@ -11,9 +11,10 @@ import { liveStepProgress } from "@/lib/animation/core";
 export function useLiveStepProgress(
   playing: boolean,
   sampledProgress: number,
-  durationMs: number
+  durationMs: number,
+  stepKey: string | number
 ): number {
-  const playKey = `${playing}:${sampledProgress}:${durationMs}`;
+  const playKey = `${stepKey}:${playing}:${sampledProgress}:${durationMs}`;
   const [clock, setClock] = useState({ key: playKey, elapsed: 0 });
 
   useEffect(() => {

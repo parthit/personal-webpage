@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { simulate } from "./model";
-import { DIRTY_READ, LOST_UPDATE, READ_SKEW, WRITE_SKEW } from "./scripts";
+import {
+  DIRTY_READ,
+  ISOLATION_SCRIPTS,
+  LOST_UPDATE,
+  READ_SKEW,
+  SCENARIO_LEVELS,
+  WRITE_SKEW,
+} from "./scripts";
 import { buildIsolationSteps, TX_HOLD_MS, TX_STEP_MS } from "./frames";
 
 describe("dirty reads", () => {
@@ -98,6 +105,51 @@ describe("isolation animation steps", () => {
     assert.ok(steps[1].snapshot.fromNow < steps[1].snapshot.toNow);
     assert.ok(steps.at(-1)?.snapshot.outcome);
     assert.equal(steps.at(-1)?.durationMs, TX_HOLD_MS);
+  });
+
+  it("ends each transaction only after its own responses arrive", () => {
+    for (const [scenarioId, script] of Object.entries(ISOLATION_SCRIPTS)) {
+      for (const level of SCENARIO_LEVELS[
+        scenarioId as keyof typeof SCENARIO_LEVELS
+      ]) {
+        const run = simulate(script, level);
+        for (const client of script.clients) {
+          const finished = run.scenario.events.find(
+            (event) =>
+              event.actorId === client.id &&
+              (event.kind === "commit" || event.kind === "abort")
+          );
+          const lastResponse = Math.max(
+            0,
+            ...(run.scenario.intervals ?? [])
+              .filter(
+                (interval) =>
+                  interval.actorId === client.id &&
+                  interval.kind === "waiting"
+              )
+              .map((interval) => interval.t1)
+          );
+          assert.ok(finished, `${scenarioId}:${client.id} has an end event`);
+          assert.ok(
+            finished.at >= lastResponse,
+            `${scenarioId}:${client.id} ends at ${finished.at} before response ${lastResponse}`
+          );
+        }
+      }
+    }
+  });
+
+  it("keeps every teaching beat at a distinct point on the time axis", () => {
+    for (const [scenarioId, script] of Object.entries(ISOLATION_SCRIPTS)) {
+      const level =
+        SCENARIO_LEVELS[scenarioId as keyof typeof SCENARIO_LEVELS][0];
+      const beats = simulate(script, level).beats.map((beat) => beat.now);
+      assert.equal(
+        new Set(beats).size,
+        beats.length,
+        `${scenarioId} has collapsed teaching beats`
+      );
+    }
   });
 
   it("draws request, database work, and response as separate durations", () => {

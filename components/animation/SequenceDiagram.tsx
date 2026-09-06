@@ -54,7 +54,8 @@ export function SequenceDiagram({
   const progress = useLiveStepProgress(
     playing && !reducedMotion,
     stepProgress,
-    stepDurationMs
+    stepDurationMs,
+    `${scenario.id}:${fromNow}:${toNow}`
   );
   const now = visiblePlayhead(fromNow, toNow, progress, reducedMotion);
   const view = useMemo(() => viewAt(scenario, now), [scenario, now]);
@@ -86,6 +87,8 @@ export function SequenceDiagram({
       fadeClassName="from-gray-50 dark:from-gray-900"
       data-sequence-diagram={scenario.id}
       data-playhead={now.toFixed(2)}
+      data-playhead-from={fromNow.toFixed(2)}
+      data-playhead-to={toNow.toFixed(2)}
     >
       <svg
         width={layout.width}
