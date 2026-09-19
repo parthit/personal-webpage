@@ -450,9 +450,9 @@ test.describe("writing section", () => {
       page.getByRole("heading", { name: REPLICATION_POST.title })
     ).toBeVisible();
 
-    const cover = page.locator(
-      'img[src="/content/images/writing/replication/cover.jpg"]'
-    );
+    const cover = page.getByRole("img", {
+      name: `Cover illustration for ${REPLICATION_POST.title}`,
+    });
     await expectImageLoaded(cover);
 
     const leader = page.locator("[data-leader-follower-demo]");
@@ -617,9 +617,9 @@ test.describe("writing section", () => {
       page.getByRole("heading", { name: "From a page to a field" })
     ).toBeVisible();
 
-    const cover = page.locator(
-      'img[src="/content/images/writing/document-ai-field-matching/cover.jpg"]'
-    );
+    const cover = page.getByRole("img", {
+      name: `Cover illustration for ${DOCUMENT_AI_POST.title}`,
+    });
     await expectImageLoaded(cover);
 
     const demo = page.locator("[data-field-matching-demo]");
@@ -656,9 +656,9 @@ test.describe("writing section", () => {
       page.getByRole("heading", { name: "Why the gap gets so large" })
     ).toBeVisible();
 
-    const cover = page.locator(
-      'img[src="/content/images/writing/specialized-vision-vs-vlm/cover.jpg"]'
-    );
+    const cover = page.getByRole("img", {
+      name: `Cover illustration for ${VISION_VLM_POST.title}`,
+    });
     await expectImageLoaded(cover);
 
     const demo = page.locator("[data-vision-vs-vlm-demo]");
