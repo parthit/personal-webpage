@@ -451,7 +451,7 @@ test.describe("writing section", () => {
     ).toBeVisible();
 
     const cover = page.locator(
-      'img[src="/content/images/writing/replication/cover.svg"]'
+      'img[src="/content/images/writing/replication/cover.jpg"]'
     );
     await expectImageLoaded(cover);
 
@@ -618,7 +618,7 @@ test.describe("writing section", () => {
     ).toBeVisible();
 
     const cover = page.locator(
-      'img[src="/content/images/writing/document-ai-field-matching/cover.svg"]'
+      'img[src="/content/images/writing/document-ai-field-matching/cover.jpg"]'
     );
     await expectImageLoaded(cover);
 
@@ -657,7 +657,7 @@ test.describe("writing section", () => {
     ).toBeVisible();
 
     const cover = page.locator(
-      'img[src="/content/images/writing/specialized-vision-vs-vlm/cover.svg"]'
+      'img[src="/content/images/writing/specialized-vision-vs-vlm/cover.jpg"]'
     );
     await expectImageLoaded(cover);
 
