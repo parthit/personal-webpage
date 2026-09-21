@@ -938,9 +938,9 @@ test.describe("writing section", () => {
       page.getByRole("heading", { name: "Why modulo reshuffles" })
     ).toBeVisible();
 
-    const cover = page.locator(
-      'img[src="/content/images/writing/consistent-hashing/cover.svg"]'
-    );
+    const cover = page.getByRole("img", {
+      name: `Cover illustration for ${HASHING_POST.title}`,
+    });
     await expectImageLoaded(cover);
 
     const demo = page.locator("[data-consistent-hashing-demo]");

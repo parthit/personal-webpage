@@ -14,7 +14,7 @@ title: "Consistent Hashing"
 summary: "Why rings beat modulo when nodes come and go."
 date: "2026-03-01"
 tags: ["system-design", "caching"]
-cover: "/content/images/writing/consistent-hashing/cover.webp"
+cover: "/content/images/writing/consistent-hashing/cover.jpg"
 draft: false
 ---
 ```

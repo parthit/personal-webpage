@@ -3,7 +3,7 @@ title: "Why rings beat modulo when nodes come and go"
 summary: "Hash % N reshuffles almost every key when a server joins. A hash ring moves only the keys that have to."
 date: "2026-09-21"
 tags: ["system-design", "caching", "distributed-systems"]
-cover: "/content/images/writing/consistent-hashing/cover.svg"
+cover: "/content/images/writing/consistent-hashing/cover.jpg"
 draft: false
 series: "ddia-notes"
 ---
@@ -23,6 +23,8 @@ I wanted that contrast on a circle I could break. The twelve keys are placed so 
 <ConsistentHashingDemo />
 
 Switch the figure to **Modulo**, add a node, then switch back to **Hash ring** and add one again. The ring should move a handful. Modulo usually moves most of them.
+
+![Three buckets of cubes flying everywhere on the left, and a quiet server ring on the right where only one short line of cubes moves.](/content/images/writing/consistent-hashing/modulo-vs-ring.jpg)
 
 ## Why modulo reshuffles
 
@@ -58,7 +60,7 @@ Membership has to be agreed. If two clients have different views of which tokens
 
 And a ring is not the only way to keep moves small. [Rendezvous hashing](https://en.wikipedia.org/wiki/Rendezvous_hashing) (highest random weight) scores every node for a key and picks the winner; adding a node only steals keys for which it is the new maximum. Jump hashing needs a packed 0…N-1 set. I reached for a ring here because it is the picture DDIA draws, and because you can watch a lookup walk.
 
-## How I keep the options straight
+## How the schemes compare
 
 | Scheme | Address | What moves when N changes | Typical snag |
 |---|---|---|---|
