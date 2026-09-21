@@ -45,9 +45,12 @@ test.describe("writing section", () => {
       /messy document text/i
     );
 
-    // SVG covers are fine in-page but not for social previews.
+    // Raster covers should be used directly for social previews.
     const ogImage = page.locator('meta[property="og:image"]');
-    await expect(ogImage).toHaveAttribute("content", /parthit\.jpeg/i);
+    await expect(ogImage).toHaveAttribute(
+      "content",
+      /\/content\/images\/writing\/document-ai-field-matching\/cover\.jpg$/i
+    );
     await expect(ogImage).not.toHaveAttribute("content", /\.svg/i);
   });
 
