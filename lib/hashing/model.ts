@@ -51,16 +51,16 @@ const CATALOG_SLOTS = NODE_CATALOG.length * MAX_VNODES;
 export const KEY_POSITIONS: Record<(typeof KEY_IDS)[number], number> = {
   cart: 22,
   user: 68,
-  session: 112,
-  invoice: 155,
-  cache: 50,
-  feed: 95,
-  auth: 140,
-  search: 185,
-  email: 230,
-  order: 275,
-  image: 320,
-  video: 338,
+  session: 115,
+  invoice: 35,
+  cache: 82,
+  feed: 4,
+  auth: 51,
+  search: 93,
+  email: 98,
+  order: 14,
+  image: 56,
+  video: 108,
 };
 
 export type HashToken = {

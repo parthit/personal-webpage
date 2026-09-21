@@ -77,6 +77,10 @@ describe("modulo vs ring remap", () => {
     assert.equal(ring.movedCount, 3);
     assert.ok(mod.movedCount > ring.movedCount);
     assert.deepEqual(ring.moved.sort(), ["cart", "session", "user"]);
+    const beforeCounts = loadCounts(ringBefore, beforeIds);
+    assert.equal(beforeCounts.nyc > 0, true);
+    assert.equal(beforeCounts.lon > 0, true);
+    assert.equal(beforeCounts.syd > 0, true);
   });
 
   it("only remaps keys whose successor token changed", () => {
