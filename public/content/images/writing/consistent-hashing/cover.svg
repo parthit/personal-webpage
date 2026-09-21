@@ -32,6 +32,6 @@
     <text x="64" y="220">hash(key) % N</text>
     <text x="64" y="252" fill="#fb7185">reshuffles most keys</text>
     <text x="64" y="320">hash(key) and hash(node)</text>
-    <text x="64" y="352" fill="#34d399">walk clockwise · move the arc</text>
+    <text x="64" y="352" fill="#34d399">walk clockwise, move the arc</text>
   </g>
 </svg>
