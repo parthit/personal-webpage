@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ISOLATION_POST } from "./helpers";
+import { HASHING_POST, ISOLATION_POST } from "./helpers";
 
 test.describe("SEO discovery", () => {
   test("serves robots.txt that allows crawling and points to the sitemap", async ({
@@ -27,6 +27,7 @@ test.describe("SEO discovery", () => {
     expect(body).toMatch(/https?:\/\/.+\/videos/);
     expect(body).toMatch(/https?:\/\/.+\/chat/);
     expect(body).toContain(`/writing/${ISOLATION_POST.slug}`);
+    expect(body).toContain(`/writing/${HASHING_POST.slug}`);
   });
 
   test("home page exposes useful document metadata and JSON-LD", async ({

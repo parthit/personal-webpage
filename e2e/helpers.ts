@@ -30,6 +30,12 @@ export const ISOLATION_POST = {
   path: "/writing/transaction-isolation",
 } as const;
 
+export const HASHING_POST = {
+  slug: "consistent-hashing",
+  title: "Why rings beat modulo when nodes come and go",
+  path: "/writing/consistent-hashing",
+} as const;
+
 export const CURATED_VIDEO = {
   slug: "architecture-system-design-interviews",
   title: "Intro to Architecture and Systems Design Interviews",
