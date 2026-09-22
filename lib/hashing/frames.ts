@@ -4,6 +4,7 @@ import {
   DEFAULT_VNODES,
   KEY_IDS,
   assignKeys,
+  fnv1a,
   keysFor,
   moduloOwner,
   nextNodeId,
@@ -96,6 +97,9 @@ export function buildLookupSteps(
 
   if (scene.mode === "modulo") {
     const owner = moduloOwner(key.id, scene.nodeIds) ?? "—";
+    const hash = fnv1a(key.id);
+    const buckets = scene.nodeIds.length;
+    const remainder = buckets === 0 ? 0 : hash % buckets;
     return [
       step(
         {
@@ -103,7 +107,7 @@ export function buildLookupSteps(
           lookupKeyId: key.id,
           highlightKeyIds: [key.id],
           highlightNodeIds: [owner],
-          message: `${key.id} hashes to ${key.position}. Under modulo, owner = hash % ${scene.nodeIds.length} → ${owner.toUpperCase()}.`,
+          message: `${key.id} hashes to ${hash}. Owner = ${hash} % ${buckets} = ${remainder} → ${owner.toUpperCase()}.`,
         },
         `Hash ${key.id}`,
         HASH_STEP_MS
@@ -160,7 +164,7 @@ export function buildLookupSteps(
         highlightKeyIds: [key.id],
         highlightTokenIds: token ? [token.id] : [],
         highlightNodeIds: [owner],
-        walk,
+        walk: walk ? { ...walk, settled: true } : null,
         message: `${key.id} is owned by ${owner.toUpperCase()} (${token?.id ?? "no token"}). Only a new token in this arc would steal it.`,
       },
       `${key.id} → ${owner}`,

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { fnv1a } from "./model";
 import {
   buildLookupSteps,
   buildMembershipSteps,
@@ -22,15 +23,24 @@ describe("hashing animation frames", () => {
     assert.equal(steps.length, 3);
     const walk = steps[1].snapshot.walk;
     assert.ok(walk);
+    assert.equal(walk.settled, undefined);
     assert.equal(walk.from, scene.keys.find((k) => k.id === "cart")?.position);
+    assert.equal(steps[2].snapshot.walk?.settled, true);
+    assert.equal(steps[2].snapshot.walk?.to, walk.to);
     assert.ok(steps[2].snapshot.highlightNodeIds.length === 1);
     assert.equal(steps[2].snapshot.lookupKeyId, "cart");
   });
 
-  it("modulo lookup never draws a walk", () => {
-    const steps = buildLookupSteps(createScene("modulo"), "cart");
+  it("modulo lookup quotes the hash remainder, not the ring slot", () => {
+    const scene = createScene("modulo");
+    const steps = buildLookupSteps(scene, "cart");
+    const hash = fnv1a("cart");
     assert.ok(steps.every((step) => step.snapshot.walk == null));
-    assert.match(steps[0].snapshot.message, /hash %/i);
+    assert.match(
+      steps[0].snapshot.message,
+      new RegExp(`hashes to ${hash}\\. Owner = ${hash} % 3 = ${hash % 3}`)
+    );
+    assert.doesNotMatch(steps[0].snapshot.message, /ring|lands at/i);
   });
 
   it("adding a node records how many keys moved vs modulo", () => {

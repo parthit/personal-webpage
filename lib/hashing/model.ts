@@ -86,6 +86,8 @@ export type HashWalk = {
   from: number;
   to: number;
   tokenId: string;
+  /** The walker has already arrived; do not replay the arc. */
+  settled?: boolean;
 };
 
 export type HashSnapshot = {

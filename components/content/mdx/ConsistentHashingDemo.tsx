@@ -87,7 +87,9 @@ export function ConsistentHashingDemo() {
   const walkProgress =
     snapshot.walk == null
       ? 0
-      : visiblePlayhead(0, 1, progress, reducedMotion);
+      : snapshot.walk.settled
+        ? 1
+        : visiblePlayhead(0, 1, progress, reducedMotion);
 
   const counts = loadCounts(snapshot.assignment, snapshot.nodeIds);
   const totalKeys = snapshot.keys.length;
