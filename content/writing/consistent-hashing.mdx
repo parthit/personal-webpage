@@ -1,0 +1,71 @@
+---
+title: "Why rings beat modulo when nodes come and go"
+summary: "Hash % N reshuffles almost every key when a server joins. A hash ring moves only the keys that have to."
+date: "2026-09-21"
+tags: ["system-design", "caching", "distributed-systems"]
+cover: "/content/images/writing/consistent-hashing/cover.jpg"
+draft: false
+series: "ddia-notes"
+---
+
+These are my notes from chapter 6 of Martin Kleppmann’s *Designing Data-Intensive Applications*, plus the ring that chapter is pointing at. Partitioning is how you split data across machines. The interesting part is what happens to that split when a machine appears or disappears.
+
+The first formula everyone reaches for is:
+
+```
+owner = hash(key) % N
+```
+
+It is fair while N is frozen. The moment a fourth cache joins three, N is 4 and almost every key hashes to a different remainder. Caches miss. Databases rebalance. Clients stampede the new owners.
+
+I wanted that contrast on a circle I could break. The twelve keys are placed so a few of them sit in arcs that a joining node will steal — otherwise a real hash can hide the lesson on a tiny ring. Add a node and count how many keys change color. Modulo still uses a real FNV-1a remainder, so it reshuffles most of them.
+
+<ConsistentHashingDemo />
+
+Add a node on the hash ring and note how many keys move. Hit **Reset**, switch to **Modulo**, and add a node again. The ring moves a handful. Modulo moves most of them.
+
+![Three buckets of cubes flying everywhere on the left, and a quiet server ring on the right where only one short line of cubes moves.](/content/images/writing/consistent-hashing/modulo-vs-ring.jpg)
+
+## Why modulo reshuffles
+
+The node count is part of the address. A key does not have a place in the cluster; it has a remainder, and the remainder is defined in terms of how many nodes exist right now.
+
+If you list servers in a stable order and compute `hash(key) % 3`, then `hash(key) % 4`, those two numbers agree only when the key happens to land in a remainder that survived the extra bucket. For a uniform hash, the expected fraction that stays put is small. The rest of the working set is suddenly cold.
+
+That is fine for a hash table in one process, where “resizing” copies the entries you already have in memory. It is a poor map for a fleet, where each move is a network fetch or a disk rebuild.
+
+## Put keys and nodes on the same circle
+
+[Consistent hashing](https://www.cs.princeton.edu/courses/archive/fall09/cos518/papers/chash.pdf) (Karger et al., 1997) hashes both the key and the node onto a ring. To place a key, walk clockwise until you hit a node. That node owns the arc just behind it: every key that reaches it before anyone else.
+
+When a node joins, it sits in front of whoever used to own that stretch, and it takes the arc behind itself. **Only keys on that arc move.** Everyone else keeps their owner. When a node leaves, those keys fall forward to the next node clockwise. The rest of the ring stays put.
+
+On a ring of N nodes, adding one node therefore moves about 1/(N+1) of the keys — the keys whose successor just changed — instead of most of them. The demo’s twelve keys and three vnodes will not match that fraction exactly; I put `cart`, `user`, and `session` on the arcs SFO claims so you can see the steal. The direction of the difference is the point.
+
+Lookup in the figure is that walk. Pause it. The key does not jump to a bucket index; it travels along the circle until a vnode stops it.
+
+## Virtual nodes spread the lottery
+
+One hash per physical server makes the cuts a lottery. A node that lands next to another node owns a sliver; a node with a wide empty gap owns too much. Load in the figure’s bars will look lumpy if you drag **Virtual nodes** down to 1.
+
+Give each server several **virtual nodes** (vnodes): extra tokens on the ring, often hashed from names like `node:0` and `node:1`. The physical machine owns the union of those arcs. More tokens, smaller pieces, less skew. This figure spaces the tokens evenly so the circle stays readable; a real ring hashes them, which is lumpier until you add enough replicas. Dynamo’s paper leans on this trick; so do many cache rings descended from Ketama.
+
+More vnodes also mean more tokens to store and compare. The demo caps at eight so the circle stays readable. Production rings often use dozens or hundreds per node, stored in a sorted structure so a lookup is a binary search rather than a linear scan.
+
+## What this does not fix
+
+A hot key is still a hot key. If `cart` is 80% of traffic, spreading the other eleven keys perfectly does not save NYC. You still need chunking, local caching, or a different partition key.
+
+Membership has to be agreed. If two clients have different views of which tokens exist, they will walk to different owners. Gossip, configuration services, and careful add/remove protocols sit underneath the pretty circle.
+
+And a ring is not the only way to keep moves small. [Rendezvous hashing](https://en.wikipedia.org/wiki/Rendezvous_hashing) (highest random weight) scores every node for a key and picks the winner; adding a node only steals keys for which it is the new maximum. Jump hashing needs a packed 0…N-1 set. I reached for a ring here because it is the picture DDIA draws, and because you can watch a lookup walk.
+
+## How the schemes compare
+
+| Scheme | Address | What moves when N changes | Typical snag |
+|---|---|---|---|
+| `hash % N` | Remainder in the current set | Most keys | Cheap until the cluster is elastic |
+| Hash ring + vnodes | Clockwise successor | Keys on the new/removed arcs | Uneven arcs unless you add vnodes |
+| Rendezvous / HRW | Highest score among live nodes | Keys whose new node wins | Scoring every node, or a tree of them |
+
+This is the same instinct as the [replication notes](/writing/replication): the copies are easy; the disagreement while membership changes is the design. Partitioning is easy while the set of machines is frozen. The ring is a way to make “a machine joined” a local event instead of a cluster-wide shuffle.

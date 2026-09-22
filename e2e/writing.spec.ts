@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   BTREE_POST,
   DOCUMENT_AI_POST,
+  HASHING_POST,
   ISOLATION_POST,
   REPLICATION_POST,
   VISION_VLM_POST,
@@ -914,6 +915,113 @@ test.describe("writing section", () => {
         timeout: 15_000,
       })
       .toBeGreaterThan(0);
+    const pageWidth = await page.evaluate(
+      () => document.documentElement.scrollWidth
+    );
+    expect(pageWidth).toBeLessThanOrEqual(400);
+  });
+
+  test("renders the consistent hashing post with a ring playground", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await page.goto("/writing");
+    await expect(
+      page.getByRole("link", { name: HASHING_POST.title })
+    ).toBeVisible();
+
+    await page.goto(HASHING_POST.path);
+    await expect(
+      page.getByRole("heading", { name: HASHING_POST.title })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Why modulo reshuffles" })
+    ).toBeVisible();
+
+    const cover = page.getByRole("img", {
+      name: `Cover illustration for ${HASHING_POST.title}`,
+    });
+    await expectImageLoaded(cover);
+
+    const demo = page.locator("[data-consistent-hashing-demo]");
+    await demo.scrollIntoViewIfNeeded();
+    await expect(
+      demo.getByRole("img", {
+        name: /Consistent hashing ring with virtual nodes/,
+      })
+    ).toBeVisible();
+    await expect(demo.locator("[data-hash-ring]")).toHaveAttribute(
+      "data-hash-mode",
+      "ring"
+    );
+    await expect(demo.locator("[data-hash-status]")).toHaveAttribute(
+      "data-hash-node-count",
+      "3"
+    );
+    await expect(demo.locator("[data-hash-load-node]")).toHaveCount(3);
+
+    const speed = demo.locator('[data-segmented-control="playback-rate"]');
+    await speed.getByRole("radio", { name: "2×", exact: true }).click();
+
+    const lookup = demo.getByRole("button", { name: "Lookup cart" });
+    await lookup.evaluate((el) =>
+      el.scrollIntoView({ block: "center", inline: "nearest" })
+    );
+    await lookup.click();
+    await expect(demo.locator("[data-animation-player]")).toHaveAttribute(
+      "data-playback-status",
+      "playing"
+    );
+    await expect(demo.locator("[data-hash-status]")).toContainText(
+      /cart/i,
+      { timeout: 40_000 }
+    );
+    await expect(demo.locator("[data-hash-status]")).toContainText(
+      /owned by/i,
+      { timeout: 40_000 }
+    );
+    await expect(demo.locator("[data-hash-key=cart]")).toBeVisible();
+
+    await demo.getByRole("button", { name: "Add node" }).click();
+    await expect(demo.locator("[data-hash-status]")).toContainText(/moved/i, {
+      timeout: 40_000,
+    });
+    await expect(demo.locator("[data-hash-status]")).toHaveAttribute(
+      "data-hash-node-count",
+      "4"
+    );
+    const moved = Number(
+      await demo.locator("[data-hash-status]").getAttribute("data-hash-moved")
+    );
+    const moduloWould = Number(
+      await demo
+        .locator("[data-hash-status]")
+        .getAttribute("data-hash-modulo-would-move")
+    );
+    expect(moved).toBeGreaterThan(0);
+    expect(moved).toBeLessThan(moduloWould);
+
+    const mode = demo.locator('[data-segmented-control="hash-mode"]');
+    await mode.getByRole("radio", { name: "Modulo", exact: true }).click();
+    await expect(demo.locator("[data-hash-ring]")).toHaveAttribute(
+      "data-hash-mode",
+      "modulo"
+    );
+    await expect(
+      demo.getByRole("img", { name: /colored by modulo owner/ })
+    ).toBeVisible();
+  });
+
+  test("hash ring stays usable on a narrow viewport", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(HASHING_POST.path);
+
+    const demo = page.locator("[data-consistent-hashing-demo]");
+    await demo.scrollIntoViewIfNeeded();
+    await expect(demo.getByRole("button", { name: "Add node" })).toBeVisible();
+    const box = await demo.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width).toBeLessThanOrEqual(390);
     const pageWidth = await page.evaluate(
       () => document.documentElement.scrollWidth
     );

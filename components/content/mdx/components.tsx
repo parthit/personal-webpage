@@ -11,6 +11,7 @@ import { QuorumDemo } from "./QuorumDemo";
 import { FieldMatchingDemo } from "./FieldMatchingDemo";
 import { VisionVsVlmDemo } from "./VisionVsVlmDemo";
 import { IsolationDemo } from "./IsolationDemo";
+import { ConsistentHashingDemo } from "./ConsistentHashingDemo";
 
 export const mdxComponents: MDXComponents = {
   h1: (props) => (
@@ -111,4 +112,5 @@ export const mdxComponents: MDXComponents = {
   FieldMatchingDemo,
   VisionVsVlmDemo,
   IsolationDemo,
+  ConsistentHashingDemo,
 };

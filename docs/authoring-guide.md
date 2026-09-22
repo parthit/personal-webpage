@@ -14,7 +14,7 @@ title: "Consistent Hashing"
 summary: "Why rings beat modulo when nodes come and go."
 date: "2026-03-01"
 tags: ["system-design", "caching"]
-cover: "/content/images/writing/consistent-hashing/cover.webp"
+cover: "/content/images/writing/consistent-hashing/cover.jpg"
 draft: false
 ---
 ```
@@ -103,6 +103,7 @@ Registered in `components/content/mdx/components.tsx`:
 | `FieldMatchingDemo` | `<FieldMatchingDemo />` — OCR spans → schema matching with confidence thresholds |
 | `VisionVsVlmDemo` | `<VisionVsVlmDemo />` — specialized detector vs VLM latency/accuracy walkthrough |
 | `IsolationDemo` | `<IsolationDemo scenario="lost-update" />` — DDIA-style sequence diagram of a transaction interleaving |
+| `ConsistentHashingDemo` | `<ConsistentHashingDemo />` — modulo vs hash ring, vnodes, add/remove node, clockwise lookup |
 
 ### Sequence diagrams
 
