@@ -36,9 +36,9 @@ That is fine for a hash table in one process, where “resizing” copies the en
 
 ## Put keys and nodes on the same circle
 
-[Consistent hashing](https://www.cs.princeton.edu/courses/archive/fall09/cos518/papers/chash.pdf) (Karger et al., 1997) hashes both the key and the node onto a ring. To place a key, walk clockwise until you hit a node. That node owns the arc behind it.
+[Consistent hashing](https://www.cs.princeton.edu/courses/archive/fall09/cos518/papers/chash.pdf) (Karger et al., 1997) hashes both the key and the node onto a ring. To place a key, walk clockwise until you hit a node. That node owns the arc just behind it: every key that reaches it before anyone else.
 
-When a node joins, it claims the arc between itself and the previous node clockwise. **Only keys on that arc move.** Everyone else keeps their owner. When a node leaves, its arc falls to the next node clockwise. Again, the rest of the ring is untouched.
+When a node joins, it sits in front of whoever used to own that stretch, and it takes the arc behind itself. **Only keys on that arc move.** Everyone else keeps their owner. When a node leaves, those keys fall forward to the next node clockwise. The rest of the ring stays put.
 
 On a ring of N nodes, adding one node therefore moves about 1/(N+1) of the keys — the keys whose successor just changed — instead of most of them. The demo’s twelve keys and three vnodes will not match that fraction exactly; I put `cart`, `user`, and `session` on the arcs SFO claims so you can see the steal. The direction of the difference is the point.
 
@@ -48,7 +48,7 @@ Lookup in the figure is that walk. Pause it. The key does not jump to a bucket i
 
 One hash per physical server makes the cuts a lottery. A node that lands next to another node owns a sliver; a node with a wide empty gap owns too much. Load in the figure’s bars will look lumpy if you drag **Virtual nodes** down to 1.
 
-Give each server several **virtual nodes** (vnodes): extra tokens hashed from `node:0`, `node:1`, … The physical machine owns the union of those arcs. More tokens, smaller pieces, less skew. Dynamo’s paper leans on this trick; so do many cache rings descended from Ketama.
+Give each server several **virtual nodes** (vnodes): extra tokens on the ring, often hashed from names like `node:0` and `node:1`. The physical machine owns the union of those arcs. More tokens, smaller pieces, less skew. This figure spaces the tokens evenly so the circle stays readable; a real ring hashes them, which is lumpier until you add enough replicas. Dynamo’s paper leans on this trick; so do many cache rings descended from Ketama.
 
 More vnodes also mean more tokens to store and compare. The demo caps at eight so the circle stays readable. Production rings often use dozens or hundreds per node, stored in a sorted structure so a lookup is a binary search rather than a linear scan.
 
