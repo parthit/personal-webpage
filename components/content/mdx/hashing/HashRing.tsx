@@ -14,19 +14,19 @@ import {
 } from "@/lib/hashing/layout";
 
 const NODE_DOT: Record<NodeSpecColor, string> = {
-  sky: "fill-sky-500 dark:fill-sky-400",
-  amber: "fill-amber-500 dark:fill-amber-400",
-  emerald: "fill-emerald-500 dark:fill-emerald-400",
-  violet: "fill-violet-500 dark:fill-violet-400",
-  rose: "fill-rose-500 dark:fill-rose-400",
+  sky: "fill-[#6673a8]",
+  amber: "fill-[#d98b68]",
+  emerald: "fill-[#72927f]",
+  violet: "fill-[#8a7dab]",
+  rose: "fill-[#bd6f78]",
 };
 
 const KEY_DOT: Record<NodeSpecColor, string> = {
-  sky: "fill-sky-600 dark:fill-sky-300",
-  amber: "fill-amber-600 dark:fill-amber-300",
-  emerald: "fill-emerald-600 dark:fill-emerald-300",
-  violet: "fill-violet-600 dark:fill-violet-300",
-  rose: "fill-rose-600 dark:fill-rose-300",
+  sky: "fill-[#6673a8]",
+  amber: "fill-[#d98b68]",
+  emerald: "fill-[#72927f]",
+  violet: "fill-[#8a7dab]",
+  rose: "fill-[#bd6f78]",
 };
 
 type NodeSpecColor = ReturnType<typeof nodeSpec>["color"];
@@ -79,40 +79,81 @@ export function HashRing({
       }
       data-hash-ring
       data-hash-mode={snapshot.mode}
-      className="mx-auto h-auto w-full max-w-[26rem]"
+      className="mx-auto h-auto w-full max-w-[32rem]"
     >
+      <defs>
+        <filter id="hash-token-shadow" x="-80%" y="-80%" width="260%" height="260%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#4b443b" floodOpacity="0.22" />
+        </filter>
+        <filter id="hash-key-shadow" x="-100%" y="-100%" width="300%" height="300%">
+          <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" floodColor="#4b443b" floodOpacity="0.2" />
+        </filter>
+        <linearGradient id="hash-ring-track" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#eee7dc" />
+          <stop offset="100%" stopColor="#d8cfc2" />
+        </linearGradient>
+      </defs>
+      <circle
+        cx={cx}
+        cy={cy + 5}
+        r={tokenR + 9}
+        className="fill-[#d8d0c5]/40"
+      />
       <circle
         cx={cx}
         cy={cy}
         r={tokenR}
-        className="fill-none stroke-gray-300 dark:stroke-gray-600"
+        fill="none"
+        stroke="url(#hash-ring-track)"
+        strokeWidth={18}
+      />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={tokenR}
+        className="fill-none stroke-white/60 dark:stroke-white/10"
         strokeWidth={2}
       />
       <text
         x={cx}
-        y={cy - 8}
+        y={cy - 14}
         textAnchor="middle"
-        className="fill-gray-500 text-[11px] dark:fill-gray-400"
+        className="fill-[#343a4a] text-[13px] font-bold tracking-[0.16em] dark:fill-stone-100"
       >
-        {snapshot.mode === "ring" ? "hash ring" : "hash % N"}
+        {snapshot.mode === "ring" ? "HASH RING" : "HASH % N"}
       </text>
       <text
         x={cx}
-        y={cy + 10}
+        y={cy + 7}
         textAnchor="middle"
-        className="fill-gray-400 text-[10px] dark:fill-gray-500"
+        className="fill-[#777064] text-[10px] dark:fill-stone-400"
       >
         {snapshot.mode === "ring"
-          ? "next vnode clockwise"
+          ? `${snapshot.keys.length} keys · ${snapshot.tokens.length} tokens`
           : `${snapshot.nodeIds.length} buckets`}
       </text>
+      <path
+        d={`M ${cx + 43} ${cy + 33} A 50 50 0 0 1 ${cx + 67} ${cy + 7}`}
+        fill="none"
+        className="stroke-[#b3aa9d] dark:stroke-stone-600"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+      />
+      <path
+        d={`M ${cx + 64} ${cy + 7} l 7 -1 l -3 7`}
+        fill="none"
+        className="stroke-[#b3aa9d] dark:stroke-stone-600"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
 
       {walkPath ? (
         <path
           d={walkPath}
           fill="none"
           className="stroke-amber-400 dark:stroke-amber-300"
-          strokeWidth={3}
+          strokeWidth={5}
           strokeLinecap="round"
           data-hash-walk
         />
@@ -121,9 +162,10 @@ export function HashRing({
         <circle
           cx={walker.x}
           cy={walker.y}
-          r={5}
-          className="fill-amber-400 stroke-white dark:fill-amber-300 dark:stroke-gray-950"
-          strokeWidth={1.5}
+          r={7}
+          className="fill-[#f0b554] stroke-white dark:stroke-stone-950"
+          strokeWidth={2.5}
+          filter="url(#hash-key-shadow)"
           data-hash-walker
         />
       ) : null}
@@ -137,16 +179,27 @@ export function HashRing({
             <circle
               cx={pt.x}
               cy={pt.y}
-              r={active ? 9 : 7}
+              r={active ? 11 : 9}
               className={cn(
                 NODE_DOT[color],
-                "stroke-white dark:stroke-gray-950",
-                active && "stroke-amber-400 dark:stroke-amber-300"
+                "stroke-[#faf7f1] dark:stroke-stone-950",
+                active && "stroke-[#f0b554]"
               )}
-              strokeWidth={active ? 3 : 2}
+              strokeWidth={active ? 4 : 3}
+              filter="url(#hash-token-shadow)"
             >
               <title>{`${nodeSpec(token.nodeId).label} vnode ${token.vnode}`}</title>
             </circle>
+            {token.vnode === 0 ? (
+              <text
+                x={pt.x}
+                y={pt.y + (pt.y < cy ? -17 : 23)}
+                textAnchor="middle"
+                className="fill-[#4b4750] text-[9px] font-bold tracking-wide dark:fill-stone-200"
+              >
+                {nodeSpec(token.nodeId).label}
+              </text>
+            ) : null}
           </g>
         );
       })}
@@ -167,25 +220,37 @@ export function HashRing({
             <circle
               cx={pt.x}
               cy={pt.y}
-              r={active || moved ? 6 : 4.5}
+              r={active || moved ? 7 : 5}
               className={cn(
                 KEY_DOT[color],
-                "stroke-white dark:stroke-gray-950",
-                (active || moved) && "stroke-amber-400 dark:stroke-amber-300"
+                "stroke-[#fffaf2] dark:stroke-stone-950",
+                (active || moved) && "stroke-[#f0b554]"
               )}
-              strokeWidth={active || moved ? 2.5 : 1.5}
-            />
-            <text
-              x={pt.x}
-              y={pt.y + (pt.y >= cy ? 14 : -8)}
-              textAnchor="middle"
-              className={cn(
-                "fill-gray-600 text-[8px] dark:fill-gray-300",
-                (active || moved) && "font-semibold fill-gray-900 dark:fill-white"
-              )}
+              strokeWidth={active || moved ? 3 : 2}
+              filter="url(#hash-key-shadow)"
             >
-              {key.id}
-            </text>
+              <title>{`${key.id} → ${owner ? nodeSpec(owner).label : "unassigned"}`}</title>
+            </circle>
+            {active || moved ? (
+              <g>
+                <rect
+                  x={pt.x - Math.max(22, key.id.length * 3.8)}
+                  y={pt.y + (pt.y >= cy ? 11 : -29)}
+                  width={Math.max(44, key.id.length * 7.6)}
+                  height={18}
+                  rx={9}
+                  className="fill-[#fffaf2] stroke-[#d9cfc0] dark:fill-stone-800 dark:stroke-stone-600"
+                />
+                <text
+                  x={pt.x}
+                  y={pt.y + (pt.y >= cy ? 24 : -16)}
+                  textAnchor="middle"
+                  className="fill-[#343a4a] text-[9px] font-semibold dark:fill-stone-100"
+                >
+                  {key.id}
+                </text>
+              </g>
+            ) : null}
           </g>
         );
       })}

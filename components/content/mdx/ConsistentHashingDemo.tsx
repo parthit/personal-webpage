@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo, useState, useSyncExternalStore } from "react";
+import { Minus, Plus, RotateCcw, Search, Server } from "lucide-react";
 import { AnimationPlayer } from "@/components/animation/AnimationPlayer";
 import { useAnimationPlayer } from "@/components/animation/useAnimationPlayer";
 import { useLiveStepProgress } from "@/components/animation/useLiveStepProgress";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Slider } from "@/components/ui/slider";
-import { figureShell } from "@/components/content/mdx/replication/ReplicaCard";
 import { HashRing } from "@/components/content/mdx/hashing/HashRing";
 import {
   getReducedMotionServerSnapshot,
@@ -48,20 +48,23 @@ const MODE_OPTIONS = [
 ];
 
 const NODE_CHIP: Record<string, string> = {
-  sky: "bg-sky-100 text-sky-950 dark:bg-sky-950 dark:text-sky-100",
-  amber: "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100",
-  emerald: "bg-emerald-100 text-emerald-950 dark:bg-emerald-950 dark:text-emerald-100",
-  violet: "bg-violet-100 text-violet-950 dark:bg-violet-950 dark:text-violet-100",
-  rose: "bg-rose-100 text-rose-950 dark:bg-rose-950 dark:text-rose-100",
+  sky: "bg-[#e0e4f2] text-[#3f4b7a] dark:bg-[#303852] dark:text-[#dce2ff]",
+  amber: "bg-[#f4dfd4] text-[#864c38] dark:bg-[#56372d] dark:text-[#ffdccc]",
+  emerald: "bg-[#dce9e1] text-[#476859] dark:bg-[#30463c] dark:text-[#d6eee1]",
+  violet: "bg-[#e8e2f0] text-[#5f5379] dark:bg-[#433a55] dark:text-[#e8e0f5]",
+  rose: "bg-[#f1dde0] text-[#78434b] dark:bg-[#52343a] dark:text-[#f4dbe0]",
 };
 
 const BAR: Record<string, string> = {
-  sky: "bg-sky-500",
-  amber: "bg-amber-500",
-  emerald: "bg-emerald-500",
-  violet: "bg-violet-500",
-  rose: "bg-rose-500",
+  sky: "bg-[#6673a8]",
+  amber: "bg-[#d98b68]",
+  emerald: "bg-[#72927f]",
+  violet: "bg-[#8a7dab]",
+  rose: "bg-[#bd6f78]",
 };
+
+const figureShell =
+  "not-prose relative z-10 my-8 w-full overflow-hidden rounded-[1.4rem] border border-[#d9d0c3] bg-[#f6f1e9] shadow-[0_18px_60px_-36px_rgba(70,60,48,0.55)] dark:border-stone-700 dark:bg-stone-900 lg:left-1/2 lg:w-[min(60rem,calc(100vw-2.5rem))] lg:max-w-none lg:-translate-x-1/2";
 
 export function ConsistentHashingDemo() {
   const [scene, setScene] = useState<HashScene>(() => createScene("ring"));
@@ -132,46 +135,121 @@ export function ConsistentHashingDemo() {
 
   return (
     <figure className={figureShell} data-consistent-hashing-demo>
-      <figcaption className="border-b border-gray-200 px-3 py-3 text-sm text-gray-600 sm:px-4 dark:border-gray-700 dark:text-gray-300">
-        Consistent hashing — add a node and count how many keys change owner
+      <figcaption className="flex flex-col gap-1 border-b border-[#ded5c9] px-4 py-4 sm:px-6 dark:border-stone-700">
+        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8b8175] dark:text-stone-400">
+          Distribution playground
+        </span>
+        <span className="text-lg font-semibold tracking-tight text-[#303544] dark:text-stone-100">
+          Watch ownership change, not the whole cluster
+        </span>
       </figcaption>
 
-      <div className="space-y-3 border-b border-gray-200 px-3 py-3 sm:px-4 dark:border-gray-700">
-        <SegmentedControl
-          label="Placement"
-          value={scene.mode}
-          options={MODE_OPTIONS}
-          onValueChange={(next) => changeMode(next as PlacementMode)}
-          disabled={busy}
-          hint
-          data-testid="hash-mode"
-        />
+      <div className="grid lg:grid-cols-[19rem_minmax(0,1fr)]">
+        <div className="space-y-5 border-b border-[#ded5c9] p-4 sm:p-5 lg:border-r lg:border-b-0 dark:border-stone-700">
+          <SegmentedControl
+            label="Placement strategy"
+            value={scene.mode}
+            options={MODE_OPTIONS}
+            onValueChange={(next) => changeMode(next as PlacementMode)}
+            disabled={busy}
+            hint
+            className="[&_[data-segmented-hint]]:text-[#7c746a]"
+            data-testid="hash-mode"
+          />
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1.5 text-xs font-medium text-gray-600 dark:text-gray-400">
-            Lookup key
-            <select
-              value={lookupKey}
-              disabled={busy}
-              onChange={(e) => setLookupKey(e.target.value)}
-              className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-gray-500 disabled:opacity-60 sm:h-8 dark:border-gray-600 dark:bg-gray-950 dark:text-gray-100"
-              aria-label="Lookup key"
-            >
-              {snapshot.keys.map((key) => (
-                <option key={key.id} value={key.id}>
-                  {key.id}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="flex flex-col gap-2 text-xs font-medium text-gray-600 dark:text-gray-400">
-            <span>
-              Virtual nodes{" "}
-              <span className="tabular-nums text-gray-900 dark:text-gray-100">
+          <section className="rounded-2xl border border-[#ddd3c6] bg-white/65 p-3.5 shadow-sm dark:border-stone-700 dark:bg-stone-950/35">
+            <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[#7b7267] dark:text-stone-400">
+              <Search className="h-3.5 w-3.5" />
+              Follow one key
+            </div>
+            <label className="sr-only" htmlFor="hash-lookup-key">
+              Lookup key
+            </label>
+            <div className="flex gap-2">
+              <select
+                id="hash-lookup-key"
+                value={lookupKey}
+                disabled={busy}
+                onChange={(e) => setLookupKey(e.target.value)}
+                className="h-10 min-w-0 flex-1 rounded-xl border border-[#d8cfc3] bg-[#fffcf7] px-3 text-sm font-medium text-[#343a4a] outline-none focus:border-[#6673a8] focus:ring-2 focus:ring-[#6673a8]/20 disabled:opacity-60 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100"
+                aria-label="Lookup key"
+              >
+                {snapshot.keys.map((key) => (
+                  <option key={key.id} value={key.id}>
+                    {key.id}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                size="sm"
+                className="h-10 rounded-xl bg-[#59658f] px-4 text-white shadow-sm hover:bg-[#4d587e]"
+                disabled={busy}
+                onClick={() => void runLookup()}
+              >
+                Trace
+                <span className="sr-only">Lookup {lookupKey}</span>
+              </Button>
+            </div>
+          </section>
+
+          <section>
+            <div className="mb-2.5 flex items-center justify-between">
+              <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.12em] text-[#7b7267] dark:text-stone-400">
+                <Server className="h-3.5 w-3.5" />
+                Cluster
+              </span>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 gap-1 px-2 text-[11px] text-[#7b7267]"
+                onClick={reset}
+              >
+                <RotateCcw className="h-3 w-3" />
+                Reset
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                size="sm"
+                className="h-9 rounded-xl bg-[#d37d64] text-white shadow-sm hover:bg-[#bf6d56]"
+                disabled={busy || !canAdd}
+                onClick={() => void runMembership("add")}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add node
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-9 rounded-xl border-[#d8cfc3] bg-white/55 text-[#4f4a45] hover:bg-white"
+                disabled={busy || !canRemove}
+                onClick={() => void runMembership("remove")}
+              >
+                <Minus className="h-3.5 w-3.5" />
+                Remove
+                <span className="sr-only"> node</span>
+              </Button>
+            </div>
+          </section>
+
+          <section
+            className={cn(
+              "space-y-2 transition-opacity",
+              scene.mode === "modulo" && "opacity-45"
+            )}
+          >
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-[#5f5952] dark:text-stone-300">
+                Vnodes per server
+              </span>
+              <span className="rounded-full bg-[#e4ded4] px-2 py-0.5 font-bold tabular-nums text-[#4d556f] dark:bg-stone-700 dark:text-stone-100">
                 {scene.vnodes}
               </span>
-              {scene.mode === "modulo" ? " (ring only)" : ""}
-            </span>
+            </div>
             <div className="flex h-8 items-center gap-3">
               <Slider
                 min={1}
@@ -182,85 +260,50 @@ export function ConsistentHashingDemo() {
                 onValueChange={([next]) => changeVnodes(next)}
                 aria-label="Virtual nodes per server"
               />
-              <span className="shrink-0 text-[10px] font-normal text-gray-400 dark:text-gray-500">
+              <span className="shrink-0 text-[10px] text-[#92897f]">
                 1–{MAX_VNODES}
               </span>
             </div>
+          </section>
+
+          <LoadStrip
+            nodeIds={snapshot.nodeIds}
+            counts={counts}
+            total={totalKeys}
+            highlightIds={snapshot.highlightNodeIds}
+          />
+        </div>
+
+        <div className="flex min-w-0 flex-col bg-[#fbf8f2]/55 p-3 sm:p-5 dark:bg-stone-950/20">
+          <div className="flex min-h-[24rem] flex-1 items-center justify-center">
+            <HashRing snapshot={snapshot} walkProgress={walkProgress} />
           </div>
+          <p
+            className="rounded-2xl border border-[#ddd3c6] bg-white/75 px-4 py-3 text-sm leading-relaxed text-[#45413d] shadow-sm dark:border-stone-700 dark:bg-stone-950/45 dark:text-stone-200"
+            data-hash-status
+            data-hash-moved={
+              snapshot.movedCount == null ? "none" : String(snapshot.movedCount)
+            }
+            data-hash-modulo-would-move={
+              snapshot.moduloWouldMove == null
+                ? "none"
+                : String(snapshot.moduloWouldMove)
+            }
+            data-hash-node-count={String(snapshot.nodeIds.length)}
+            data-hash-vnodes={String(scene.vnodes)}
+            aria-live="polite"
+          >
+            {snapshot.message}
+          </p>
         </div>
-
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          <Button
-            type="button"
-            size="sm"
-            className="w-full sm:w-auto"
-            disabled={busy}
-            onClick={() => void runLookup()}
-          >
-            Lookup {lookupKey}
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            className="w-full sm:w-auto"
-            disabled={busy || !canAdd}
-            onClick={() => void runMembership("add")}
-          >
-            Add node
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="secondary"
-            className="w-full sm:w-auto"
-            disabled={busy || !canRemove}
-            onClick={() => void runMembership("remove")}
-          >
-            Remove node
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={reset}
-          >
-            Reset
-          </Button>
-        </div>
-
-        <LoadStrip
-          nodeIds={snapshot.nodeIds}
-          counts={counts}
-          total={totalKeys}
-          highlightIds={snapshot.highlightNodeIds}
-        />
       </div>
 
-      <div className="p-3 sm:p-4">
-        <HashRing snapshot={snapshot} walkProgress={walkProgress} />
-      </div>
-
-      <AnimationPlayer player={player} />
-
-      <p
-        className="border-t border-gray-200 px-3 py-3 text-sm leading-relaxed text-gray-800 sm:px-4 dark:border-gray-700 dark:text-gray-200"
-        data-hash-status
-        data-hash-moved={
-          snapshot.movedCount == null ? "none" : String(snapshot.movedCount)
-        }
-        data-hash-modulo-would-move={
-          snapshot.moduloWouldMove == null
-            ? "none"
-            : String(snapshot.moduloWouldMove)
-        }
-        data-hash-node-count={String(snapshot.nodeIds.length)}
-        data-hash-vnodes={String(scene.vnodes)}
-        aria-live="polite"
-      >
-        {snapshot.message}
-      </p>
+      <AnimationPlayer
+        player={player}
+        idleHint="Run a trace or change the cluster. Playback controls appear here."
+        historyDefaultOpen={false}
+        className="border-[#ded5c9] bg-[#eee8de]/70 dark:border-stone-700 dark:bg-stone-950/40"
+      />
     </figure>
   );
 }
@@ -278,7 +321,7 @@ function LoadStrip({
 }) {
   const highlighted = new Set(highlightIds);
   return (
-    <ul className="space-y-2" data-hash-load>
+    <ul className="grid grid-cols-2 gap-2" data-hash-load>
       {nodeIds.map((id) => {
         const spec = NODE_CATALOG.find((node) => node.id === id) ?? nodeSpec(id);
         const count = counts[id] ?? 0;
@@ -288,25 +331,29 @@ function LoadStrip({
             key={id}
             data-hash-load-node={id}
             data-hash-load-count={String(count)}
-            className="grid grid-cols-[3.5rem_1fr_2.5rem] items-center gap-2 text-xs"
+            className={cn(
+              "rounded-xl border border-[#ddd3c6] bg-white/60 p-2.5 text-xs shadow-sm transition-shadow dark:border-stone-700 dark:bg-stone-950/35",
+              highlighted.has(id) && "ring-2 ring-[#e0a948]"
+            )}
           >
-            <span
-              className={cn(
-                "inline-flex justify-center rounded px-1.5 py-0.5 font-semibold",
-                NODE_CHIP[spec.color],
-                highlighted.has(id) && "ring-2 ring-amber-400"
-              )}
-            >
-              {spec.label}
-            </span>
-            <span className="h-2 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span
+                className={cn(
+                  "inline-flex rounded-lg px-2 py-1 text-[10px] font-bold tracking-wide",
+                  NODE_CHIP[spec.color]
+                )}
+              >
+                {spec.label}
+              </span>
+              <span className="font-semibold tabular-nums text-[#5f5952] dark:text-stone-300">
+                {count} {count === 1 ? "key" : "keys"}
+              </span>
+            </div>
+            <span className="block h-1.5 overflow-hidden rounded-full bg-[#e2ddd5] dark:bg-stone-700">
               <span
                 className={cn("block h-full rounded-full", BAR[spec.color])}
                 style={{ width: `${pct}%` }}
               />
-            </span>
-            <span className="tabular-nums text-gray-600 dark:text-gray-400">
-              {count}/{total}
             </span>
           </li>
         );

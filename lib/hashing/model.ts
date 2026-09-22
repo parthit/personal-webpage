@@ -41,26 +41,37 @@ export const KEY_IDS = [
   "video",
 ] as const;
 
-/** Catalog-wide vnode slots so a joining node keeps stable positions. */
-const CATALOG_SLOTS = NODE_CATALOG.length * MAX_VNODES;
-
 /**
  * Keys sit in a few arcs that SFO will steal and on stable stretches of the
  * ring. That makes “add a node” visible without relying on an unlucky hash.
  */
 export const KEY_POSITIONS: Record<(typeof KEY_IDS)[number], number> = {
-  cart: 22,
-  user: 68,
-  session: 115,
-  invoice: 35,
-  cache: 82,
-  feed: 4,
-  auth: 51,
-  search: 93,
-  email: 98,
-  order: 14,
-  image: 56,
-  video: 108,
+  cart: 28,
+  user: 188,
+  session: 308,
+  invoice: 5,
+  cache: 120,
+  feed: 240,
+  auth: 350,
+  search: 250,
+  email: 48,
+  order: 168,
+  image: 280,
+  video: 82,
+};
+
+/**
+ * Stable vnode positions, spread across the whole circle. Keeping positions
+ * stable means adding a physical node only inserts its own tokens. Each later
+ * vnode fills another gap, so the 1-vnode view stays intentionally lumpy while
+ * the default 3-vnode view is balanced and readable.
+ */
+const TOKEN_POSITIONS: Record<string, number[]> = {
+  nyc: [20, 140, 260, 80, 200, 320, 50, 230],
+  lon: [60, 180, 300, 120, 240, 0, 90, 270],
+  syd: [100, 220, 340, 160, 280, 40, 130, 310],
+  sfo: [35, 195, 315, 95, 215, 335, 65, 245],
+  bom: [75, 255, 135, 15, 175, 295, 105, 225],
 };
 
 export type HashToken = {
@@ -139,10 +150,7 @@ export function tokenId(nodeId: string, vnode: number): string {
 }
 
 export function tokenPosition(nodeId: string, vnode: number): number {
-  const index = NODE_CATALOG.findIndex((node) => node.id === nodeId);
-  if (index < 0) return ringPosition(`${nodeId}:${vnode}`);
-  const slot = vnode * NODE_CATALOG.length + index;
-  return Math.floor((slot * RING_SIZE) / CATALOG_SLOTS) % RING_SIZE;
+  return TOKEN_POSITIONS[nodeId]?.[vnode] ?? ringPosition(`${nodeId}:${vnode}`);
 }
 
 export function keyPosition(keyId: string): number {

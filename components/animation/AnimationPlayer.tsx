@@ -42,9 +42,15 @@ const STATUS_COPY: Record<
 export function AnimationPlayer<T>({
   player,
   title = "Animation timeline",
+  idleHint = "Run an operation above and every step lands here — scrub, replay, or slow it down.",
+  historyDefaultOpen = true,
+  className,
 }: {
   player: AnimationPlayerState<T>;
   title?: string;
+  idleHint?: string;
+  historyDefaultOpen?: boolean;
+  className?: string;
 }) {
   const playing = player.status === "playing";
   const hasTimeline = player.steps.length > 1;
@@ -72,7 +78,10 @@ export function AnimationPlayer<T>({
 
   return (
     <section
-      className="border-t border-gray-200 bg-white/70 px-3 py-3 sm:px-4 dark:border-gray-700 dark:bg-gray-950/40"
+      className={cn(
+        "border-t border-gray-200 bg-white/70 px-3 py-3 sm:px-4 dark:border-gray-700 dark:bg-gray-950/40",
+        className
+      )}
       aria-label={title}
       data-animation-player
       data-playback-status={player.status}
@@ -204,8 +213,7 @@ export function AnimationPlayer<T>({
           </p>
         ) : (
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Run an operation above and every step lands here — scrub, replay, or
-            slow it down.
+            {idleHint}
           </p>
         )}
         <SegmentedControl
@@ -222,7 +230,7 @@ export function AnimationPlayer<T>({
       </div>
 
       {hasTimeline ? (
-        <details className="group mt-3" open>
+        <details className="group mt-3" open={historyDefaultOpen}>
           <summary className="flex cursor-pointer list-none items-center gap-1.5 text-xs font-medium text-gray-600 marker:hidden dark:text-gray-300">
             <History className="h-3.5 w-3.5" />
             Step history
